@@ -1,0 +1,4 @@
+-graphics
+-progressbar
+-QThread libscrobble usage?
+-use proper way to prevent floppy drive being read on Windows when opening browsedirtree

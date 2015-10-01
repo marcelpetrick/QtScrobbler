@@ -1,0 +1,24 @@
+Source: qtscrob
+Section: net
+Priority: optional
+Maintainer: Robert Keevil <rkeevil@gmail.com>
+Build-Depends: debhelper (>= 7), libqt4-dev, pkg-config, libmtp-dev
+Standards-Version: 3.7.3
+Homepage: http://qtscrob.sourceforge.net
+
+Package: qtscrob
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Qt last.fm submitter for portable music devices
+ qtscrob is a Qt app for editing and uploading information about listened
+ tracks to last.fm (formerly known as audioscrobbler).  qtscrob can retrieve
+ this information from iPods, MTP (aka Plays for Sure) or Rockbox devices.
+
+Package: scrobbler
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: console-based last.fm submitter for portable music devices
+ scrobble-cli is a console based app for uploading information about listened
+ tracks to last.fm (formerly known as audioscrobbler).  scrobble-cli can
+ retrieve this information from iPods, MTP (aka Plays for Sure) or Rockbox
+ devices.

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=QTScrobbler
+Type=Application
+Comment=QTScrobbler is tool for submitting .scrobbler.log from portable players to Last.fm
+Exec=qtscrob
+Icon=qtscrob.png
+Terminal=false
+Categories=Network;Qt;

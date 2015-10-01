@@ -1,0 +1,30 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+	<file alias="index.html">resources/help/index.html</file>
+	<file alias="/images/settings_general.png">resources/help/images/settings_general.png</file>
+	<file alias="/images/settings_sites.png">resources/help/images/settings_sites.png</file>
+	<file alias="/images/settings_proxy.png">resources/help/images/settings_proxy.png</file>
+	<file alias="/images/settings_timezone.png">resources/help/images/settings_timezone.png</file>
+	<file>resources/icons/16x16/qtscrob.png</file>
+	<file>resources/icons/32x32/qtscrob.png</file>
+	<file>resources/icons/128x128/qtscrob.png</file>
+	<file>resources/icons/appointment-new.png</file>
+	<file>resources/icons/document-open.png</file>
+	<file>resources/icons/edit-clear.png</file>
+	<file>resources/icons/emblem-system.png</file>
+	<file>resources/icons/go-next.png</file>
+	<file>resources/icons/help-browser.png</file>
+	<file>resources/icons/mail-send-receive.png</file>
+	<file>resources/icons/multimedia-player-iriver-s10_16.png</file>
+	<file>resources/icons/network-wired.png</file>
+	<file>resources/icons/preferences-system.png</file>
+	<file>resources/icons/process-stop.png</file>
+	<file>resources/icons/system-log-out.png</file>
+</qresource>
+<qresource lang="pl">
+	<file alias="language.qm">../language/pl.qm</file>
+</qresource>
+<qresource lang="de">
+        <file alias="language.qm">../language/de.qm</file>
+</qresource>
+</RCC>

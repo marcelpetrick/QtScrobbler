@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html><head>
+
+  <style>
+<!--
+body {
+color: #000000;
+font-family: Verdana, Tahoma, Arial, Helvetica, sans-serif;
+font-size: 11pt;
+background-color: white;
+}
+
+img {
+border: 0;
+}
+
+span.mono {
+font-family: Courier, Courier New, Verdana, Monospace;
+}
+-->
+  </style></head><body>
+    <div align="center">
+      <h3>
+         QTScrobbler, &#169;2006-2009 Tomasz Mo&#x0144;, &#169;2006-2010 Robert Keevil
+      </h3>
+    </div>
+      <br /><p>
+QTScrobbler is a tool to upload information about the tracks you have
+played from your Digital Audio Player (DAP) to your last.fm (or
+libre.fm) account. It is able to gather this information from Apple
+iPods, DAPs running the Rockbox replacement firmware, or MTP devices
+(aka PlaysForSure). </p>
+   <p>
+      <u><strong>General Settings</strong></u>
+     <br />
+      <br />
+      <img src=":/images/settings_general.png" /><br />
+      <br />
+      <strong>Automatically open log</strong>:
+once you have successfully submitted this will remember the last mount
+point of your DAP and attempt to use it again the next time you click
+Open. <br />
+      <br />
+      <strong>Auto-delete Apple Playcount</strong>:
+(iTunes DB only) third party software for syncing with iPods (instead
+of iTunes) does not always delete the "Play Counts" file - selecting
+this option will remove the file for you on a successful submission.
+This will prevent the same tracks from reappearing again and again. <br />
+      <br />
+      <strong>Display time as UTC</strong>: Enabling
+this will display all times in the GUI as UTC (aka GMT), otherwise they
+will be displayed in your local timezone (including any overrides set
+in the Timezone tab). <br />
+    </p>
+    <p>
+      <u><strong>Sites</strong></u>
+      <br />
+      <br />
+      <img src=":/images/settings_sites.png" /><br />
+      <br />
+Here you can enable the upload of track information to one or more of
+last.fm, libre.fm and a custom site. last.fm and libre.fm have their
+hostname information hard-coded, whilst the custom site is available
+for you to set as required. <br />
+      <br />
+      <strong>Username</strong> and <strong>Password</strong> are your 
+login for the site in question. The password is saved in an encrypted 
+form. <strong>Enabled</strong> allows you to choose which sites to upload 
+to.
+    </p>
+    <p>
+      <br />
+      <u><strong>Proxy Settings</strong></u>
+      <br />
+      <br />
+      <img src=":/images/settings_proxy.png" /><br />
+      <br />
+Here you can set the Host and Port details for a HTTP proxy. You can
+also optionally specify Username &amp; Password authentication if
+required. N.B. the proxy Username &amp; Password are stored as plain
+text! <br />
+      <br />
+      <br />
+      <u><strong>Timezone Settings</strong></u>
+      <br />
+      <br />
+      <img src=":/images/settings_timezone.png" /><br />
+     <br />
+      <br />
+This displays the automatically detected timezone settings. If this is
+incorrect, or if your DAP is using different settings, set the manual
+override. <br />
+   </p>
+    <p>
+     <u><strong>Using QTScrobbler</strong></u>
+      <br />
+      <br />Make sure your DAP is connected to your PC and properly 
+mounted, and then select <strong>Open .scrobbler.log</strong> if you 
+are using Rockbox, <strong>Open iTunesDB</strong> if you are using the 
+iPod firmware, or <strong>Open MTP</strong> to connect to your MTP 
+device.  For the first two options this will cause an open dialogue to 
+appear - select the <em>root</em> folder for your DAP, i.e. on Windows 
+the drive letter that has been assigned, or on Linux the mount point 
+such as <span class="mono">/media/ipod</span>.
+      <br />
+      <br />
+This will load the track information into the main grid view - here you
+can correct entries by double clicking on the individual cells, or
+remove one or more entries using the <strong>Delete selected item</strong> button.
+      <br />
+      <br />
+      It is also possible to edit date all tracks were listened to at 
+once using the <strong>Recalc Date/Time</strong> button.  The end 
+timestamp can be adjusted by changing the spincontrol in the bottom 
+right corner.  N.B. when opening a <span class="mono">.scrobbler-timeless.log</span> 
+file from a Rockbox target that lacks a clock, or when using a MTP 
+device, this step is taken automatically.
+      <br />
+      <br />
+      Once you are happy that all the track information is how it should 
+be it's time to <strong>Submit</strong> them!
+      <br />
+   </p>
+  
+</body></html>
