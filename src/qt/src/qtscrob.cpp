@@ -19,12 +19,15 @@
 
 #include <QtGui>
 #include <QTime>
+#include <QTableWidget>
 #include "qtscrob.h"
 #include "settings.h"
 #include "about.h"
 #include "help.h"
 #include "progress.h"
 #include "console.h"
+//#include <QHeaderView>
+#include <QFileDialog>
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
@@ -40,8 +43,8 @@ QTScrob::QTScrob(QWidget *parent) : QMainWindow( parent ) {
 	logTable->setRowCount(0);
 	logTable->setHorizontalHeaderLabels(tableLabels);
 	logTable->setAlternatingRowColors(true);
-	logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-	logTable->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+    logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    logTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     logTable->installEventFilter(this);
 
     recalc_timestamp = scrob->get_gmt();
@@ -600,7 +603,7 @@ void QTScrob::changeRow(int r, int c) {
 		case 5:
 			if (!logTable->item(r, c)->text().isEmpty())
 			{
-				char rating = logTable->item(r, c)->text().toAscii().data()[0];
+                char rating = logTable->item(r, c)->text().toLocal8Bit().data()[0];
 				if ('L' == rating || 'S' == rating)
 					tmp.played = rating;
 			}

@@ -20,7 +20,7 @@
 #define SUBMIT_H
 
 #include <QtCore>
-#include <QHttp>
+//#include <QHttp>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QNetworkReply>

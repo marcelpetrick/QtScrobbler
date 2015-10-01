@@ -1,9 +1,4 @@
-VER = $$find(QT_VERSION, ^4\\.[6-9]+.*)
-isEmpty(VER) {
-    message("Qt >= 4.6 required!")
-    !isEmpty(QT_VERSION) error("Qt found:" $$[QT_VERSION])
-}
-message("Qt version used:" $$VER)
+message("Qt version used:" $$QT_VERSION)
 
 isEmpty(QMAKE_LRELEASE) {
     win32:QMAKE_LRELEASE = $$[QT_INSTALL_BINS]/lrelease.exe

@@ -21,7 +21,11 @@
 
 #include <QTimer>
 #include <QApplication>
-#include <QtGui>
+//#include <QtGui>
+#include <QDialog>
+#include <QTextEdit>
+#include <QComboBox>
+#include <QLabel>
 
 class QTScrob;
 class QTimer;

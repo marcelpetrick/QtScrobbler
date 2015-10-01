@@ -153,9 +153,9 @@ void Parse_Log::open(QString folder_path, int tz)
                 //right number of tabs in the line
                 scrob_entry temp_entry;
 
-                temp_entry.artist = QString::fromUtf8(log_entry[0].toAscii());
-                temp_entry.album = QString::fromUtf8(log_entry[1].toAscii());
-                temp_entry.title = QString::fromUtf8(log_entry[2].toAscii());
+                temp_entry.artist = QString::fromUtf8(log_entry[0].toLocal8Bit());
+                temp_entry.album = QString::fromUtf8(log_entry[1].toLocal8Bit());
+                temp_entry.title = QString::fromUtf8(log_entry[2].toLocal8Bit());
                 temp_entry.tracknum = log_entry[3].toInt();
                 temp_entry.length = log_entry[4].toInt();
                 temp_entry.played = log_entry[5][0];
@@ -177,8 +177,7 @@ void Parse_Log::open(QString folder_path, int tz)
     if (entries > 0)
     {
         parsed = true;
-        emit open_finished(true,
-                        tr("Successfully parsed %1 log entries").arg(entries));
+        emit open_finished(true, tr("Successfully parsed %1 log entries").arg(entries));
     }
 }
 

@@ -33,6 +33,9 @@
 #include "common.h"
 #include "missingtimeprogress.h"
 
+#include <QMenuBar>
+#include <QStatusBar>
+
 class Settings;
 class About;
 class Help;

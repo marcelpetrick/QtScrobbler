@@ -19,6 +19,8 @@
 #include "console.h"
 #include "qtscrob.h"
 
+#include <QPushButton>
+
 Console::Console(QTScrob *parent) : QDialog(parent) {
 	qtscrob = parent;
 	this->setWindowTitle(tr("Console"));

@@ -58,7 +58,7 @@ void GetTrackInfo::get(int index, scrob_entry info, int wait)
     data += "&track=" + QUrl::toPercentEncoding(track_info.title);
     data += "&autocorrect=1";
     time.restart();
-    manager->post(request, QByteArray(data.toAscii()));
+    manager->post(request, QByteArray(data.toLocal8Bit()));
 }
 
 void GetTrackInfo::run()

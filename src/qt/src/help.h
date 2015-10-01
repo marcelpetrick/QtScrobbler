@@ -21,6 +21,8 @@
 
 #include <QApplication>
 #include <QtGui>
+#include <QDialog>
+#include <QTextEdit>
 
 class QTScrob;
 

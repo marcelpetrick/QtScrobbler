@@ -32,7 +32,8 @@ unix:!mac {
 
 TEMPLATE = app
 TARGET = qtscrob
-QT += gui
+QT += gui \
+      widgets
 LANGUAGE = C++
 INCLUDEPATH += . \
     src \

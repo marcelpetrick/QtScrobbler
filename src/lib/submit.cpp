@@ -151,7 +151,7 @@ void Submit::senddata()
     submit_handshake.setHeader(QNetworkRequest::ContentTypeHeader,
                                "application/x-www-form-urlencoded");
 
-    QByteArray submit_data = QByteArray(data.toAscii());
+    QByteArray submit_data = QByteArray(data.toLocal8Bit());
     nr_submit = nam_submit->post(submit_handshake, submit_data);
 }
 
@@ -251,7 +251,7 @@ void Submit::handshake()
     QString time_str = QString::number(QDateTime::currentDateTime().toTime_t());
 
     QCryptographicHash auth_hash(QCryptographicHash::Md5);
-    auth_hash.addData(QString(context.password_hash + time_str).toAscii());
+    auth_hash.addData(QString(context.password_hash + time_str).toLocal8Bit());
     QString auth = QString(auth_hash.result().toHex());
 
     QUrl url_handshake = QString( "http://%1/?hs=true&p=%2&c=%3&v=%4&u=%5&t=%6&a=%7" )
