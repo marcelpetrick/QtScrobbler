@@ -20,7 +20,6 @@
 #define PROGRESS_H
 
 #include <QApplication>
-//#include <QtGui>
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QPushButton>

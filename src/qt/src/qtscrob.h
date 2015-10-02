@@ -20,7 +20,10 @@
 #ifndef QTSCROB_H
 #define QTSCROB_H
 
-#include <QtGui>
+#include "libscrobble.h"
+#include "common.h"
+#include "missingtimeprogress.h"
+
 #include <QApplication>
 #include <QMainWindow>
 #include <QMessageBox>
@@ -29,10 +32,6 @@
 #include <QSettings>
 #include <QDateTimeEdit>
 #include <QLabel>
-#include "libscrobble.h"
-#include "common.h"
-#include "missingtimeprogress.h"
-
 #include <QMenuBar>
 #include <QStatusBar>
 

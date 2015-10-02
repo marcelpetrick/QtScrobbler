@@ -1,3 +1,7 @@
+* version 0.12 (2015-10-02)
+- upgraded the whole project to be able to compile with the current Qt (5.5): adapted several includes and some function-calls
+- fixed some minor issues and typos
+
 *version 0.11 (2013-01-21)
 -Major rewrite
 -Split out backend code into various classes for parsing and submission

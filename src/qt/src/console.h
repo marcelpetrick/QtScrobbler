@@ -21,7 +21,6 @@
 
 #include <QTimer>
 #include <QApplication>
-//#include <QtGui>
 #include <QDialog>
 #include <QTextEdit>
 #include <QComboBox>

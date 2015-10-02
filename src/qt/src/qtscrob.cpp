@@ -17,16 +17,16 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.         *
  ***************************************************************************/
 
-#include <QtGui>
-#include <QTime>
-#include <QTableWidget>
 #include "qtscrob.h"
 #include "settings.h"
 #include "about.h"
 #include "help.h"
 #include "progress.h"
 #include "console.h"
-//#include <QHeaderView>
+
+#include <QTime>
+#include <QTableWidget>
+#include <QCloseEvent>
 #include <QFileDialog>
 
 #ifdef _MSC_VER
@@ -103,7 +103,7 @@ void QTScrob::setupWidgets() {
 	actExit = new QAction(tr("Exit"),this);
 	actHelp = new QAction(tr("Help"),this);
 	actAbout = new QAction(tr("About"),this);
-	actAboutQt = new QAction(tr("AboutQt"),this);
+    actAboutQt = new QAction(tr("About Qt"),this);
 	actSettings = new QAction(tr("Settings"),this);
 	actConsole = new QAction(tr("Console"), this);
 
@@ -662,15 +662,15 @@ void QTScrob::scrobbled(bool success) {
 	// TODO - fix this
 	if(success) {
 
-		lblStatus->setText(tr("Data submitted Ok"));
+        lblStatus->setText(tr("Data submitted succesfully"));
 		qDebug() << "Submission complete";
 	} else {
 		qDebug() << "Submission failed: " << scrob->get_error_str();
 
 		QMessageBox::warning(this, QCoreApplication::applicationName(),
-                             tr("There was a problem submitting data to the server\n(reason: %1)")
+                             tr("There was a problem submitting data to the server.\n(Reason: %1)")
 							 .arg( scrob->get_error_str() ));
-        lblStatus->setText(tr("Submission Failed"));
+        lblStatus->setText(tr("Submission failed"));
 	}
 
 	loadtable();

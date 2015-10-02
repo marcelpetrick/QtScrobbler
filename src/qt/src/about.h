@@ -21,7 +21,6 @@
 
 #include "ui_aboutWin.h"
 #include <QApplication>
-#include <QtGui>
 
 class QTScrob;
 

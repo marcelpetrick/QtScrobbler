@@ -108,7 +108,7 @@ Scrobble::~Scrobble()
 
 /* mktime() code taken from lynx-2.8.5 source, written
  by Philippe De Muyter <phdm@macqel.be> */
-// if only QT had its own time functions...
+// if only Qt had its own time functions...
 time_t Scrobble::dt_to_time_t(QDateTime dt)
 {
     short month, year;
@@ -142,9 +142,6 @@ time_t Scrobble::dt_to_time_t(QDateTime dt)
     return (result);
 }
 
-/*!
-  *
-  */
 int Scrobble::get_custom_offset()
 {
     return (conf->tz_override?conf->utc_offset:gmt_offset);

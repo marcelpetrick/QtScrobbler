@@ -20,7 +20,6 @@
 #define HELP_H
 
 #include <QApplication>
-#include <QtGui>
 #include <QDialog>
 #include <QTextEdit>
 
@@ -34,7 +33,6 @@ class Help : public QDialog {
 
 	public:
 		Help(QTScrob *parent = 0);
-
 };
 
 #endif

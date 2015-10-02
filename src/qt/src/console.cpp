@@ -20,6 +20,7 @@
 #include "qtscrob.h"
 
 #include <QPushButton>
+#include <QClipboard>
 
 Console::Console(QTScrob *parent) : QDialog(parent) {
 	qtscrob = parent;

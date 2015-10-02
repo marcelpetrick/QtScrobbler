@@ -22,7 +22,7 @@
 #include <QtCore>
 
 #define CLIENT_ID "qts"
-#define CLIENT_VERSION "0.11"
+#define CLIENT_VERSION "0.12"
 #define CLIENT_USERAGENT "QTScrobbler v" CLIENT_VERSION
 #define PROTOCOL_VERSION "1.2"
 #define API_KEY "992b6748eea766062671eccb419aecd0"

@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     }
 
     // HACK - allows exec() to kick in before run() is called
-    // how else are you supposed to get a class setup as a console app in QT?
+    // how else are you supposed to get a class setup as a console app in Qt?
     QTimer::singleShot(100, cli, SLOT(run()));
 
     return cli->exec();
