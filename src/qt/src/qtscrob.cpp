@@ -550,6 +550,7 @@ void QTScrob::deleteRow() {
 			}
 		}
 	}
+
 	loadtable();
 	if (scrob->get_num_tracks() == 0)
 	{
@@ -661,7 +662,6 @@ void QTScrob::scrobbled(bool success) {
 
 	// TODO - fix this
 	if(success) {
-
         lblStatus->setText(tr("Data submitted succesfully"));
 		qDebug() << "Submission complete";
 	} else {
@@ -683,28 +683,16 @@ void QTScrob::set_open_buttons()
 {
 // don't allow more than one parser method to be opened at a time
 // (unless the last method opened 0 tracks)
-	if (scrob->get_parser_busy() && scrob->get_num_tracks())
-	{
-		actOpen->setEnabled(false);
-		actOpeniTunes->setEnabled(false);
-		btnOpen->setEnabled(false);
-		btnOpeniTunes->setEnabled(false);
+    bool const state(!(scrob->get_parser_busy() && scrob->get_num_tracks()));
+
+    actOpen->setEnabled(state);
+    actOpeniTunes->setEnabled(state);
+    btnOpen->setEnabled(state);
+    btnOpeniTunes->setEnabled(state);
 #ifdef HAVE_MTP
-		actOpenMTP->setEnabled(false);
-		btnOpenMTP->setEnabled(false);
+    actOpenMTP->setEnabled(state);
+    btnOpenMTP->setEnabled(state);
 #endif
-	}
-	else
-	{
-		actOpen->setEnabled(true);
-		actOpeniTunes->setEnabled(true);
-		btnOpen->setEnabled(true);
-		btnOpeniTunes->setEnabled(true);
-#ifdef HAVE_MTP
-		actOpenMTP->setEnabled(true);
-		btnOpenMTP->setEnabled(true);
-#endif
-	}
 }
 
 void QTScrob::settings_close()
