@@ -22,16 +22,14 @@
 #include "parse-log.h"
 #include "parse-ipod.h"
 #ifdef HAVE_MTP
-#include "parse-mtp.h"
+    #include "parse-mtp.h"
 #endif
-
 #include "dbcache.h"
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
 #pragma warning (disable: 4996)
 #endif
-
 
 void Scrobble::clear_method()
 {
@@ -75,7 +73,7 @@ Scrobble::Scrobble()
     a = QDateTime::currentDateTime().toUTC();
     b = QDateTime::currentDateTime().toLocalTime();
 
-    gmt_offset = dt_to_time_t(b) - dt_to_time_t(a);
+    gmt_offset = b.toTime_t() -a.toTime_t();
 
     /* initialise TZ variables */
     tzset();
@@ -104,42 +102,6 @@ Scrobble::~Scrobble()
     delete conf;
     delete mutex;
     delete cache;
-}
-
-/* mktime() code taken from lynx-2.8.5 source, written
- by Philippe De Muyter <phdm@macqel.be> */
-// if only Qt had its own time functions...
-time_t Scrobble::dt_to_time_t(QDateTime dt)
-{
-    short month, year;
-    time_t result;
-    static int m_to_d[12] =
-        {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
-
-    month = dt.date().month() - 1;
-    year = dt.date().year() + month / 12;
-    month %= 12;
-    if (month < 0)
-    {
-        year -= 1;
-        month += 12;
-    }
-    result = (year - 1970) * 365 + (year - 1969) / 4 + m_to_d[month];
-    result = (year - 1970) * 365 + m_to_d[month];
-    if (month <= 1)
-        year -= 1;
-    result += (year - 1968) / 4;
-    result -= (year - 1900) / 100;
-    result += (year - 1600) / 400;
-    result += dt.date().day();
-    result -= 1;
-    result *= 24;
-    result += dt.time().hour();
-    result *= 60;
-    result += dt.time().minute();
-    result *= 60;
-    result += dt.time().second();
-    return (result);
 }
 
 int Scrobble::get_custom_offset()
@@ -229,7 +191,6 @@ void Scrobble::cleanup_tracks(void)
 void Scrobble::check_timestamps()
 {
     const int size = entries.size();
-    int i;
 
     if (0 == size)
         return;
@@ -247,6 +208,7 @@ void Scrobble::check_timestamps()
         }
         else
         {
+            int i;
             // find where the good date info ends
             for (i = 1; i < size; i++)
             {

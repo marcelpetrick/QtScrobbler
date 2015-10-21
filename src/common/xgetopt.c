@@ -155,7 +155,6 @@ lookup_longopt(int argc, char **argv,
     int   match = -1;
     int   exact = -1;
     int   min;
-    int   len;
     int   i;
 
     /* if we have no long options, any we get are wrong */
@@ -170,7 +169,7 @@ lookup_longopt(int argc, char **argv,
     min = (eqp ? eqp - optarg : strlen(optarg));
     for (i = 0; longopts[i].name; i++)
     {
-        len = strlen(longopts[i].name);
+        int len = strlen(longopts[i].name);
         /* is it exact? */
         if (len == min && strncmp(longopts[i].name, optarg, len) == 0)
         {

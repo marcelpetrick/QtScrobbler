@@ -65,7 +65,6 @@ private:
     int is_dst;
     QString zonename;
     int gmt_offset;
-    time_t dt_to_time_t(QDateTime);
 
     void set_proxy();
     bool proxy_set;

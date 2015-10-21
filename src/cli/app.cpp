@@ -51,8 +51,6 @@ bool app::parse_cmd(int argc, char** argv)
     verbosity = LOG_DEFAULT;
 
     // parse command line
-    int c;
-
 
     while (1)
     {
@@ -75,7 +73,7 @@ bool app::parse_cmd(int argc, char** argv)
 
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "c:dfhl:mnr:t:v:",
+        int c = getopt_long(argc, argv, "c:dfhl:mnr:t:v:",
                         long_options, &option_index);
 
         if (c == -1)

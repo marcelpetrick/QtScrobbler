@@ -19,7 +19,11 @@
 
 #include "parse-ipod.h"
 
-Parse_Ipod::Parse_Ipod()
+Parse_Ipod::Parse_Ipod() :
+    entries(0),
+    playcounts(0),
+    tracks(0),
+    playcounts_file(QString())
 {
     qDebug() << "Parse_Ipod::Parse_Ipod";
     compressed = false;

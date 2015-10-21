@@ -115,12 +115,12 @@ void Parse_MTP::mtp_iterate(bool clear_tracks)
         {
             add_log(LOG_INFO, "MTP: No tracks.");
         } else {
-            LIBMTP_track_t *track, *tmp;
+            LIBMTP_track_t *track;
             track = tracks;
             while (track != NULL)
             {
                 mtp_trackinfo(iter, track, clear_tracks);
-                tmp = track;
+                LIBMTP_track_t tmp = track;
                 track = track->next;
                 LIBMTP_destroy_track_t(tmp);
             }

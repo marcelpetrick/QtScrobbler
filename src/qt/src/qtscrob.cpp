@@ -27,6 +27,7 @@
 #include <QTime>
 #include <QTableWidget>
 #include <QCloseEvent>
+#include <QtGui>
 #include <QFileDialog>
 
 #ifdef _MSC_VER
@@ -510,10 +511,8 @@ void QTScrob::recalcDT(void) {
 void QTScrob::deleteRow() {
 	if (logTable->rowCount()) { // Items are displayed. 
 	if (logTable->rowCount() == 1) { // Handle it as one item. 
-		QTableWidgetItem *artist = new QTableWidgetItem();
-		QTableWidgetItem *title = new QTableWidgetItem();
-		artist = logTable->item(logTable->currentRow(),0);
-		title = logTable->item(logTable->currentRow(),2);
+        QTableWidgetItem * artist = logTable->item(logTable->currentRow(),0);
+        QTableWidgetItem * title = logTable->item(logTable->currentRow(),2);
 		QMessageBox mb(QCoreApplication::applicationName(),
 			tr("Are you sure you want to delete: %1 - %2?")
 			.arg(artist->text(), title->text()),

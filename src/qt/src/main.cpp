@@ -39,7 +39,6 @@ void printusage()
 
 int main(int argc, char **argv)
 {
-    int c;
     int do_help = 0;
     LOG_LEVEL verbosity = LOG_DEFAULT;
     QString config_path = "";
@@ -71,7 +70,7 @@ int main(int argc, char **argv)
 
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "c:hv:",
+        int c = getopt_long(argc, argv, "c:hv:",
                         long_options, &option_index);
 
         if (c == -1)

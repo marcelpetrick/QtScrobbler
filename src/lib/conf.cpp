@@ -18,7 +18,17 @@
 
 #include "conf.h"
 
-Conf::Conf()
+Conf::Conf() :
+    utc_offset(0),
+    auto_open(false),
+    del_apple_playlist(false),
+    tz_override(false),
+    display_utc(false),
+    mru(NULL),
+    proxy_host(QString()),
+    proxy_port(0),
+    proxy_user(QString()),
+    proxy_pass(QString())
 {
     settings = new QSettings(
 #ifdef Q_OS_WIN32
