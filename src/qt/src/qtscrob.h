@@ -53,7 +53,8 @@ class QLabel;
 class QDateTimeEdit;
 
 class QTScrob : public QMainWindow {
-		Q_OBJECT
+    Q_OBJECT
+
 	protected:
 		void closeEvent(QCloseEvent *event);
         bool eventFilter(QObject *obj, QEvent *event);

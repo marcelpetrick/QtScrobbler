@@ -30,7 +30,6 @@ Progress_UI::Progress_UI(QWidget *parent): QWidget(parent)
 }
 
 Progress::Progress(QTScrob *parent) : QDialog( parent ) {
-    qDebug() << "Progress::Progress";
     this->setWindowTitle(tr("Submission Progress"));
 
     qtscrob = parent;

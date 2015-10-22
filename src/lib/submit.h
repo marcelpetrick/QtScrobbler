@@ -91,6 +91,7 @@ signals:
     void finished(bool success, QString error_msg);
     void progress(int, int, int);
     void add_log(LOG_LEVEL, QString);
+    void signalHandshakeFailure(QString);
 };
 
 #endif

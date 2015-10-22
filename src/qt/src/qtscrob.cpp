@@ -638,20 +638,22 @@ void QTScrob::scrobble() {
 	// make sure the widget appears before we submit()
 	QCoreApplication::flush();
 
-	qDebug() << "Submitting data";
 	lblStatus->setText(tr("Submitting data to server..."));
 	btnSubmit->setEnabled(false);
 
     if (scrob->submit())
     {
         if (winProgress==NULL)
+        {
             winProgress = new Progress(this);
+            connect(scrob, SIGNAL(signalCancelProgress()), winProgress, SLOT(cancel())); //new connection, which allows to break&close the progress-dialog
+        }
         winProgress->show();
     }
 }
 
 void QTScrob::scrobbled(bool success) {
-	qDebug() << "Post submit";
+
 	if (winProgress != NULL)
 	{
 		winProgress->close();
@@ -659,13 +661,9 @@ void QTScrob::scrobbled(bool success) {
 		winProgress = NULL;
 	}
 
-	// TODO - fix this
 	if(success) {
         lblStatus->setText(tr("Data submitted succesfully"));
-		qDebug() << "Submission complete";
 	} else {
-		qDebug() << "Submission failed: " << scrob->get_error_str();
-
 		QMessageBox::warning(this, QCoreApplication::applicationName(),
                              tr("There was a problem submitting data to the server.\n(Reason: %1)")
 							 .arg( scrob->get_error_str() ));

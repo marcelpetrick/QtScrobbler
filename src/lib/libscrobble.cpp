@@ -288,6 +288,12 @@ void Scrobble::updated_track_length(int index, bool success, int length, int ela
         emit missing_times_finished();
 }
 
+void Scrobble::slotCancelProgress()
+{
+    emit signalCancelProgress(); //inform the progress-dialog to cancel/hide itself
+//    emit submission_finished(false); //does the other clean-up; introduced to keep the old workflow of creation
+}
+
 QString Scrobble::offset_str(void)
 {
     QChar sign = (gmt_offset < 0)?'-':'+';
@@ -365,8 +371,7 @@ bool Scrobble::submit()
 
     if (check_age())
     {
-        add_log(LOG_ERROR,
-                tr("One or more tracks are too old.  Correct this and try again."));
+        add_log(LOG_ERROR, tr("One or more tracks are too old.  Correct this and try again."));
         emit submission_finished(false);
         return false;
     }
@@ -407,20 +412,31 @@ bool Scrobble::submit()
                     SIGNAL(add_log(LOG_LEVEL,QString)),
                     this, SLOT(add_log(LOG_LEVEL, QString)));
 
+            //if something while submitting fails, then notify the scrobbler which will also break the progress(-dialog) if necessary
+            connect(submissions[i],
+                    SIGNAL(signalHandshakeFailure(QString)),
+                    this,
+                    SLOT(slotCancelProgress())/*, Qt::DirectConnection*/); //the real stuff: submission -> scrobbler -> progress
+
             submissions[i]->do_submit();
         }
     }
+
     if (0 == submissions.size())
     {
-        add_log(LOG_ERROR,
-                tr("No sites were configured and/or enabled. Unable to submit"));
+        add_log(LOG_ERROR, tr("No sites were configured and/or enabled. Unable to submit"));
         emit submission_finished(false);
         return false;
     }
 
     add_log(LOG_INFO, "Scrobble::submit() finished");
 
-    return true;
+    if(!error_str.isEmpty())
+    {
+        add_log(LOG_INFO, "Scrobble::submit() but with the following errors:" + error_str);
+    }
+
+    return true; //error_str.isEmpty();
 }
 
 void Scrobble::submit_finished(bool success, QString msg)

@@ -20,12 +20,10 @@
 
 Parse_Log::Parse_Log()
 {
-    qDebug() << "Parse_Log::Parse_Log";
 }
 
 Parse_Log::~Parse_Log()
 {
-    qDebug() << "Parse_Log::~Parse_Log";
 }
 
 void Parse_Log::open(QString folder_path, int tz)

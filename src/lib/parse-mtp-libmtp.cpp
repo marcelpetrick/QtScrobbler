@@ -21,14 +21,12 @@
 
 Parse_MTP::Parse_MTP()
 {
-    qDebug() << "Parse_MTP::Parse_MTP";
     mtp_device_list = NULL;
     LIBMTP_Init();
 }
 
 Parse_MTP::~Parse_MTP()
 {
-    qDebug() << "Parse_MTP::~Parse_MTP";
     if (mtp_device_list != NULL)
     {
         LIBMTP_Release_Device_List(mtp_device_list);

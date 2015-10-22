@@ -16,14 +16,13 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.         *
  ***************************************************************************/
 
+#include "dbcache.h"
+
 #include <QSettings>
 #include <QDir>
-#include <QDebug>
 #include <QSqlRecord>
 #include <QSqlError>
 #include <QDateTime>
-
-#include "dbcache.h"
 
 DBCache::DBCache(QObject *parent) :
     QObject(parent)

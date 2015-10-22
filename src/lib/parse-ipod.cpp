@@ -106,7 +106,6 @@ void Parse_Ipod::open_compressed(QString folder_path, int tz, QByteArray &data)
     be_size[3] = (len & 0x000000ff);
 
     data.prepend(be_size);
-    qDebug() << data;
     QByteArray plain = qUncompress(data);
 
 /*

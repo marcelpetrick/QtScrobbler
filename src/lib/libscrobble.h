@@ -79,6 +79,7 @@ private slots:
     void parser_open_finished(bool, QString);
     void parser_clear_finished(bool, QString);
     void updated_track_length(int index, bool success, int length, int elapsed);
+    void slotCancelProgress();
 
 signals:
     void submission_finished(bool success);
@@ -88,6 +89,7 @@ signals:
     void missing_times_progress(int remaining);
     void missing_times_finished();
     void missing_times_get(int index, scrob_entry info, int wait);
+    void signalCancelProgress();
 
 public:
     Scrobble();
@@ -107,9 +109,7 @@ public:
     void update_track(scrob_entry, int);
     bool submit();
     QString get_error_str() { return error_str; }
-    //bool mb_present() { return have_mb; };
-    //int get_last_method() { return scrobble_method; };
-    bool get_parser_busy() { return (parser==NULL)?false:true; }
+    bool get_parser_busy() { return (parser==NULL) ? false : true; }
     void clear_method();
     int get_num_logs();
     log_entry get_log(int);
@@ -122,10 +122,10 @@ public:
 
     void cancel_submission();
 
-    int get_dst() { return is_dst; };
-    int get_gmt_offset() { return gmt_offset; };
+    int get_dst() { return is_dst; }
+    int get_gmt_offset() { return gmt_offset; }
     int get_custom_offset();
-    QString get_zonename() { return zonename; };
+    QString get_zonename() { return zonename; }
     QString offset_str();
 };
 

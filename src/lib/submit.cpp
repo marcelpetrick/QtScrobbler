@@ -22,8 +22,6 @@
 Submit::Submit(int submit_index)
 {
     index = submit_index;
-    qDebug() << QString("Submit [%1]::Submit").arg(SITE_NAME[index]);
-
     nam_handshake = new QNetworkAccessManager();
     nam_submit = new QNetworkAccessManager();
     nr_handshake = nr_submit = NULL;
@@ -43,7 +41,6 @@ Submit::Submit(int submit_index)
 
 Submit::~Submit()
 {
-    qDebug() << QString("Submit [%1]::~Submit").arg(SITE_NAME[index]);
 }
 
 bool Submit::init(submit_context conn)
@@ -275,11 +272,12 @@ void Submit::handshake()
 
 void Submit::handshake_finished(QNetworkReply* reply)
 {
-    //emit add_log(LOG_INFO, "Submit::handshake_finished");
     if ( reply->error() != QNetworkReply::NoError )
     {
-        emit add_log(LOG_ERROR, tr("%1: HANDSHAKE: Request failed: %2")
-                     .arg(SITE_NAME[index], reply->errorString()));
+        QString const errorString(tr("%1: HANDSHAKE: Request failed: %2")
+                                  .arg(SITE_NAME[index], reply->errorString()));
+        emit add_log(LOG_ERROR, errorString);
+        emit signalHandshakeFailure(errorString);
         return;
     }
 
@@ -289,32 +287,37 @@ void Submit::handshake_finished(QNetworkReply* reply)
     {
         if (result.startsWith("BANNED"))
         {
-            emit add_log(LOG_ERROR,
-                tr("%1: Handshake Failed - client software banned.  Check http://qtscrob.sourceforge.net for updates.")
-                .arg(SITE_NAME[index]));
+            QString const errorString(tr("%1: Handshake Failed - client software banned.  Check http://qtscrob.sourceforge.net for updates.")
+                                      .arg(SITE_NAME[index]));
+            emit add_log(LOG_ERROR, errorString);
+            emit signalHandshakeFailure(errorString);
             return;
         }
 
         if (result.startsWith("BADAUTH"))
         {
-            emit add_log(LOG_ERROR,
-                tr("%1: Handshake Failed - authentication problem.  Check your username and/or password.")
-                .arg(SITE_NAME[index]));
+            QString const errorString(tr("%1: Handshake Failed - authentication problem.  Check your username and/or password.")
+                                      .arg(SITE_NAME[index]));
+            emit add_log(LOG_ERROR, errorString);
+            emit signalHandshakeFailure(errorString); // is emitted also the second time!
             return;
         }
 
         if (result.startsWith("BADTIME"))
         {
-            emit add_log(LOG_ERROR,
-                tr("%1: Handshake Failed - clock is incorrect. Check your computer clock and timezone settings.")
-                .arg(SITE_NAME[index]));
+            QString const errorString(tr("%1: Handshake Failed - clock is incorrect. Check your computer clock and timezone settings.")
+                                      .arg(SITE_NAME[index]));
+            emit add_log(LOG_ERROR, errorString);
+            emit signalHandshakeFailure(errorString);
             return;
         }
 
         if (result.startsWith("FAILED"))
         {
-            emit add_log(LOG_ERROR, tr("%1: Handshake Failed")
-                         .arg(SITE_NAME[index]));
+            QString const errorString(tr("%1: Handshake Failed")
+                                      .arg(SITE_NAME[index]));
+            emit add_log(LOG_ERROR, errorString);
+            emit signalHandshakeFailure(errorString);
             return;
         }
 
@@ -336,15 +339,19 @@ void Submit::handshake_finished(QNetworkReply* reply)
 
             if (sessionid == "" || submit_url == "")
             {
-                emit add_log(LOG_ERROR, tr("%1: Bad handshake response")
-                             .arg(SITE_NAME[index]));
+                QString const errorString(tr("%1: Bad handshake response")
+                                          .arg(SITE_NAME[index]));
+                emit add_log(LOG_ERROR, errorString);
+                emit signalHandshakeFailure(errorString);
                 return;
             }
         }
         else
         {
-            emit add_log(LOG_ERROR, tr("%1: Unknown handshake response")
-                         .arg(SITE_NAME[index]));
+            QString const errorString(tr("%1: Unknown handshake response")
+                                      .arg(SITE_NAME[index]));
+            emit add_log(LOG_ERROR, errorString);
+            emit signalHandshakeFailure(errorString);
             return;
         }
     }
