@@ -29,6 +29,7 @@
 #include <QCloseEvent>
 #include <QtGui>
 #include <QFileDialog>
+#include <QHeaderView>
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
