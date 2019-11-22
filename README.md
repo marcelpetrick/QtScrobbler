@@ -9,6 +9,7 @@ Optional MTP support requires _libmtp-dev_ and _pkg-config_
 
 # How to build?
 $ cd src && qmake && make
+
 $ cd qt && qmake && make
 
 (with the most recent changes the MTP support (at least for Win) is dropped. It builds, but you have to pick the scrobbler.log manually on the device.
