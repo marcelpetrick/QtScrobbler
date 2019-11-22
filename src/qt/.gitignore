@@ -1,2 +1,7 @@
 /build/
 /Makefile
+/.qmake.stash
+/Makefile.Debug
+/Makefile.Release
+/ui_aboutWin.h
+/ui_settingsWin.h

@@ -1,3 +1,5 @@
 *.pro.user
 Makefile
 /.qmake.stash
+/build-language-Desktop_Qt_5_12_6_MSVC2017_64bit-Debug/
+/build-qt-Desktop_Qt_5_12_6_MSVC2017_64bit-Debug/

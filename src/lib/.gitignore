@@ -1,2 +1,4 @@
 /build/
 /Makefile
+/Makefile.Debug
+/Makefile.Release

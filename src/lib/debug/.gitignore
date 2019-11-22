@@ -1,0 +1,11 @@
+/libscrobble.pdb
+/moc_conf.cpp
+/moc_dbcache.cpp
+/moc_gettrackinfo.cpp
+/moc_libscrobble.cpp
+/moc_parse-ipod.cpp
+/moc_parse-log.cpp
+/moc_parse-mtp.cpp
+/moc_parse.cpp
+/moc_predefs.h
+/moc_submit.cpp
