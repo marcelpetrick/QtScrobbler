@@ -44,13 +44,13 @@ win32{
         # SDK = $$(ProgramFiles)"\Microsoft SDKs\Windows\v7.0\"
         SDK = $$(WindowsSdkDir)
         message($$SDK)
-        exists( $$SDK ) {
-            message( "Found the Windows SDK - enabling MTP" )
-            DEFINES += HAVE_WPD
-            MTP = WPD
-        } else {
+#        exists( $$SDK ) {
+#            message( "Found the Windows SDK - enabling MTP" )
+#            DEFINES += HAVE_WPD
+#            MTP = WPD
+#        } else {
             message ( "The Windows Platform SDK was NOT found - MTP support will not be compiled" )
-        }
+#        }
     }
 } else {
     PKGC = $$system(which pkg-config)

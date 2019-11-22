@@ -5,3 +5,5 @@
 /Makefile.Release
 /ui_aboutWin.h
 /ui_settingsWin.h
+/debug/
+/release/
