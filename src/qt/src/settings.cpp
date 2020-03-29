@@ -36,7 +36,8 @@ Site_UI::Site_UI(QWidget *parent): QWidget(parent)
 	layout->addRow(tr("Password"), password);
 }
 
-Settings::Settings(QTScrob *parent) : QDialog( parent ) {
+Settings::Settings(QTScrob *parent) : QDialog( parent )
+{
 	setupUi(this);
 	qtscrob = parent;
 
@@ -96,9 +97,7 @@ Settings::Settings(QTScrob *parent) : QDialog( parent ) {
     connect(btnOK, SIGNAL(clicked()), this, SLOT(save()));
 	connect(btnCancel, SIGNAL(clicked()), qtscrob, SLOT(settings_close()));
 
-	tabWidget->setCurrentIndex(0);
-
-	setFixedSize(sizeHint());
+    tabWidget->setCurrentIndex(0);
 }
 
 void Settings::save()
