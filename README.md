@@ -1,13 +1,12 @@
 # Qt Scrobbler
 
-This is a clone of the famous sourceforge-project (from Robert Keevil and others ..); refreshed and slightly improved.
-QTScrobbler ships both multiplatform GUI and CLI versions and requires Qt >= 5.5
-Optional MTP support requires _libmtp-dev_ and _pkg-config_
-(or the Windows 7 SDK if using MS Visual C++).
+This is a clone of the famous sourceforge-project (from Robert Keevil and others ..); refreshed and slightly improved.  
+QTScrobbler ships both multiplatform GUI and CLI versions and requires Qt >= 5.5  
+Optional MTP support requires _libmtp-dev_ and _pkg-config_ (or the Windows 7 SDK if using MS Visual C++).
 
 ## How to build?
 ```
-cd src && qmake && make
+cd src && qmake && make  
 cd qt && qmake && make
 ```
 
