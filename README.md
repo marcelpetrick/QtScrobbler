@@ -6,7 +6,8 @@ Optional MTP support requires _libmtp-dev_ and _pkg-config_
 (or the Windows 7 SDK if using MS Visual C++).
 
 ## How to build?
-```cd src && qmake && make
+```
+cd src && qmake && make
 cd qt && qmake && make
 ```
 
