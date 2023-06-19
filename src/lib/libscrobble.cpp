@@ -76,14 +76,14 @@ Scrobble::Scrobble()
     gmt_offset = b.toTime_t() -a.toTime_t();
 
     /* initialise TZ variables */
-    _tzset();
+    tzset();
 
     // our own copy - returned via get_dst
-    is_dst = _daylight;
+    is_dst = daylight;
     int tzindex = (is_dst)?1:0;
 
     QTextCodec *codec = QTextCodec::codecForLocale();
-    zonename = codec->toUnicode(_tzname[tzindex]);
+    zonename = codec->toUnicode(tzname[tzindex]);
 
     if (is_dst < 0)
         add_log(LOG_ERROR, "is_dst < 0");
