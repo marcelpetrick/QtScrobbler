@@ -1,21 +1,89 @@
 # Qt Scrobbler
 
-Initially this was just a clone (fork) from the sourceforge-project of Robert Keevil and others. I adapted the code to make it buildable with Qt5 (before Qt4).  
-QTScrobbler ships both multiplatform GUI and CLI versions and requires Qt >= 5.5.
-Optional MTP support requires _libmtp-dev_ and _pkg-config_ (or the Windows 7 SDK if using MS Visual C++).
+Initially a clone/fork from the SourceForge project by Robert Keevil and others.
+The code has since been adapted for Qt5 and is now being ported to **Qt6**.
+QTScrobbler ships both a multiplatform GUI and a CLI version.
 
-`sudo apt-get install libmtp-dev pkg-config `
+Primary supported platform: **Linux**.
+macOS and Windows support is not actively maintained.
 
-## How to build?
+Optional MTP support requires `libmtp-dev` and `pkg-config`:
+
+```sh
+sudo apt-get install libmtp-dev pkg-config   # Debian/Ubuntu
+sudo pacman -S libmtp pkgconf                # Arch/Manjaro
 ```
-cd src && qmake && make  
-cd qt && qmake && make
+
+---
+
+## Requirements
+
+- Qt >= 6.x (tested with Qt 6.11.1)
+- A C++17 capable compiler (GCC 10+ or Clang 12+)
+- `qmake` pointing to Qt6 (verify with `qmake --version`)
+
+On Arch/Manjaro `qmake` already resolves to Qt6.
+On Debian/Ubuntu install `qt6-base-dev` and use `qmake6`.
+
+---
+
+## How to build
+
+### Full build (library + GUI + CLI)
+
+```sh
+cd src
+qmake
+make -j$(nproc)
 ```
 
-## Note
-With the most recent changes the MTP support (at least for Win) is dropped. It builds, but you have to pick the `scrobbler.log` manually on the device.  
-This is acceptable for me. I am also thinking about dropping the support for macOS and Win at all.  
-Additionally future porting to Qt6 (OpenSource) is planned.
+Binaries are written to `src/qt/` (GUI: `qtscrob`) and `src/cli/` (CLI: `scrobbler`).
+
+### GUI only
+
+```sh
+cd src/qt
+qmake
+make -j$(nproc)
+```
+
+### CLI only
+
+```sh
+cd src/cli
+qmake
+make -j$(nproc)
+```
+
+---
+
+## How to run
+
+### GUI
+
+```sh
+./src/qt/qtscrob
+# Optional flags:
+#   -c PATH   path to configuration file
+#   -v LEVEL  verbosity (0=error … 3=trace)
+```
+
+### CLI
+
+```sh
+./src/cli/scrobbler --help
+./src/cli/scrobbler -f /path/to/.scrobbler.log
+```
+
+---
+
+## Qt6 port status
+
+See [`port_to_qt6.md`](port_to_qt6.md) for the full compatibility assessment and list of required changes.
+
+---
 
 # last.fm
-Update: last.fm has stopped the support of groups and closed all existing ones. So there is no other way than github to exchange ideas.
+
+Last.fm stopped support for groups and closed all existing ones.
+GitHub issues are the place to exchange ideas and report bugs.
