@@ -9,4 +9,4 @@ fixed: 7. bump to cpp20; check for outdated constructs, which can be improved to
 fixed: 8. check all dependencies:; cmake 3.16 - a bit outdated, or? check what is the most recent stable version for all dependencies. then raise them. we want to use modern stuff. does not have o be bbleeding edge, but should be viable and modern. no old crap.
 9. language support for German, Croatian, Mandarin and Ukrainian - switchable by UI menu; on the fly
 10. translations for all of the language with CuteLingoExpress
-
+11. add clang-format. make it run with google cpp guidelines but with 120 chars per line and 4 spaces for indenttion. then apply for whole project. make ti part of the localpipeline and the github actions.
