@@ -28,13 +28,13 @@
 void printusage()
 {
     QTextStream out(stdout);
-    out << "QTScrob (v" << CLIENT_VERSION << ")" << endl;
-    out << endl;
-    out << "Options:" << endl;
-    out << "  -c, --config=PATH    Path to the configuration file" << endl;
-    out << "  -h, --help           This message" << endl;
-    out << "  -v, --verbose=LEVEL  Verbosity level" << endl;
-    out << endl;
+    out << "QTScrob (v" << CLIENT_VERSION << ")" << Qt::endl;
+    out << Qt::endl;
+    out << "Options:" << Qt::endl;
+    out << "  -c, --config=PATH    Path to the configuration file" << Qt::endl;
+    out << "  -h, --help           This message" << Qt::endl;
+    out << "  -v, --verbose=LEVEL  Verbosity level" << Qt::endl;
+    out << Qt::endl;
 }
 
 int main(int argc, char **argv)
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
         out << "Unknown option argument:";
         while (optind < argc)
             out << " " << argv[optind++];
-        out << endl;
+        out << Qt::endl;
         exit(1);
     }
 

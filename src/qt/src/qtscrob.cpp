@@ -133,7 +133,7 @@ void QTScrob::setupWidgets() {
 #endif
 
 	QGridLayout *layout = new QGridLayout(centralWidget);
-	layout->setMargin(0);
+	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setColumnStretch(0, 1);
 	layout->addWidget(btnOpen, 0, 1);
 	layout->addWidget(btnOpeniTunes, 0, 2);
@@ -614,7 +614,7 @@ void QTScrob::changeRow(int r, int c) {
 			{
 				QDateTime dt = QDateTime::fromString(logTable->item(r, c)->text(), "yyyy-MM-dd hh:mm:ss");
 				dt.setTimeSpec(Qt::UTC);
-				tmp.when = dt.toTime_t();
+				tmp.when = dt.toSecsSinceEpoch();
 			}
 			break;
 	}

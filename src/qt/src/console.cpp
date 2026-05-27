@@ -62,7 +62,7 @@ Console::Console(QTScrob *parent) : QDialog(parent) {
 	btmlayout->addWidget(btncopy);
 
 	QVBoxLayout *layout = new QVBoxLayout;
-	layout->setMargin(0);
+	layout->setContentsMargins(0, 0, 0, 0);
 	layout->addWidget(edtConsole);
 	layout->addLayout(btmlayout);
 
