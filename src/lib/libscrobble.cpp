@@ -16,6 +16,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.         *
  ***************************************************************************/
 
+#include <algorithm>
 #include <cmath> // abs
 #include "libscrobble.h"
 
@@ -38,7 +39,7 @@ void Scrobble::clear_method()
 
 uint Scrobble::get_gmt()
 {
-    return QDateTime::currentDateTime().toTime_t();
+    return QDateTime::currentDateTime().toSecsSinceEpoch();
 }
 
 Scrobble::Scrobble()
@@ -73,7 +74,7 @@ Scrobble::Scrobble()
     a = QDateTime::currentDateTime().toUTC();
     b = QDateTime::currentDateTime().toLocalTime();
 
-    gmt_offset = b.toTime_t() -a.toTime_t();
+    gmt_offset = b.toSecsSinceEpoch() - a.toSecsSinceEpoch();
 
     /* initialise TZ variables */
     tzset();
@@ -82,8 +83,7 @@ Scrobble::Scrobble()
     is_dst = daylight;
     int tzindex = (is_dst)?1:0;
 
-    QTextCodec *codec = QTextCodec::codecForLocale();
-    zonename = codec->toUnicode(tzname[tzindex]);
+    zonename = QString::fromLocal8Bit(tzname[tzindex]);
 
     if (is_dst < 0)
         add_log(LOG_ERROR, "is_dst < 0");
@@ -156,7 +156,7 @@ void Scrobble::update_track(scrob_entry track, int track_index)
 void Scrobble::sort_tracks()
 {
     // sort by played Date/Time
-    qSort(entries.begin(), entries.end(), entry_less_than);
+    std::sort(entries.begin(), entries.end(), entry_less_than);
 }
 
 // called before submission to ensure data sent is valid

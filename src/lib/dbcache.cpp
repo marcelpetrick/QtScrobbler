@@ -149,7 +149,7 @@ int DBCache::get_track_length(QString artist, QString title)
     {
         int ret = query.value(0).toInt();
         uint age = query.value(1).toInt();
-        uint now = QDateTime::currentDateTime().toTime_t();
+        uint now = QDateTime::currentDateTime().toSecsSinceEpoch();
         if (age > (now - MAX_TRACK_LENGTH_AGE))
             return ret;
     }
@@ -159,7 +159,7 @@ int DBCache::get_track_length(QString artist, QString title)
 
 void DBCache::set_track_length(QString artist, QString title, int length)
 {
-    uint time = QDateTime::currentDateTime().toTime_t();
+    uint time = QDateTime::currentDateTime().toSecsSinceEpoch();
     // use prepare to ensure the strings are correctly escaped
     query.prepare("replace into track_length (artist,title,length,timestamp) "
                        "values (:artist,:title,:length,:timestamp)");

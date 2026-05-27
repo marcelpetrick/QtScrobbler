@@ -41,8 +41,7 @@ INCLUDEPATH += . \
     ../lib \
     ../common
 DEPENDPATH += ../lib
-CONFIG += qt \
-    x11
+CONFIG += qt
 
 win32 {
     CONFIG(debug, debug|release) {

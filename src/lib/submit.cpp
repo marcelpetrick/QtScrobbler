@@ -245,7 +245,7 @@ void Submit::senddata_finished(QNetworkReply *reply)
 void Submit::handshake()
 {
     //emit add_log(LOG_INFO, "Submit::handshake");
-    QString time_str = QString::number(QDateTime::currentDateTime().toTime_t());
+    QString time_str = QString::number(QDateTime::currentDateTime().toSecsSinceEpoch());
 
     QCryptographicHash auth_hash(QCryptographicHash::Md5);
     auth_hash.addData(QString(context.password_hash + time_str).toLocal8Bit());
