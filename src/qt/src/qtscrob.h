@@ -46,7 +46,7 @@ class QTableWidgetItem;
 class QMenu;
 class QAction;
 class QWidget;
-class QStringList;
+#include <QStringList>
 class QSettings;
 class QTranslator;
 class QLabel;

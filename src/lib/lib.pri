@@ -17,12 +17,11 @@ HEADERS += libscrobble.h \
     gettrackinfo.h \
     dbcache.h
 
-##mtp joy
-#contains (MTP, WPD) {
-#    SOURCES += parse-mtp-win32.cpp
-#    HEADERS += parse-mtp.h
-#}
-#contains (MTP, LIBMTP) {
-#    SOURCES += parse-mtp-libmtp.cpp
-#    HEADERS += parse-mtp.h
-#}
+contains (MTP, WPD) {
+    SOURCES += parse-mtp-win32.cpp
+    HEADERS += parse-mtp.h
+}
+contains (MTP, LIBMTP) {
+    SOURCES += parse-mtp-libmtp.cpp
+    HEADERS += parse-mtp.h
+}
