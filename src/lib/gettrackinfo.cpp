@@ -27,8 +27,7 @@ GetTrackInfo::GetTrackInfo(QObject *parent) :
     request.setUrl(QUrl(API_URL));
     request.setRawHeader("User-Agent", CLIENT_USERAGENT);
 
-    connect(manager, SIGNAL(finished(QNetworkReply*)),
-            this, SLOT(get_finished(QNetworkReply*)));
+    connect(manager, &QNetworkAccessManager::finished, this, &GetTrackInfo::get_finished);
     time.start();
 }
 
@@ -91,12 +90,12 @@ void GetTrackInfo::get_finished(QNetworkReply *reply)
     {
         if (reader->isStartElement())
         {
-            if (reader->name() == "lfm")
+            if (reader->name() == QLatin1String("lfm"))
             {
                 QXmlStreamAttributes attributes = reader->attributes();
                 status = attributes.value("status").toString();
             }
-            if (reader->name() == "duration")
+            if (reader->name() == QLatin1String("duration"))
             {
                 length = reader->readElementText().toInt()/1000;
             }

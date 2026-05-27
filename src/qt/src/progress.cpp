@@ -36,7 +36,7 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
     layout = new QVBoxLayout(this);
     btn_cancel = new QPushButton(tr("Cancel"), this);
 
-    connect(btn_cancel, SIGNAL(clicked()), this, SLOT(cancel()));
+    connect(btn_cancel, &QPushButton::clicked, this, &Progress::cancel);
 
     QHashIterator<int, Submit *> i(qtscrob->scrob->submissions);
     while (i.hasNext())
@@ -50,10 +50,7 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
         layout->addSpacing(10);
         sites.insert(index, prog);
 
-        connect(i.value(),
-                SIGNAL(progress(int, int, int)),
-                this,
-                SLOT(update_progress(int, int, int)));
+        connect(i.value(), &Submit::progress, this, &Progress::update_progress);
     }
 
     layout->addWidget(btn_cancel);
@@ -62,7 +59,7 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
 
 Progress::~Progress()
 {
-    disconnect(btn_cancel, SIGNAL(clicked()), this, SLOT(cancel()));
+    disconnect(btn_cancel, &QPushButton::clicked, this, &Progress::cancel);
 }
 
 void Progress::cancel(void)

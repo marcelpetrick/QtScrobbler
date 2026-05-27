@@ -29,8 +29,8 @@ app::app(int& argc, char** argv) : QCoreApplication(argc, argv)
     scrob = new Scrobble();
     method = SCROBBLE_NONE;
 
-    connect(scrob, SIGNAL(parsing_opened(bool)), this, SLOT(parsed(bool)));
-    connect(scrob, SIGNAL(submission_finished(bool)), this, SLOT(scrobbled(bool)));
+    connect(scrob, &Scrobble::parsing_opened,    this, &app::parsed);
+    connect(scrob, &Scrobble::submission_finished, this, &app::scrobbled);
 }
 
 bool app::parse_cmd(int argc, char** argv)
