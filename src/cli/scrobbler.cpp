@@ -25,10 +25,8 @@ int main(int argc, char **argv)
         exit(1);
     
     QTranslator translator;
-    if (QFile::exists(":/language.qm")) {
-        translator.load(":/language");
+    if (translator.load(":/language"))
         cli->installTranslator(&translator);
-    }
 
     // HACK - allows exec() to kick in before run() is called
     // how else are you supposed to get a class setup as a console app in Qt?

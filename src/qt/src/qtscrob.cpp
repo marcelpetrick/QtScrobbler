@@ -511,44 +511,29 @@ void QTScrob::recalcDT(void) {
 
 void QTScrob::deleteRow() {
 	if (logTable->rowCount()) { // Items are displayed. 
-	if (logTable->rowCount() == 1) { // Handle it as one item. 
+	if (logTable->rowCount() == 1) { // Handle it as one item.
         QTableWidgetItem * artist = logTable->item(logTable->currentRow(),0);
         QTableWidgetItem * title = logTable->item(logTable->currentRow(),2);
-		QMessageBox mb(QCoreApplication::applicationName(),
-			tr("Are you sure you want to delete: %1 - %2?")
-			.arg(artist->text(), title->text()),
-				QMessageBox::Information,
-				QMessageBox::Yes | QMessageBox::Default,
-				QMessageBox::No, 0);
-			mb.setButtonText(QMessageBox::Yes, "Yes");
-			mb.setButtonText(QMessageBox::No, "No");
-			switch(mb.exec()) {
-				case QMessageBox::Yes:
-					scrob->remove_track(logTable->currentRow());
-					break;
-				case QMessageBox::No:
-					break;
-			}
-	} else { // More than one item. 
-		QMessageBox mb(QCoreApplication::applicationName(), \
-			tr("Are you sure you want to delete the selected items") + "?", \
-			QMessageBox::Information, \
-			QMessageBox::Yes | QMessageBox::Default, \
-			QMessageBox::No, 0);
-		mb.setButtonText(QMessageBox::Yes, "Yes");
-		mb.setButtonText(QMessageBox::No, "No");
-		switch(mb.exec()) {
-			case QMessageBox::Yes:
-				for (int i = logTable->rowCount() - 1; i >= 0; i--) { 
-					if (logTable->item(i, 0)->isSelected())
-						scrob->remove_track(i); 
-				}
-
-				break;
-			case QMessageBox::No:
-				break;
-			}
-		}
+        if (QMessageBox::question(this,
+                QCoreApplication::applicationName(),
+                tr("Are you sure you want to delete: %1 - %2?")
+                    .arg(artist->text(), title->text()),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No) == QMessageBox::Yes) {
+            scrob->remove_track(logTable->currentRow());
+        }
+    } else { // More than one item.
+        if (QMessageBox::question(this,
+                QCoreApplication::applicationName(),
+                tr("Are you sure you want to delete the selected items?"),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No) == QMessageBox::Yes) {
+            for (int i = logTable->rowCount() - 1; i >= 0; i--) {
+                if (logTable->item(i, 0)->isSelected())
+                    scrob->remove_track(i);
+            }
+        }
+    }
 	}
 
 	loadtable();
@@ -613,7 +598,7 @@ void QTScrob::changeRow(int r, int c) {
 			if (!logTable->item(r, c)->text().isEmpty())
 			{
 				QDateTime dt = QDateTime::fromString(logTable->item(r, c)->text(), "yyyy-MM-dd hh:mm:ss");
-				dt.setTimeSpec(Qt::UTC);
+				dt.setTimeZone(QTimeZone::utc());
 				tmp.when = dt.toSecsSinceEpoch();
 			}
 			break;

@@ -24,7 +24,7 @@ Conf::Conf() :
     del_apple_playlist(false),
     tz_override(false),
     display_utc(false),
-    mru(NULL),
+    mru(),
     proxy_host(QString()),
     proxy_port(0),
     proxy_user(QString()),

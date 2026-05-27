@@ -51,10 +51,8 @@ int main(int argc, char **argv)
     app.setApplicationName("QTScrobbler");
 
     QTranslator translator;
-    if (QFile::exists(":/language.qm")) {
-        translator.load(":/language");
+    if (translator.load(":/language"))
         app.installTranslator(&translator);
-    }
 
     QTextStream out(stdout);
 
