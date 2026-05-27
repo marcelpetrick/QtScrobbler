@@ -149,3 +149,14 @@ qmake
 make -j$(nproc)
 ./scrobbler --help
 ```
+
+
+----
+
+###  Follow-up modernisation (not yet done)
+
+- [ ] Migrate all ~30 old-style SIGNAL/SLOT connect() calls to typed pointer-to-member syntax for compile-time safety
+- [ ] Migrate build system from qmake to CMake (Qt6's officially recommended system)
+- [ ] Replace #include <QtCore> catch-all headers with specific module includes
+- [ ] Use QDateTime::currentSecsSinceEpoch() (shorter form) wherever only the integer timestamp is needed
+- [ ] Decide whether to officially drop Windows/macOS support and remove dead MTP/Win32 code paths
