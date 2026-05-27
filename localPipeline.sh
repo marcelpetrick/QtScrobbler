@@ -4,6 +4,7 @@ set -o pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${ROOT_DIR}/src"
+BUILD_DIR="${ROOT_DIR}/build"
 APP_VERSION="$(grep -oP '#define CLIENT_VERSION "\K[^"]+' "${SRC_DIR}/lib/common.h" 2>/dev/null || echo "unknown")"
 PIPELINE_LOG_DIR="${TMPDIR:-/tmp}/qtscrob-pipeline-$$"
 trap 'rm -rf "${PIPELINE_LOG_DIR}"' EXIT
@@ -13,7 +14,8 @@ declare -a SUMMARY_LINES=()
 # State flags
 QT6_OK=0
 TOOLS_OK=0
-LIB_BUILD_OK=0
+CMAKE_CONFIG_OK=0
+CMAKE_BUILD_OK=0
 GUI_BUILD_OK=0
 CLI_BUILD_OK=0
 CLI_SMOKE_OK=0
@@ -24,7 +26,8 @@ RUN_APP=true
 # Detail strings
 QT6_DETAILS=""
 TOOLS_DETAILS=""
-LIB_DETAILS=""
+CMAKE_CONFIG_DETAILS=""
+CMAKE_BUILD_DETAILS=""
 GUI_DETAILS=""
 CLI_DETAILS=""
 CLI_SMOKE_DETAILS=""
@@ -34,7 +37,7 @@ TRANSLATION_DETAILS=""
 # Number of parallel compile jobs
 JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-# Will be set to the detected Qt6 qmake binary (qmake6 or qmake)
+# Will be set to the detected Qt6 qmake binary (qmake6 or qmake) — used for Qt6 check only
 QMAKE=""
 
 # ---------------------------------------------------------------------------
@@ -73,9 +76,10 @@ Local build and quality pipeline for QtScrobbler (Qt 6, Linux).
 
 Stages:
   1.  Qt 6 check          — verify Qt >= 6.x via qmake
-  2.  Build tools         — make, g++, pkg-config (libmtp optional)
-  3.  Build: library      — compile static libscrobble (make -j${JOBS})
-  4.  Build: GUI + CLI    — parallel compile with make -j${JOBS} each
+  2.  Build tools         — cmake, g++, pkg-config (libmtp optional)
+  3.  CMake configure     — cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+  4.  CMake build         — cmake --build build --parallel ${JOBS}
+                            (compiles translations, lib, GUI and CLI in one pass)
   5.  Smoke: CLI          — scrobbler --help
   6.  Smoke: GUI binary   — qtscrob present and executable
   7.  Translations        — count unfinished strings in .ts catalogs
@@ -137,7 +141,7 @@ check_build_tools() {
 
     local missing=()
 
-    for tool in make g++ pkg-config; do
+    for tool in cmake g++ pkg-config; do
         if command -v "${tool}" >/dev/null 2>&1; then
             local ver
             ver="$("${tool}" --version 2>&1 | head -1)"
@@ -161,153 +165,91 @@ check_build_tools() {
         return 1
     fi
 
-    TOOLS_DETAILS="make, g++, pkg-config present; ${JOBS} compile jobs"
+    TOOLS_DETAILS="cmake, g++, pkg-config present; ${JOBS} compile jobs"
     return 0
 }
 
 # ---------------------------------------------------------------------------
-# Build helpers
+# Stage 3: CMake configure
 # ---------------------------------------------------------------------------
 
-distclean_subdir() {
-    local dir="$1"
-    if [[ -f "${dir}/Makefile" ]]; then
-        log "  Cleaning stale artifacts in ${dir}..."
-        make -C "${dir}" distclean -s 2>/dev/null || true
-    fi
-}
-
-# Write PASS or FAIL + details to a result file so parallel jobs can report back.
-build_subdir_to_file() {
-    local label="$1" dir="$2" result_file="$3"
-    local log_path="${PIPELINE_LOG_DIR}/${label}.log"
-
+cmake_configure() {
+    log "Stage 3 — CMake configure (out-of-tree build in ${BUILD_DIR})..."
+    local log_path="${PIPELINE_LOG_DIR}/cmake_configure.log"
     mkdir -p "${PIPELINE_LOG_DIR}"
-    distclean_subdir "${dir}"
-    log "  [${label}] ${QMAKE}..."
-    if ! bash -c "cd '${dir}' && '${QMAKE}'" >> "${log_path}" 2>&1; then
-        printf 'FAIL:qmake failed\n' > "${result_file}"
-        return 1
-    fi
 
-    log "  [${label}] make -j${JOBS}..."
-    if ! bash -c "cd '${dir}' && make -j${JOBS}" >> "${log_path}" 2>&1; then
-        local errors
-        errors="$(grep -cE 'error:' "${log_path}" 2>/dev/null || true)"
-        printf 'FAIL:compilation failed (%s error line(s))\n' "${errors}" > "${result_file}"
-        return 1
-    fi
-
-    printf 'PASS\n' > "${result_file}"
-    return 0
-}
-
-# ---------------------------------------------------------------------------
-# Stage 3: Build library (must finish before GUI and CLI)
-# ---------------------------------------------------------------------------
-
-build_library() {
-    log "Stage 3 — Building static library (libscrobble) with -j${JOBS}..."
-    local result_file="${PIPELINE_LOG_DIR}/lib_result"
-
-    build_subdir_to_file "lib" "${SRC_DIR}/lib" "${result_file}"
-    local rc=$?
-
-    local artifact="${SRC_DIR}/lib/libscrobble.a"
-    if [[ "${rc}" -eq 0 && -f "${artifact}" ]]; then
-        local size
-        size="$(du -h "${artifact}" | awk '{print $1}')"
-        LIB_DETAILS="libscrobble.a (${size})"
-        log "  Artifact: ${artifact} (${size})"
+    if run_with_log "${log_path}" cmake \
+            -B "${BUILD_DIR}" \
+            -S "${ROOT_DIR}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
+        CMAKE_CONFIG_DETAILS="configured in ${BUILD_DIR}"
+        log "  Configure PASS"
         return 0
     fi
 
-    local fail_detail
-    fail_detail="$(cat "${result_file}" 2>/dev/null | cut -d: -f2-)"
-    LIB_DETAILS="${fail_detail:-compilation failed}"
+    local errors
+    errors="$(grep -cE 'CMake Error' "${log_path}" 2>/dev/null || true)"
+    CMAKE_CONFIG_DETAILS="configure failed (${errors} CMake error(s)) — see ${log_path}"
+    error "  ${CMAKE_CONFIG_DETAILS}"
     return 1
 }
 
 # ---------------------------------------------------------------------------
-# Stage 4a: Compile .ts → .qm translation files
+# Stage 4: CMake build (library + translations + GUI + CLI in one pass)
 # ---------------------------------------------------------------------------
 
-compile_translations() {
-    log "Stage 4a — Compiling translation catalogs (.ts → .qm)..."
-    local lang_dir="${SRC_DIR}/language"
-    local lrelease_bin
-    lrelease_bin="$(command -v lrelease 2>/dev/null || command -v lrelease-qt6 2>/dev/null || true)"
+cmake_build() {
+    log "Stage 4 — CMake build (--parallel ${JOBS})..."
+    local log_path="${PIPELINE_LOG_DIR}/cmake_build.log"
 
-    if [[ -z "${lrelease_bin}" ]]; then
-        warn "  lrelease not found — .qm files will not be generated; GUI/CLI builds may fail"
-        return 1
+    if run_with_log "${log_path}" cmake --build "${BUILD_DIR}" --parallel "${JOBS}"; then
+        local gui_artifact="${BUILD_DIR}/qtscrob"
+        local cli_artifact="${BUILD_DIR}/scrobbler"
+        local lib_artifact="${BUILD_DIR}/libscrobble.a"
+
+        local all_ok=1
+
+        if [[ -x "${gui_artifact}" ]]; then
+            local size
+            size="$(du -h "${gui_artifact}" | awk '{print $1}')"
+            GUI_BUILD_OK=1
+            GUI_DETAILS="qtscrob (${size})"
+            log "  GUI PASS: ${gui_artifact} (${size})"
+        else
+            GUI_DETAILS="qtscrob binary not found after build"
+            all_ok=0
+            error "  GUI FAIL: ${GUI_DETAILS}"
+        fi
+
+        if [[ -x "${cli_artifact}" ]]; then
+            local size
+            size="$(du -h "${cli_artifact}" | awk '{print $1}')"
+            CLI_BUILD_OK=1
+            CLI_DETAILS="scrobbler (${size})"
+            log "  CLI PASS: ${cli_artifact} (${size})"
+        else
+            CLI_DETAILS="scrobbler binary not found after build"
+            all_ok=0
+            error "  CLI FAIL: ${CLI_DETAILS}"
+        fi
+
+        if [[ -f "${lib_artifact}" ]]; then
+            local size
+            size="$(du -h "${lib_artifact}" | awk '{print $1}')"
+            CMAKE_BUILD_DETAILS="libscrobble.a (${size}); qtscrob; scrobbler"
+            log "  Library: ${lib_artifact} (${size})"
+        fi
+
+        [[ "${all_ok}" -eq 1 ]]
+        return $?
     fi
 
-    local log_path="${PIPELINE_LOG_DIR}/lrelease.log"
-    mkdir -p "${PIPELINE_LOG_DIR}"
-    log "  Running ${lrelease_bin} on language.pro..."
-    if run_with_log "${log_path}" "${lrelease_bin}" -silent "${lang_dir}/language.pro"; then
-        local qm_count
-        qm_count="$(find "${lang_dir}" -name "*.qm" 2>/dev/null | wc -l)"
-        log "  Generated ${qm_count} .qm file(s)"
-        return 0
-    fi
-    warn "  lrelease failed — see ${log_path}"
+    local errors
+    errors="$(grep -cE 'error:' "${log_path}" 2>/dev/null || true)"
+    CMAKE_BUILD_DETAILS="build failed (${errors} error line(s)) — see ${log_path}"
+    error "  ${CMAKE_BUILD_DETAILS}"
     return 1
-}
-
-# ---------------------------------------------------------------------------
-# Stage 4b: Build GUI and CLI in parallel
-# ---------------------------------------------------------------------------
-
-build_gui_and_cli_parallel() {
-    log "Stage 4 — Building GUI (qtscrob) and CLI (scrobbler) in parallel (-j${JOBS} each)..."
-
-    local gui_result="${PIPELINE_LOG_DIR}/gui_result"
-    local cli_result="${PIPELINE_LOG_DIR}/cli_result"
-
-    # Fire both builds in the background
-    build_subdir_to_file "gui" "${SRC_DIR}/qt"  "${gui_result}" &
-    local gui_pid=$!
-
-    build_subdir_to_file "cli" "${SRC_DIR}/cli" "${cli_result}" &
-    local cli_pid=$!
-
-    log "  Waiting for GUI (PID ${gui_pid}) and CLI (PID ${cli_pid})..."
-
-    local gui_rc=0 cli_rc=0
-    wait "${gui_pid}" || gui_rc=$?
-    wait "${cli_pid}" || cli_rc=$?
-
-    # --- GUI result ---
-    local gui_artifact="${SRC_DIR}/qt/qtscrob"
-    if [[ "${gui_rc}" -eq 0 && -x "${gui_artifact}" ]]; then
-        local size
-        size="$(du -h "${gui_artifact}" | awk '{print $1}')"
-        GUI_BUILD_OK=1
-        GUI_DETAILS="qtscrob (${size})"
-        log "  GUI PASS: ${gui_artifact} (${size})"
-    else
-        local fail_detail
-        fail_detail="$(cat "${gui_result}" 2>/dev/null | cut -d: -f2-)"
-        GUI_DETAILS="${fail_detail:-compilation failed}"
-        error "  GUI FAIL: ${GUI_DETAILS} — see ${PIPELINE_LOG_DIR}/gui.log"
-    fi
-
-    # --- CLI result ---
-    local cli_artifact="${SRC_DIR}/cli/scrobbler"
-    if [[ "${cli_rc}" -eq 0 && -x "${cli_artifact}" ]]; then
-        local size
-        size="$(du -h "${cli_artifact}" | awk '{print $1}')"
-        CLI_BUILD_OK=1
-        CLI_DETAILS="scrobbler (${size})"
-        log "  CLI PASS: ${cli_artifact} (${size})"
-    else
-        local fail_detail
-        fail_detail="$(cat "${cli_result}" 2>/dev/null | cut -d: -f2-)"
-        CLI_DETAILS="${fail_detail:-compilation failed}"
-        error "  CLI FAIL: ${CLI_DETAILS} — see ${PIPELINE_LOG_DIR}/cli.log"
-    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -315,7 +257,7 @@ build_gui_and_cli_parallel() {
 # ---------------------------------------------------------------------------
 
 smoke_test_cli() {
-    local binary="${SRC_DIR}/cli/scrobbler"
+    local binary="${BUILD_DIR}/scrobbler"
     log "Stage 5 — CLI smoke test: ${binary} --help..."
 
     if [[ ! -x "${binary}" ]]; then
@@ -354,7 +296,7 @@ smoke_test_cli() {
 # ---------------------------------------------------------------------------
 
 smoke_test_gui_binary() {
-    local binary="${SRC_DIR}/qt/qtscrob"
+    local binary="${BUILD_DIR}/qtscrob"
     log "Stage 6 — GUI binary smoke test: ${binary}..."
 
     if [[ -x "${binary}" ]]; then
@@ -362,7 +304,6 @@ smoke_test_gui_binary() {
         size="$(du -h "${binary}" | awk '{print $1}')"
         GUI_SMOKE_DETAILS="${binary} — ${size}"
         log "  ${GUI_SMOKE_DETAILS}"
-        log "  (Headless display launch skipped — use --noRun to suppress full launch too)"
         return 0
     fi
 
@@ -412,34 +353,23 @@ check_translations() {
 # ---------------------------------------------------------------------------
 
 run_unit_tests() {
-    log "Stage 8 — Searching for QTest unit test suite..."
+    log "Stage 8 — Searching for CMake/QTest unit test suite..."
 
-    local test_pros
-    test_pros="$(find "${SRC_DIR}" -name "*.pro" 2>/dev/null \
-        | xargs grep -l "QT += testlib" 2>/dev/null || true)"
-
-    if [[ -z "${test_pros}" ]]; then
-        log "  No QTest suite found (no .pro with 'QT += testlib')."
-        log "  → Create src/tests/ with QTest sub-projects to enable unit testing."
+    # Check for CTest tests registered in the build
+    if [[ -f "${BUILD_DIR}/CTestTestfile.cmake" ]]; then
+        local test_log="${PIPELINE_LOG_DIR}/ctest.log"
+        log "  Running ctest in ${BUILD_DIR}..."
+        if run_with_log "${test_log}" ctest --test-dir "${BUILD_DIR}" --output-on-failure -j "${JOBS}"; then
+            log "  All tests passed."
+            return 0
+        fi
+        error "  Some tests failed — see ${test_log}"
         return 1
     fi
 
-    log "  Found QTest project(s):"
-    local all_ok=0
-    while IFS= read -r pro; do
-        local pro_dir test_log
-        pro_dir="$(dirname "${pro}")"
-        test_log="${PIPELINE_LOG_DIR}/test_$(basename "${pro_dir}").log"
-        log "  Running tests in ${pro_dir}..."
-        if run_with_log "${test_log}" bash -c "cd '${pro_dir}' && '${QMAKE}' && make -j${JOBS} && make check"; then
-            log "  PASS: ${pro_dir}"
-        else
-            error "  FAIL: ${pro_dir}"
-            all_ok=1
-        fi
-    done <<< "${test_pros}"
-
-    return "${all_ok}"
+    log "  No CTest suite found in build directory."
+    log "  → Add a src/tests/CMakeLists.txt with add_test() entries to enable unit testing."
+    return 1
 }
 
 # ---------------------------------------------------------------------------
@@ -447,7 +377,7 @@ run_unit_tests() {
 # ---------------------------------------------------------------------------
 
 launch_application() {
-    local binary="${SRC_DIR}/qt/qtscrob"
+    local binary="${BUILD_DIR}/qtscrob"
     log "Stage 9 — Launching ${binary}..."
 
     if [[ ! -x "${binary}" ]]; then
@@ -528,30 +458,27 @@ main() {
         exit_code=1
     fi
 
-    # Stages 3-4 — Build (only when prerequisites pass)
+    # Stages 3-4 — CMake configure + build (only when prerequisites pass)
     if [[ "${QT6_OK}" -eq 1 && "${TOOLS_OK}" -eq 1 ]]; then
 
-        # Stage 3 — library (must be sequential; GUI+CLI depend on it)
-        if build_library; then
-            LIB_BUILD_OK=1
-            mark_result "Build: library" "PASS" "${LIB_DETAILS}"
+        # Stage 3 — CMake configure
+        if cmake_configure; then
+            CMAKE_CONFIG_OK=1
+            mark_result "CMake configure" "PASS" "${CMAKE_CONFIG_DETAILS}"
         else
-            mark_result "Build: library" "FAIL" "${LIB_DETAILS}"
+            mark_result "CMake configure" "FAIL" "${CMAKE_CONFIG_DETAILS}"
             exit_code=1
         fi
 
-        # Stage 4a — compile translations (.qm needed by qrc in GUI and CLI)
-        if [[ "${LIB_BUILD_OK}" -eq 1 ]]; then
-            if compile_translations; then
-                mark_result "Translations (.qm)" "PASS" ".qm files generated"
+        # Stage 4 — CMake build (translations + lib + GUI + CLI in one pass)
+        if [[ "${CMAKE_CONFIG_OK}" -eq 1 ]]; then
+            if cmake_build; then
+                CMAKE_BUILD_OK=1
+                mark_result "CMake build" "PASS" "${CMAKE_BUILD_DETAILS}"
             else
-                mark_result "Translations (.qm)" "WARN" "lrelease failed — builds may miss .qm"
+                mark_result "CMake build" "FAIL" "${CMAKE_BUILD_DETAILS}"
+                exit_code=1
             fi
-        fi
-
-        # Stage 4b — GUI + CLI in parallel (only when library is ready)
-        if [[ "${LIB_BUILD_OK}" -eq 1 ]]; then
-            build_gui_and_cli_parallel
 
             if [[ "${GUI_BUILD_OK}" -eq 1 ]]; then
                 mark_result "Build: GUI" "PASS" "${GUI_DETAILS}"
@@ -567,14 +494,16 @@ main() {
                 exit_code=1
             fi
         else
-            mark_result "Build: GUI" "SKIP" "Library build failed"
-            mark_result "Build: CLI" "SKIP" "Library build failed"
+            mark_result "CMake build"    "SKIP" "Configure failed"
+            mark_result "Build: GUI"     "SKIP" "Configure failed"
+            mark_result "Build: CLI"     "SKIP" "Configure failed"
         fi
 
     else
-        mark_result "Build: library" "SKIP" "Prerequisites unavailable"
-        mark_result "Build: GUI"     "SKIP" "Prerequisites unavailable"
-        mark_result "Build: CLI"     "SKIP" "Prerequisites unavailable"
+        mark_result "CMake configure" "SKIP" "Prerequisites unavailable"
+        mark_result "CMake build"     "SKIP" "Prerequisites unavailable"
+        mark_result "Build: GUI"      "SKIP" "Prerequisites unavailable"
+        mark_result "Build: CLI"      "SKIP" "Prerequisites unavailable"
     fi
 
     # Stage 5 — CLI smoke test
