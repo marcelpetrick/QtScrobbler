@@ -275,7 +275,7 @@ p, li { white-space: pre-wrap; }
              <number>0</number>
             </property>
             <property name="sizeAdjustPolicy">
-             <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+             <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
             </property>
             <property name="frame">
              <bool>true</bool>
@@ -448,7 +448,7 @@ p, li { white-space: pre-wrap; }
              <number>0</number>
             </property>
             <property name="sizeAdjustPolicy">
-             <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+             <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
             </property>
             <property name="frame">
              <bool>true</bool>
