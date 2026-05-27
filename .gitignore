@@ -29,3 +29,4 @@
 *.DS_Store
 /build-qtscrob-Qt_5_5_0_clang_64-Debug/
 /build-qtscrob-Desktop-Debug/
+*.qmake.stash
