@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build release binaries (Ubuntu 24.04 / Qt6)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 and build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            cmake build-essential pkg-config \
+            qt6-base-dev qt6-tools-dev qt6-tools-dev-tools \
+            libgl-dev libmtp-dev
+
+      - name: Add Qt6 tools to PATH
+        run: echo "/usr/lib/qt6/bin" >> "$GITHUB_PATH"
+
+      - name: Extract version and tag
+        id: meta
+        run: |
+          TAG="${GITHUB_REF_NAME}"           # e.g. v0.13.5
+          VER="${TAG#v}"                     # strip leading v → 0.13.5
+          ARCHIVE="qtscrobbler-${VER}-linux-x86_64"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VER"     >> "$GITHUB_OUTPUT"
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
+      - name: CMake configure
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: CMake build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Smoke test — CLI
+        run: timeout 5 ./build/scrobbler --help
+
+      - name: Strip binaries
+        run: |
+          strip --strip-unneeded build/qtscrob
+          strip --strip-unneeded build/scrobbler
+
+      - name: Package release archive
+        id: pkg
+        run: |
+          ARCHIVE="${{ steps.meta.outputs.archive }}"
+          mkdir -p "dist/${ARCHIVE}"
+          cp build/qtscrob build/scrobbler README.md "dist/${ARCHIVE}/"
+          cd dist
+          tar -czf "${ARCHIVE}.tar.gz" "${ARCHIVE}/"
+          SHA=$(sha256sum "${ARCHIVE}.tar.gz" | awk '{print $1}')
+          echo "archive_path=dist/${ARCHIVE}.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "sha256=${SHA}"                        >> "$GITHUB_OUTPUT"
+          echo "Packaged: ${ARCHIVE}.tar.gz  sha256=${SHA}"
+
+      - name: Generate build report
+        id: report
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          ARCHIVE="${{ steps.meta.outputs.archive }}"
+          SHA="${{ steps.pkg.outputs.sha256 }}"
+          GUI_STRIPPED=$(du -sh build/qtscrob   | awk '{print $1}')
+          CLI_STRIPPED=$(du -sh build/scrobbler  | awk '{print $1}')
+          LIB_SIZE=$(du -sh build/libscrobble.a  | awk '{print $1}')
+          TARBALL_SIZE=$(du -sh "dist/${ARCHIVE}.tar.gz" | awk '{print $1}')
+
+          cat > build-report.md << REPORT
+          # Build Report — QtScrobbler v${VER}
+
+          **Date:** ${DATE}
+          **Tag:** \`${{ steps.meta.outputs.tag }}\`
+          **Commit:** \`${{ github.sha }}\`
+          **Runner:** ubuntu-24.04 / Qt 6
+
+          ## Release artifacts
+
+          | File | Size | SHA-256 |
+          |---|---|---|
+          | qtscrob (GUI, stripped) | ${GUI_STRIPPED} | — |
+          | scrobbler (CLI, stripped) | ${CLI_STRIPPED} | — |
+          | ${ARCHIVE}.tar.gz | ${TARBALL_SIZE} | \`${SHA}\` |
+
+          ## Build stages
+
+          | Stage | Status | Detail |
+          |---|---|---|
+          | CMake configure | ✅ | |
+          | CMake build | ✅ | lib: ${LIB_SIZE} |
+          | Smoke: CLI \`--help\` | ✅ | exit 0 |
+          | Strip binaries | ✅ | |
+          | Package archive | ✅ | ${TARBALL_SIZE} |
+
+          ## Runtime requirements
+
+          These binaries are dynamically linked and require Qt 6 on the target system:
+
+          \`\`\`sh
+          # Arch / Manjaro
+          sudo pacman -S qt6-base libmtp
+
+          # Debian / Ubuntu 24.04
+          sudo apt-get install qt6-base-dev libmtp9
+          \`\`\`
+          REPORT
+
+      - name: Upload build report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report-${{ steps.meta.outputs.version }}
+          path: build-report.md
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: QtScrobbler ${{ steps.meta.outputs.version }}
+          body_path: build-report.md
+          files: ${{ steps.pkg.outputs.archive_path }}
+          fail_on_unmatched_files: true

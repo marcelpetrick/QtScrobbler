@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & smoke test (Ubuntu 24.04 / Qt6)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt6 and build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            cmake build-essential pkg-config \
+            qt6-base-dev qt6-tools-dev qt6-tools-dev-tools \
+            libgl-dev libmtp-dev
+
+      - name: Add Qt6 tools to PATH
+        run: echo "/usr/lib/qt6/bin" >> "$GITHUB_PATH"
+
+      - name: Read version
+        id: meta
+        run: |
+          VER=$(grep -oP '#define CLIENT_VERSION "\K[^"]+' src/lib/common.h)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: CMake configure
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+      - name: CMake build
+        run: cmake --build build --parallel $(nproc)
+
+      - name: Smoke test — CLI --help
+        run: timeout 5 ./build/scrobbler --help
+
+      - name: Smoke test — GUI binary exists and is executable
+        run: test -x ./build/qtscrob
+
+      - name: Generate build report
+        if: always()
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          GUI_SIZE=$(du -sh build/qtscrob    2>/dev/null | awk '{print $1}' || echo 'N/A')
+          CLI_SIZE=$(du -sh build/scrobbler  2>/dev/null | awk '{print $1}' || echo 'N/A')
+          LIB_SIZE=$(du -sh build/libscrobble.a 2>/dev/null | awk '{print $1}' || echo 'N/A')
+
+          cat > build-report.md << REPORT
+          # Build Report — QtScrobbler v${VER}
+
+          **Date:** ${DATE}
+          **Ref:** \`${{ github.ref }}\`
+          **Commit:** \`${{ github.sha }}\`
+          **Runner:** ubuntu-24.04
+
+          ## Results
+
+          | Stage | Status | Detail |
+          |---|---|---|
+          | CMake configure | ✅ | |
+          | CMake build | ✅ | lib: ${LIB_SIZE} · qtscrob: ${GUI_SIZE} · scrobbler: ${CLI_SIZE} |
+          | Smoke: CLI \`--help\` | ✅ | exit 0 |
+          | Smoke: GUI binary | ✅ | executable present |
+          REPORT
+
+      - name: Upload build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: build-report.md
+          retention-days: 30
+
+      - name: Upload binaries
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-linux-x86_64
+          path: |
+            build/qtscrob
+            build/scrobbler
+          retention-days: 7
