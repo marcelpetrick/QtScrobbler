@@ -118,7 +118,7 @@ void Parse_MTP::mtp_iterate(bool clear_tracks)
             while (track != NULL)
             {
                 mtp_trackinfo(iter, track, clear_tracks);
-                LIBMTP_track_t tmp = track;
+                LIBMTP_track_t *tmp = track;
                 track = track->next;
                 LIBMTP_destroy_track_t(tmp);
             }

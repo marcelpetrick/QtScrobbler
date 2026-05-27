@@ -332,7 +332,7 @@ void QTScrob::open(SCROBBLE_METHOD method) {
 	else
 	{
 		QFileDialog *dlg = new QFileDialog;
-		dlg->setFileMode(QFileDialog::DirectoryOnly);
+		dlg->setFileMode(QFileDialog::Directory);
 		if (!scrob->conf->mru.isEmpty())
 			dlg->setHistory(scrob->conf->mru);
 
@@ -637,7 +637,7 @@ void QTScrob::scrobble() {
 	}
 
 	// make sure the widget appears before we submit()
-	QCoreApplication::flush();
+	QCoreApplication::processEvents();
 
 	lblStatus->setText(tr("Submitting data to server..."));
 	btnSubmit->setEnabled(false);

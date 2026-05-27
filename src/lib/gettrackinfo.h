@@ -23,7 +23,7 @@
 #include <QXmlStreamReader>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QTime>
+#include <QElapsedTimer>
 #include <QThread>
 #include "common.h"
 
@@ -52,7 +52,7 @@ private:
     QUrl url;
     QNetworkAccessManager *manager;
     QNetworkRequest request;
-    QTime time;
+    QElapsedTimer time;
     int index;
     scrob_entry track_info;
 };

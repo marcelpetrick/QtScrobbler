@@ -120,7 +120,7 @@ bool app::parse_cmd(int argc, char** argv)
             case '?':
                 break;
             default:
-                out << "Unknown option \"" << QChar(c) << "\"" << endl;
+                out << "Unknown option \"" << QChar(c) << "\"" << Qt::endl;
                 return false;
         }
     }
@@ -130,7 +130,7 @@ bool app::parse_cmd(int argc, char** argv)
         out << tr("Unknown option argument:");
         while (optind < argc)
             out << " " << argv[optind++];
-        out << endl;
+        out << Qt::endl;
         return false;
     }
     return true;
@@ -145,34 +145,34 @@ void app::print_usage()
     else
         dst = "No";
 
-    out << "scrobbler (v" << CLIENT_VERSION << "): " << tr("a Last.fm uploader") << endl;
-    out << endl;
-    out << tr("Mandatory arguments to long options are mandatory for short options too.") << endl;
-    out << endl;
-    out << tr("Required:") << endl;
-    out << "  -c, --config             " << tr("Location to the config file") << endl;
-    out << "                           " << tr("The config file holds the site configurations") << endl;
-    out << "                           " << tr("(usernames, passwords), proxy info, timezone offsets etc") << endl;
-    out << endl;
-    out << tr("Methods:") << endl;
-    out << "  -d, --database           " << tr("Submit ipod database") << endl;
-    out << "  -f, --file               " << tr("Submit .scrobbler.log file") << endl;
+    out << "scrobbler (v" << CLIENT_VERSION << "): " << tr("a Last.fm uploader") << Qt::endl;
+    out << Qt::endl;
+    out << tr("Mandatory arguments to long options are mandatory for short options too.") << Qt::endl;
+    out << Qt::endl;
+    out << tr("Required:") << Qt::endl;
+    out << "  -c, --config             " << tr("Location to the config file") << Qt::endl;
+    out << "                           " << tr("The config file holds the site configurations") << Qt::endl;
+    out << "                           " << tr("(usernames, passwords), proxy info, timezone offsets etc") << Qt::endl;
+    out << Qt::endl;
+    out << tr("Methods:") << Qt::endl;
+    out << "  -d, --database           " << tr("Submit ipod database") << Qt::endl;
+    out << "  -f, --file               " << tr("Submit .scrobbler.log file") << Qt::endl;
 #ifdef HAVE_MTP
-    out << "  -m, --mtp                " << tr("Submit MTP device") << endl;
+    out << "  -m, --mtp                " << tr("Submit MTP device") << Qt::endl;
 #endif
-    out << endl;
-    out << "Options:" << endl;
-    out << "  -l, --location           " << tr("Mount point of the player") << endl;
-    out << "  -t, --timestamp=WHEN     " << tr("UNIX timestamp to recalculate from") << endl;
-    out << "  -n, --now                " << tr("Re-calculate the play time to now") << endl;
-    out << "  -r, --recalc=TIME        " << tr("Re-calculate the time when tracks were played") << endl;
-    out << "  -v, --verbose=LEVEL      " << tr("Verbosity level") << endl;
-    out << endl;
-    out << tr("Auto-detected timezone info:") << endl;
-    out << tr("Timezone: ") << scrob->get_zonename() << endl;
-    out << tr("Offset: ") << scrob->offset_str() << endl;
-    out << tr("Daylight saving: ") << dst << endl;
-    out << endl;
+    out << Qt::endl;
+    out << "Options:" << Qt::endl;
+    out << "  -l, --location           " << tr("Mount point of the player") << Qt::endl;
+    out << "  -t, --timestamp=WHEN     " << tr("UNIX timestamp to recalculate from") << Qt::endl;
+    out << "  -n, --now                " << tr("Re-calculate the play time to now") << Qt::endl;
+    out << "  -r, --recalc=TIME        " << tr("Re-calculate the time when tracks were played") << Qt::endl;
+    out << "  -v, --verbose=LEVEL      " << tr("Verbosity level") << Qt::endl;
+    out << Qt::endl;
+    out << tr("Auto-detected timezone info:") << Qt::endl;
+    out << tr("Timezone: ") << scrob->get_zonename() << Qt::endl;
+    out << tr("Offset: ") << scrob->offset_str() << Qt::endl;
+    out << tr("Daylight saving: ") << dst << Qt::endl;
+    out << Qt::endl;
 }
 
 void app::run()
@@ -185,7 +185,7 @@ void app::run()
 
     if (do_time && do_now)
     {
-        out << tr("You can only use one of -n and -r") << endl;
+        out << tr("You can only use one of -n and -r") << Qt::endl;
         delete scrob;
         this->quit();
         return;
@@ -222,7 +222,7 @@ void app::run()
 
     if (num_method != 1)
     {
-        out << tr("Error - no (single) method specified") << endl;
+        out << tr("Error - no (single) method specified") << Qt::endl;
         print_usage();
         delete scrob;
         this->quit();
@@ -237,7 +237,7 @@ void app::parsed(bool success)
     QTextStream out(stdout);
     if (!success)
     {
-        out << tr("Error parsing data: ") << scrob->get_error_str() << endl;
+        out << tr("Error parsing data: ") << scrob->get_error_str() << Qt::endl;
         this->quit();
         return;
     }
@@ -256,9 +256,9 @@ void app::scrobbled(bool success)
     QTextStream out(stdout);
     if (!success)
     {
-        out << tr("Submission failed: ") << scrob->get_error_str() << endl;
+        out << tr("Submission failed: ") << scrob->get_error_str() << Qt::endl;
     } else {
-        out << tr("Submission complete") << endl;
+        out << tr("Submission complete") << Qt::endl;
     }
     delete scrob;
     this->quit();

@@ -67,14 +67,7 @@ Scrobble::Scrobble()
     proxy_set = false;
     db_ready = cache->init();
 
-    // belt and braces
-    QDateTime a, b;
-    a.setTimeSpec(Qt::UTC);
-    b.setTimeSpec(Qt::LocalTime);
-    a = QDateTime::currentDateTime().toUTC();
-    b = QDateTime::currentDateTime().toLocalTime();
-
-    gmt_offset = b.toSecsSinceEpoch() - a.toSecsSinceEpoch();
+    gmt_offset = QDateTime::currentDateTime().offsetFromUtc();
 
     /* initialise TZ variables */
     tzset();
@@ -315,7 +308,7 @@ void Scrobble::add_log(LOG_LEVEL level, QString msg)
     log_messages.push_back(tmp);
 
     if (level <= log_print_level)
-        QTextStream(stdout) << LOG_LEVEL_NAMES[level] << ": " << msg << endl;
+        QTextStream(stdout) << LOG_LEVEL_NAMES[level] << ": " << msg << Qt::endl;
 
     if (LOG_ERROR == level)
         error_str = msg;

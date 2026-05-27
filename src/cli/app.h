@@ -51,7 +51,6 @@ private:
 
 public:
     app(int&, char**);
-    app();
     bool parse_cmd(int argc, char** argv);
     
 public slots:
