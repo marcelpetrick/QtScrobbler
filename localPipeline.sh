@@ -4,6 +4,7 @@ set -o pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${ROOT_DIR}/src"
+APP_VERSION="$(grep -oP '#define CLIENT_VERSION "\K[^"]+' "${SRC_DIR}/lib/common.h" 2>/dev/null || echo "unknown")"
 PIPELINE_LOG_DIR="${TMPDIR:-/tmp}/qtscrob-pipeline-$$"
 trap 'rm -rf "${PIPELINE_LOG_DIR}"' EXIT
 
@@ -58,6 +59,7 @@ run_with_log() {
 
 print_summary() {
     printf '\n============ Local Pipeline Summary ============\n'
+    printf ' QtScrobbler v%s\n' "${APP_VERSION}"
     local line
     for line in "${SUMMARY_LINES[@]}"; do printf '%s\n' "${line}"; done
     printf '================================================\n'
@@ -501,7 +503,7 @@ main() {
     parse_arguments "$@"
 
     log "================================================"
-    log " QtScrobbler — local pipeline"
+    log " QtScrobbler v${APP_VERSION} — local pipeline"
     log " Root    : ${ROOT_DIR}"
     log " Jobs    : ${JOBS} parallel compile threads"
     log " Date    : $(date '+%Y-%m-%d %H:%M:%S')"
