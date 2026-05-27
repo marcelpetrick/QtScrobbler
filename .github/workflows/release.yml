@@ -16,16 +16,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt6 and build dependencies
+      - name: Install system dependencies (non-Qt)
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
             cmake build-essential pkg-config \
-            qt6-base-dev qt6-tools-dev qt6-tools-dev-tools \
             libgl-dev libmtp-dev
 
-      - name: Add Qt6 tools to PATH
-        run: echo "/usr/lib/qt6/bin" >> "$GITHUB_PATH"
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.8.*'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          cache: true
 
       - name: Extract version and tag
         id: meta
