@@ -200,7 +200,7 @@ cmake_configure() {
 # ---------------------------------------------------------------------------
 
 cmake_build() {
-    log "Stage 4 — CMake build (--parallel ${JOBS})..."
+    log "Stage 4 — CMake build (--parallel ${JOBS}, -Wall -Werror enforced)..."
     local log_path="${PIPELINE_LOG_DIR}/cmake_build.log"
 
     if run_with_log "${log_path}" cmake --build "${BUILD_DIR}" --parallel "${JOBS}"; then
@@ -245,10 +245,15 @@ cmake_build() {
         return $?
     fi
 
-    local errors
-    errors="$(grep -cE 'error:' "${log_path}" 2>/dev/null || true)"
-    CMAKE_BUILD_DETAILS="build failed (${errors} error line(s)) — see ${log_path}"
+    local errors warnings
+    errors="$(grep -cE ' error:' "${log_path}" 2>/dev/null || true)"
+    warnings="$(grep -cE ' warning:' "${log_path}" 2>/dev/null || true)"
+    CMAKE_BUILD_DETAILS="build failed (${errors} error(s), ${warnings} warning(s)) — see ${log_path}"
     error "  ${CMAKE_BUILD_DETAILS}"
+    if [[ "${warnings}" -gt 0 ]]; then
+        error "  Warnings treated as errors (-Werror). Fix all warnings before committing."
+        grep -E ' warning:' "${log_path}" | head -10 >&2 || true
+    fi
     return 1
 }
 

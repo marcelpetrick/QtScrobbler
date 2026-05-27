@@ -236,7 +236,7 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
                 }
 
                 buffer[ ucs2len ] = 0;
-                QString temp = QString::fromUtf16(buffer);
+                QString temp = QString::fromUtf16(reinterpret_cast<const char16_t *>(buffer));
                 delete [] buffer;
 
 

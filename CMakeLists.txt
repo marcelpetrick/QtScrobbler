@@ -4,6 +4,9 @@ project(QtScrobbler LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Treat every warning as an error — zero-warning policy
+add_compile_options(-Wall -Werror)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
