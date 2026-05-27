@@ -22,6 +22,7 @@
 #include "about.h"
 #include "help.h"
 #include "progress.h"
+#include "missingtimeprogress.h"
 #include "console.h"
 
 #include <QTime>
@@ -238,37 +239,30 @@ void QTScrob::DT_labels()
 }
 
 void QTScrob::connectSlots() {
-	connect(actOpen, SIGNAL(triggered()), this, SLOT(open_log()));
-	connect(actExit, SIGNAL(triggered()), this, SLOT(close()));
-	connect(actHelp, SIGNAL(triggered()), this, SLOT(help()));
-	connect(actAbout, SIGNAL(triggered()), this, SLOT(about()));
-	connect(actAboutQt, SIGNAL(triggered()), this, SLOT(aboutQt()));
-	connect(actOpeniTunes, SIGNAL(triggered()), this, SLOT(open_ipod()));
-	connect(actConsole, SIGNAL(triggered()), this, SLOT(console()));
+    connect(actOpen,      &QAction::triggered, this, &QTScrob::open_log);
+    connect(actExit,      &QAction::triggered, this, &QWidget::close);
+    connect(actHelp,      &QAction::triggered, this, &QTScrob::help);
+    connect(actAbout,     &QAction::triggered, this, &QTScrob::about);
+    connect(actAboutQt,   &QAction::triggered, this, &QTScrob::aboutQt);
+    connect(actOpeniTunes,&QAction::triggered, this, &QTScrob::open_ipod);
+    connect(actConsole,   &QAction::triggered, this, &QTScrob::console);
 #ifdef HAVE_MTP
-	connect(actOpenMTP, SIGNAL(triggered()), this, SLOT(open_mtp()));
-	connect(btnOpenMTP, SIGNAL(clicked()), this, SLOT(open_mtp()));
+    connect(actOpenMTP,  &QAction::triggered,     this, &QTScrob::open_mtp);
+    connect(btnOpenMTP,  &QPushButton::clicked,   this, &QTScrob::open_mtp);
 #endif
-	connect(btnOpeniTunes, SIGNAL(clicked()), this, SLOT(open_ipod()));
-	connect(btnOpen, SIGNAL(clicked()), this, SLOT(open_log()));
-	connect(btnDelete, SIGNAL(clicked()), this, SLOT(deleteRow()));
-	connect(btnSubmit, SIGNAL(clicked()), this, SLOT(scrobble()));
-	connect(actSettings, SIGNAL(triggered()), this, SLOT(settings()));
-	connect(btnRecalcDT, SIGNAL(clicked()), this, SLOT(recalcDT()));
-    connect(DTedit, SIGNAL(dateTimeChanged(QDateTime)),
-            this, SLOT(updaterecalcDT(QDateTime)));
-    connect(logTable, SIGNAL(cellChanged(int, int)),
-            this, SLOT(changeRow(int, int)));
-    connect(scrob, SIGNAL(submission_finished(bool)),
-            this, SLOT(scrobbled(bool)));
-	connect(scrob, SIGNAL(parsing_opened(bool)), this, SLOT(parsed(bool)));
-
-    connect(scrob, SIGNAL(missing_times_start(int)),
-            this, SLOT(missing_times_start(int)));
-    connect(scrob, SIGNAL(missing_times_progress(int)),
-            this, SLOT(missing_times_progress(int)));
-    connect(scrob, SIGNAL(missing_times_finished()),
-            this, SLOT(missing_times_finished()));
+    connect(btnOpeniTunes, &QPushButton::clicked, this, &QTScrob::open_ipod);
+    connect(btnOpen,       &QPushButton::clicked, this, &QTScrob::open_log);
+    connect(btnDelete,     &QPushButton::clicked, this, &QTScrob::deleteRow);
+    connect(btnSubmit,     &QPushButton::clicked, this, &QTScrob::scrobble);
+    connect(actSettings,   &QAction::triggered,   this, &QTScrob::settings);
+    connect(btnRecalcDT,   &QPushButton::clicked, this, &QTScrob::recalcDT);
+    connect(DTedit,  &QDateTimeEdit::dateTimeChanged, this, &QTScrob::updaterecalcDT);
+    connect(logTable, &QTableWidget::cellChanged,     this, &QTScrob::changeRow);
+    connect(scrob, &Scrobble::submission_finished,    this, &QTScrob::scrobbled);
+    connect(scrob, &Scrobble::parsing_opened,         this, &QTScrob::parsed);
+    connect(scrob, &Scrobble::missing_times_start,    this, &QTScrob::missing_times_start);
+    connect(scrob, &Scrobble::missing_times_progress, this, &QTScrob::missing_times_progress);
+    connect(scrob, &Scrobble::missing_times_finished, this, &QTScrob::missing_times_finished);
 }
 
 void QTScrob::help() {
@@ -401,7 +395,7 @@ void QTScrob::loadtable(void) {
 	int i;
 	scrob_entry scrob_tmp;
 
-	logTable->disconnect(SIGNAL(cellChanged(int, int)));
+    QObject::disconnect(logTable, &QTableWidget::cellChanged, nullptr, nullptr);
 
 	logTable->clearContents();
 
@@ -454,7 +448,7 @@ void QTScrob::loadtable(void) {
 	}
 	QApplication::restoreOverrideCursor();
 
-	connect(logTable, SIGNAL(cellChanged(int, int)), this, SLOT(changeRow(int, int)));
+    connect(logTable, &QTableWidget::cellChanged, this, &QTScrob::changeRow);
 }
 
 /*!
@@ -632,7 +626,7 @@ void QTScrob::scrobble() {
         if (winProgress==NULL)
         {
             winProgress = new Progress(this);
-            connect(scrob, SIGNAL(signalCancelProgress()), winProgress, SLOT(cancel())); //new connection, which allows to break&close the progress-dialog
+            connect(scrob, &Scrobble::signalCancelProgress, winProgress, &Progress::cancel);
         }
         winProgress->show();
     }
@@ -697,8 +691,8 @@ void QTScrob::settings_close()
 void QTScrob::missing_times_start(int total)
 {
     progress_missing = new MissingTimeProgress(total, this);
-    connect(this, SIGNAL(update_missing_times_progress(int)),
-            progress_missing, SLOT(update_progress(int)));
+    connect(this, &QTScrob::update_missing_times_progress,
+            progress_missing, &MissingTimeProgress::update_progress);
     progress_missing->show();
 }
 

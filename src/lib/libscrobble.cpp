@@ -49,16 +49,11 @@ Scrobble::Scrobble()
     conf = new Conf();
     api_info = new GetTrackInfo();
     cache = new DBCache();
-    connect(conf, SIGNAL(add_log(LOG_LEVEL,QString)),
-            this, SLOT(add_log(LOG_LEVEL,QString)));
-    connect(api_info, SIGNAL(finished(int,bool,int,int)),
-            this, SLOT(updated_track_length(int,bool,int,int)));
-    connect(api_info, SIGNAL(add_log(LOG_LEVEL,QString)),
-            this, SLOT(add_log(LOG_LEVEL,QString)));
-    connect(this, SIGNAL(missing_times_get(int,scrob_entry,int)),
-            api_info, SLOT(get(int,scrob_entry,int)));
-    connect(cache, SIGNAL(add_log(LOG_LEVEL,QString)),
-            this, SLOT(add_log(LOG_LEVEL,QString)));
+    connect(conf,     &Conf::add_log,         this,     &Scrobble::add_log);
+    connect(api_info, &GetTrackInfo::finished, this,     &Scrobble::updated_track_length);
+    connect(api_info, &GetTrackInfo::add_log,  this,     &Scrobble::add_log);
+    connect(this,     &Scrobble::missing_times_get, api_info, &GetTrackInfo::get);
+    connect(cache,    &DBCache::add_log,       this,     &Scrobble::add_log);
     api_info->start();
     conf->load_config();
     error_str = "";
@@ -398,18 +393,11 @@ bool Scrobble::submit()
 
             submissions[i]->init(conn);
 
-            connect(submissions[i],
-                    SIGNAL(finished(bool, QString)),
-                    this, SLOT(submit_finished(bool, QString)));
-            connect(submissions[i],
-                    SIGNAL(add_log(LOG_LEVEL,QString)),
-                    this, SLOT(add_log(LOG_LEVEL, QString)));
-
-            //if something while submitting fails, then notify the scrobbler which will also break the progress(-dialog) if necessary
-            connect(submissions[i],
-                    SIGNAL(signalHandshakeFailure(QString)),
-                    this,
-                    SLOT(slotCancelProgress())/*, Qt::DirectConnection*/); //the real stuff: submission -> scrobbler -> progress
+            connect(submissions[i], &Submit::finished,  this, &Scrobble::submit_finished);
+            connect(submissions[i], &Submit::add_log,   this, &Scrobble::add_log);
+            // signalHandshakeFailure carries a QString the slot does not consume — use lambda
+            connect(submissions[i], &Submit::signalHandshakeFailure,
+                    this, [this](const QString &) { slotCancelProgress(); });
 
             submissions[i]->do_submit();
         }
@@ -503,14 +491,10 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
     }
     scrobble_method = method;
 
-    connect(parser, SIGNAL(add_log(LOG_LEVEL, QString)),
-            this, SLOT(add_log(LOG_LEVEL, QString)));
-    connect(parser, SIGNAL(entry(scrob_entry)),
-            this, SLOT(add_entry(scrob_entry)));
-    connect(parser, SIGNAL(open_finished(bool, QString)),
-            this, SLOT(parser_open_finished(bool, QString)));
-    connect(parser, SIGNAL(clear_finished(bool, QString)),
-            this, SLOT(parser_clear_finished(bool, QString)));
+    connect(parser, &Parse::add_log,        this, &Scrobble::add_log);
+    connect(parser, &Parse::entry,          this, &Scrobble::add_entry);
+    connect(parser, &Parse::open_finished,  this, &Scrobble::parser_open_finished);
+    connect(parser, &Parse::clear_finished, this, &Scrobble::parser_clear_finished);
 
     parser->open(path, offset);
 

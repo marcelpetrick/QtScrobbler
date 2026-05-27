@@ -94,8 +94,8 @@ Settings::Settings(QTScrob *parent) : QDialog( parent )
 	cmb_tz_min->setCurrentIndex(abs(qtscrob->scrob->conf->utc_offset % 3600) / 900);
 	grpManual->setChecked(qtscrob->scrob->conf->tz_override);
 
-    connect(btnOK, SIGNAL(clicked()), this, SLOT(save()));
-	connect(btnCancel, SIGNAL(clicked()), qtscrob, SLOT(settings_close()));
+    connect(btnOK,     &QPushButton::clicked, this,    &Settings::save);
+    connect(btnCancel, &QPushButton::clicked, qtscrob, &QTScrob::settings_close);
 
     tabWidget->setCurrentIndex(0);
 }

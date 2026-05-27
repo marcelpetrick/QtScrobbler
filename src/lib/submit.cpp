@@ -26,10 +26,8 @@ Submit::Submit(int submit_index)
     nam_submit = new QNetworkAccessManager();
     nr_handshake = nr_submit = NULL;
 
-    connect(nam_handshake, SIGNAL(finished(QNetworkReply*)),
-         this, SLOT(handshake_finished(QNetworkReply*)));
-    connect(nam_submit, SIGNAL(finished(QNetworkReply*)),
-         this, SLOT(senddata_finished(QNetworkReply*)));
+    connect(nam_handshake, &QNetworkAccessManager::finished, this, &Submit::handshake_finished);
+    connect(nam_submit,    &QNetworkAccessManager::finished, this, &Submit::senddata_finished);
 
     scrob_init = false;
     submission_ok = false;
@@ -123,7 +121,7 @@ void Submit::senddata()
     if (0 == entry_index.size())
     {
         // should never be true...
-        nr_submit->disconnect(SIGNAL(uploadProgress(qint64, qint64)));
+        QObject::disconnect(nr_submit, &QNetworkReply::uploadProgress, nullptr, nullptr);
         nr_submit->deleteLater();
         emit finished(false, tr("%1: Error, attempted to send an empty submission!")
                       .arg(SITE_NAME[index]));
@@ -156,7 +154,7 @@ void Submit::senddata_finished(QNetworkReply *reply)
 {
     //emit add_log(LOG_INFO, "Submit::senddata_finished");
     if ( reply->error() != QNetworkReply::NoError ) {
-        nr_submit->disconnect(SIGNAL(uploadProgress(qint64, qint64)));
+        QObject::disconnect(nr_submit, &QNetworkReply::uploadProgress, nullptr, nullptr);
         nr_submit->deleteLater();
         emit finished(false, tr("SUBMIT %1: Request failed, %2")
                       .arg(SITE_NAME[index], reply->errorString()));
@@ -192,7 +190,7 @@ void Submit::senddata_finished(QNetworkReply *reply)
         else if (result.contains("FAILED"))
         {
             emit add_log(LOG_INFO, QString("%1: Submission FAILED").arg(SITE_NAME[index]));
-            nr_submit->disconnect(SIGNAL(uploadProgress(qint64, qint64)));
+            QObject::disconnect(nr_submit, &QNetworkReply::uploadProgress, nullptr, nullptr);
             nr_submit->deleteLater();
             emit finished(false,
                           tr("%1: Server returned an error after sending data")
@@ -224,7 +222,7 @@ void Submit::senddata_finished(QNetworkReply *reply)
             {
                 emit add_log(LOG_DEBUG, QString("%1: Submission complete")
                              .arg(SITE_NAME[index]));
-                nr_submit->disconnect(SIGNAL(uploadProgress(qint64, qint64)));
+                QObject::disconnect(nr_submit, &QNetworkReply::uploadProgress, nullptr, nullptr);
                 nr_submit->deleteLater();
                 nr_handshake->deleteLater();
                 submission_ok = true;
@@ -234,7 +232,7 @@ void Submit::senddata_finished(QNetworkReply *reply)
     }
     else
     {
-        nr_submit->disconnect(SIGNAL(uploadProgress(qint64, qint64)));
+        QObject::disconnect(nr_submit, &QNetworkReply::uploadProgress, nullptr, nullptr);
         nr_submit->deleteLater();
         emit finished(false, tr("%1: Empty result from server")
                       .arg(SITE_NAME[index]));

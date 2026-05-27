@@ -42,18 +42,17 @@ Console::Console(QTScrob *parent) : QDialog(parent) {
 
 	comboLevel->setEditable(false);
 
-	connect(comboLevel, SIGNAL(currentIndexChanged(int)),
-		this, SLOT(set_spin_level(int)));
+	connect(comboLevel, &QComboBox::currentIndexChanged, this, &Console::set_spin_level);
 
 	current_level = LOG_DEFAULT;
 	comboLevel->setCurrentIndex(current_level);
 
 	timerConsole = new QTimer();
-	connect(timerConsole, SIGNAL(timeout()), this, SLOT(update()));
+	connect(timerConsole, &QTimer::timeout, this, &Console::update);
 	timerConsole->start(250);
 
 	btncopy = new QPushButton(tr("Copy to clipboard"));
-	connect(btncopy, SIGNAL(released()), this, SLOT(copy()));
+	connect(btncopy, &QPushButton::released, this, &Console::copy);
 
 	QHBoxLayout *btmlayout = new QHBoxLayout;
 	btmlayout->addWidget(lblCombo);
