@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.28)
 project(QtScrobbler LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -17,7 +17,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Qt6
-find_package(Qt6 6.0 REQUIRED COMPONENTS Core Network Sql Xml Widgets)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network Sql Xml Widgets)
 
 # Optional MTP support via libmtp (pkg-config)
 find_package(PkgConfig QUIET)

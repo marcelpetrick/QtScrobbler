@@ -6,5 +6,5 @@ fixed: 7. bump to cpp20; check for outdated constructs, which can be improved to
 4. add doxygen - as check for undocumented public API. also make it generate the docs.
 5. cppcheck?
 6. automatic testing (right now zeri unit testing, therefore coverage is zero) - is there even a reason to make it work?
-8. check all dependencies:; cmake 3.16 - a bit outdated, or? check what is the most recent stable version for all dependencies. then raise them. we want to use modern stuff. does not have o be bbleeding edge, but should be viable and modern. no old crap.
+fixed: 8. check all dependencies:; cmake 3.16 - a bit outdated, or? check what is the most recent stable version for all dependencies. then raise them. we want to use modern stuff. does not have o be bbleeding edge, but should be viable and modern. no old crap.
 

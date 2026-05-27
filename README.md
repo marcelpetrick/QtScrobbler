@@ -1,10 +1,10 @@
 # Qt Scrobbler
 
-Initially a clone/fork from the SourceForge project by Tomasz Mon, Robert Keevil and others.
-The code has since been adapted for Qt5 and is now being ported to **Qt6**.
-QTScrobbler ships both a multiplatform GUI and a CLI version.
+Initially a clone/fork from the SourceForge project by Tomasz Mon, Robert Keevil and others. Now maintained by Marcel Petrick.  
+The code has since been adapted for Qt5 and is now being ported to **Qt6**.  
+QTScrobbler ships both a multiplatform GUI and a CLI version.  
 
-Primary supported platform: **Linux**.
+Primary supported platform: **Linux**.  
 macOS and Windows support is not actively maintained.
 
 Optional MTP support requires `libmtp-dev` and `pkg-config`:
@@ -18,62 +18,46 @@ sudo pacman -S libmtp pkgconf                # Arch/Manjaro
 
 ## Requirements
 
-- Qt >= 6.x (tested with Qt 6.11.1)
-- A C++17 capable compiler (GCC 10+ or Clang 12+)
-- `qmake` pointing to Qt6 (verify with `qmake --version`)
+- Qt >= 6.8 (tested with Qt 6.11.1)
+- CMake >= 3.28
+- A C++20 capable compiler (GCC 12+ or Clang 14+)
+- `cmake` and `pkg-config`
 
-On Arch/Manjaro `qmake` already resolves to Qt6.
-On Debian/Ubuntu install `qt6-base-dev` and use `qmake6`.
+On Arch/Manjaro all of the above are available via `pacman`.  
+On Debian/Ubuntu 22.04+ install `qt6-base-dev qt6-tools-dev qt6-tools-dev-tools cmake`.
 
 ---
 
 ## How to build
 
-### most simple: run localPipeline.sh ..
+### most simple: run localPipeline.sh
 
 ```sh
-..
+./localPipeline.sh --noRun
 ============ Local Pipeline Summary ============
- QtScrobbler v0.13.2
+ QtScrobbler v0.13.12
 Qt6 Check              : PASS Qt 6.11.1 at /usr/bin/qmake6
-Build Tools            : PASS make, g++, pkg-config present; 20 compile jobs
-Build: library         : PASS libscrobble.a (672K)
-Translations (.qm)     : PASS .qm files generated
-Build: GUI             : PASS qtscrob (576K)
+Build Tools            : PASS cmake, g++, pkg-config present; 20 compile jobs
+CMake configure        : PASS configured in /path/to/QtScrobbler/build
+CMake build            : PASS libscrobble.a (556K); qtscrob; scrobbler
+Build: GUI             : PASS qtscrob (584K)
 Build: CLI             : PASS scrobbler (340K)
 Smoke: CLI             : PASS --help exited 0 — usage text printed
-Smoke: GUI binary      : PASS /home/mpetrick/repos/QtScrobbler/src/qt/qtscrob — 576K
+Smoke: GUI binary      : PASS /path/to/QtScrobbler/build/qtscrob — 584K
 Translations           : PASS de: 79/0 untranslated;  pl: 79/0 untranslated — total: 158 strings, 0 untranslated
 Unit Tests             : SKIP No QTest suite — add src/tests/ to enable
-Launch App             : PASS qtscrob started (detached)
+Launch App             : SKIP Suppressed by --noRun
 ================================================
 ```
 
-### Full build (library + GUI + CLI)
+### Full build (out-of-tree, all targets)
 
 ```sh
-cd src
-qmake
-make -j$(nproc)
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel $(nproc)
 ```
 
-Binaries are written to `src/qt/` (GUI: `qtscrob`) and `src/cli/` (CLI: `scrobbler`).
-
-### GUI only
-
-```sh
-cd src/qt
-qmake
-make -j$(nproc)
-```
-
-### CLI only
-
-```sh
-cd src/cli
-qmake
-make -j$(nproc)
-```
+Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
 
 ---
 
