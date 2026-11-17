@@ -12,3 +12,7 @@ foreach(name IN ITEMS parse_log common cli)
     )
 endforeach()
 add_dependencies(test_cli scrobbler)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME pipeline_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pipeline.py")
+set_tests_properties(pipeline_contract PROPERTIES TIMEOUT 40)

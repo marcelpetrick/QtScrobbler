@@ -30,8 +30,11 @@ commands or contribution rules change; it need not change in every implementatio
 
 ## Build and test commands
 
-Current gate: `./localPipeline.sh --noRun`. Current pipeline has known failure-propagation
-defects listed in `plan.md`; do not equate its success with completed testing targets.
+Current gate: `./localPipeline.sh --noRun`. Missing/failed tests and CLI smoke failures are fatal. This baseline gate does not yet
+enforce the final coverage/mutation targets. Retain evidence with
+`./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports`.
+Use `QTSCROBBLER_JOBS=4` to bound build parallelism and `QTSCROBBLER_BUILD_DIR`
+for an isolated build directory.
 
 Current direct checks:
 

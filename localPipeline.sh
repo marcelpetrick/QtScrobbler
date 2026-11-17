@@ -4,10 +4,14 @@ set -o pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="${ROOT_DIR}/src"
-BUILD_DIR="${ROOT_DIR}/build"
+BUILD_DIR="${QTSCROBBLER_BUILD_DIR:-${ROOT_DIR}/build}"
 APP_VERSION="$(grep -oP '#define CLIENT_VERSION "\K[^"]+' "${SRC_DIR}/lib/common.h" 2>/dev/null || echo "unknown")"
 PIPELINE_LOG_DIR="${TMPDIR:-/tmp}/qtscrob-pipeline-$$"
-trap 'rm -rf "${PIPELINE_LOG_DIR}"' EXIT
+KEEP_REPORTS=false
+cleanup() {
+    if [[ "${KEEP_REPORTS}" == false ]]; then rm -rf "${PIPELINE_LOG_DIR}"; fi
+}
+trap cleanup EXIT
 
 declare -a SUMMARY_LINES=()
 
@@ -35,7 +39,7 @@ GUI_SMOKE_DETAILS=""
 TRANSLATION_DETAILS=""
 
 # Number of parallel compile jobs
-JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+JOBS="${QTSCROBBLER_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 # Will be set to the detected Qt6 qmake binary (qmake6 or qmake) — used for Qt6 check only
 QMAKE=""
@@ -70,7 +74,7 @@ print_summary() {
 
 print_usage() {
     cat <<EOF
-Usage: ./localPipeline.sh [--noRun] [--help]
+Usage: ./localPipeline.sh [--noRun] [--noOpen] [--report-dir PATH] [--help]
 
 Local build and quality pipeline for QtScrobbler (Qt 6, Linux).
 
@@ -83,12 +87,14 @@ Stages:
   5.  Smoke: CLI          — scrobbler --help
   6.  Smoke: GUI binary   — qtscrob present and executable
   7.  Translations        — count unfinished strings in .ts catalogs
-  8.  Unit tests          — run QTest suite (SKIP until suite is added)
+  8.  Unit tests          — run QTest suite (missing or failed tests are fatal)
   9.  Launch app          — start qtscrob once (suppress with --noRun)
   10. Summary             — stage-by-stage result table
 
 Options:
   --noRun   Skip launching the GUI app at the end
+  --noOpen  Keep reports closed (the pipeline never opens a browser)
+  --report-dir PATH  Retain logs and JUnit XML in PATH
   --help    Show this message
 
 Exit code 0 when all mandatory stages pass.
@@ -277,20 +283,15 @@ smoke_test_cli() {
         CLI_SMOKE_DETAILS="--help exited 0 — usage text printed"
         log "  ${CLI_SMOKE_DETAILS}"
         return 0
-    fi
-    local rc=$?
-
-    if grep -qiE "usage|option|help|scrobbler" "${log_path}" 2>/dev/null; then
-        CLI_SMOKE_DETAILS="usage text found (exit ${rc} treated as acceptable)"
-        log "  ${CLI_SMOKE_DETAILS}"
-        return 0
+    else
+        local rc=$?
     fi
 
     if [[ "${rc}" -eq 124 ]]; then
         CLI_SMOKE_DETAILS="timed out after 5 s (event-loop binary needs a log file argument)"
         warn "  ${CLI_SMOKE_DETAILS}"
     else
-        CLI_SMOKE_DETAILS="exited ${rc} with no recognisable usage output"
+        CLI_SMOKE_DETAILS="--help exited ${rc}"
         warn "  ${CLI_SMOKE_DETAILS}"
     fi
     return 1
@@ -364,7 +365,8 @@ run_unit_tests() {
     if [[ -f "${BUILD_DIR}/CTestTestfile.cmake" ]]; then
         local test_log="${PIPELINE_LOG_DIR}/ctest.log"
         log "  Running ctest in ${BUILD_DIR}..."
-        if run_with_log "${test_log}" ctest --test-dir "${BUILD_DIR}" --output-on-failure -j "${JOBS}"; then
+        if run_with_log "${test_log}" ctest --test-dir "${BUILD_DIR}" --output-on-failure --no-tests=error \
+                --output-junit "${PIPELINE_LOG_DIR}/junit.xml" -j "${JOBS}"; then
             log "  All tests passed."
             return 0
         fi
@@ -419,12 +421,22 @@ launch_application() {
 # ---------------------------------------------------------------------------
 
 parse_arguments() {
-    for arg in "$@"; do
-        case "${arg}" in
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
             --noRun)  RUN_APP=false ;;
+            --noOpen) ;;
+            --report-dir)
+                if [[ "$#" -lt 2 || "$2" == --* ]]; then
+                    error "--report-dir requires a path"; exit 2
+                fi
+                PIPELINE_LOG_DIR="$2"
+                KEEP_REPORTS=true
+                shift
+                ;;
             --help|-h) print_usage; exit 0 ;;
-            *) error "Unknown argument: ${arg}"; print_usage; exit 2 ;;
+            *) error "Unknown argument: $1"; print_usage; exit 2 ;;
         esac
+        shift
     done
 }
 
@@ -517,7 +529,8 @@ main() {
             CLI_SMOKE_OK=1
             mark_result "Smoke: CLI" "PASS" "${CLI_SMOKE_DETAILS}"
         else
-            mark_result "Smoke: CLI" "WARN" "${CLI_SMOKE_DETAILS}"
+            mark_result "Smoke: CLI" "FAIL" "${CLI_SMOKE_DETAILS}"
+            exit_code=1
         fi
     else
         mark_result "Smoke: CLI" "SKIP" "CLI build not available"
@@ -547,7 +560,8 @@ main() {
     if run_unit_tests; then
         mark_result "Unit Tests" "PASS" "QTest suite passed"
     else
-        mark_result "Unit Tests" "SKIP" "No QTest suite — add src/tests/ to enable"
+        mark_result "Unit Tests" "FAIL" "CTest suite missing or failed"
+        exit_code=1
     fi
 
     # Stage 9 — Launch app
