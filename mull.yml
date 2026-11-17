@@ -1,0 +1,15 @@
+# Native production scope. Tests, Qt/OS headers, generated code and vendored xgetopt
+# are outside these maintained production directories. No logging exclusions are used.
+mutators:
+  - cxx_all
+  - cxx_logical
+includePaths:
+  - /src/lib/.*\.(cpp|h)$
+  - /src/cli/.*\.(cpp|h)$
+  - /src/qt/src/.*\.(cpp|h)$
+excludePaths:
+  - _autogen/
+  - /CMakeFiles/
+parallelization:
+  workers: 2
+  executionWorkers: 2
