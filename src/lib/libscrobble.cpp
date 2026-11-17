@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath> // abs
+#include <utility>
 #include "libscrobble.h"
 
 #include "parse-log.h"
@@ -35,6 +36,14 @@
 void Scrobble::clear_method()
 {
     scrobble_method = SCROBBLE_NONE;
+    if (entries.isEmpty() && parser != nullptr)
+    {
+        ++metadata_generation;
+    api_info->cancel_pending();
+        zero_length_tracks.clear();
+        delete parser;
+        parser = nullptr;
+    }
 }
 
 uint Scrobble::get_gmt()
@@ -44,7 +53,12 @@ uint Scrobble::get_gmt()
 
 Scrobble::Scrobble()
 {
-    parser = NULL;
+    parser = nullptr;
+    num_submissions = 0;
+    have_mb = false;
+    scrobble_method = SCROBBLE_NONE;
+    log_print_level = LOG_INFO;
+    proxy_set = false;
     mutex = new QMutex();
     conf = new Conf();
     api_info = new GetTrackInfo();
@@ -57,24 +71,12 @@ Scrobble::Scrobble()
     api_info->start();
     conf->load_config();
     error_str = "";
-    scrobble_method = SCROBBLE_NONE;
-    log_print_level = LOG_INFO;
-    proxy_set = false;
     db_ready = cache->init();
 
-    gmt_offset = QDateTime::currentDateTime().offsetFromUtc();
-
-    /* initialise TZ variables */
-    tzset();
-
-    // our own copy - returned via get_dst
-    is_dst = daylight;
-    int tzindex = (is_dst)?1:0;
-
-    zonename = QString::fromLocal8Bit(tzname[tzindex]);
-
-    if (is_dst < 0)
-        add_log(LOG_ERROR, "is_dst < 0");
+    const QDateTime localTime = QDateTime::currentDateTime();
+    gmt_offset = localTime.offsetFromUtc();
+    is_dst = localTime.isDaylightTime() ? 1 : 0;
+    zonename = localTime.timeZoneAbbreviation();
 
     add_log(LOG_DEBUG, "Detected Timezone: " + zonename);
     add_log(LOG_DEBUG, QString("Detected DST: %1").arg(is_dst));
@@ -84,6 +86,14 @@ Scrobble::Scrobble()
 
 Scrobble::~Scrobble()
 {
+    ++metadata_generation;
+    api_info->cancel_pending();
+    delete parser;
+    for (Submit *submission : std::as_const(submissions))
+    {
+        submission->disconnect();
+        delete submission;
+    }
     api_info->quit();
     api_info->wait();
     delete api_info;
@@ -133,12 +143,20 @@ scrob_entry Scrobble::get_track(int track_index)
 
 void Scrobble::remove_track(int track_index)
 {
+    const bool pending_metadata = !zero_length_tracks.isEmpty();
     entries.erase(entries.begin()+track_index);
+    if (pending_metadata)
+        check_track_lengths();
 }
 
 void Scrobble::update_track(scrob_entry track, int track_index)
 {
+    const scrob_entry previous = entries.at(track_index);
+    const bool restart_metadata = !zero_length_tracks.isEmpty()
+        && (previous.artist != track.artist || previous.title != track.title || previous.length != track.length);
     entries.replace(track_index, track);
+    if (restart_metadata)
+        check_track_lengths();
 }
 
 void Scrobble::sort_tracks()
@@ -204,13 +222,16 @@ void Scrobble::check_timestamps()
                     break;
             }
             // recalc the bad ones
-            recalc_dt(get_gmt(), i);
+            recalc_dt(entries.at(i).when, i - 1);
         }
     }
 }
 
 void Scrobble::check_track_lengths()
 {
+    const bool was_pending = !zero_length_tracks.isEmpty();
+    ++metadata_generation;
+    api_info->cancel_pending();
     zero_length_tracks.clear();
     for (int i = 0; i < entries.length(); i++)
     {
@@ -248,15 +269,26 @@ void Scrobble::check_track_lengths()
     if (!zero_length_tracks.isEmpty())
     {
         add_log(LOG_INFO, tr("Fetching missing track lengths from last.fm..."));
+        const quint64 generation = metadata_generation;
         emit missing_times_start(zero_length_tracks.length());
-        int index = zero_length_tracks.takeFirst();
+        if (generation != metadata_generation || zero_length_tracks.isEmpty())
+            return;
+        const int index = zero_length_tracks.first();
         emit missing_times_get(index, entries.at(index), 0);
+    }
+    else if (was_pending)
+    {
+        check_timestamps();
+        emit missing_times_finished();
     }
 }
 
 void Scrobble::updated_track_length(int index, bool success, int length, int elapsed)
 {
-
+    if (zero_length_tracks.isEmpty() || zero_length_tracks.first() != index
+        || index < 0 || index >= entries.size())
+        return;
+    const quint64 generation = metadata_generation;
     const int minimum_time = 200;
     if (success)
     {
@@ -265,21 +297,31 @@ void Scrobble::updated_track_length(int index, bool success, int length, int ela
         cache->set_track_length(entries[index].artist, entries[index].title, length);
         mutex->unlock();
     }
+    zero_length_tracks.removeFirst();
     if (!zero_length_tracks.isEmpty())
     {
         emit missing_times_progress(zero_length_tracks.length());
-        int target = zero_length_tracks.takeFirst();
+        if (generation != metadata_generation || zero_length_tracks.isEmpty())
+            return;
+        const int target = zero_length_tracks.first();
         emit missing_times_get(target, entries.at(target),
                                (elapsed < minimum_time)?(minimum_time-elapsed):0);
     }
     else
+    {
+        check_timestamps();
         emit missing_times_finished();
+    }
 }
 
 void Scrobble::slotCancelProgress()
 {
-    emit signalCancelProgress(); //inform the progress-dialog to cancel/hide itself
-//    emit submission_finished(false); //does the other clean-up; introduced to keep the old workflow of creation
+    // Existing GUI listeners can cancel synchronously. CLI users have no progress dialog,
+    // so finish the operation here if no listener already handled it.
+    QPointer<Scrobble> guard(this);
+    emit signalCancelProgress();
+    if (guard && !submissions.isEmpty())
+        cancel_submission();
 }
 
 QString Scrobble::offset_str(void)
@@ -347,15 +389,20 @@ bool Scrobble::check_age()
 
 bool Scrobble::submit()
 {
+    if (!zero_length_tracks.isEmpty())
+    {
+        add_log(LOG_ERROR, tr("Track lengths are still being fetched. Please wait before submitting."));
+        emit submission_finished(false);
+        return false;
+    }
+    // Filtering can remove every track, even if the imported list was nonempty.
+    cleanup_tracks();
     if (entries.empty())
     {
         add_log(LOG_ERROR, tr("Nothing to submit!"));
         emit submission_finished(false);
         return false;
     }
-
-    // May already have been called, but better to be safe.
-    cleanup_tracks();
 
     if (check_age())
     {
@@ -426,7 +473,7 @@ void Scrobble::submit_finished(bool success, QString msg)
     if (!msg.isEmpty())
         add_log(LOG_ERROR, msg);
 
-    if (!success)
+    if (!success && parser != nullptr)
     {
         parser->disconnect();
         delete parser;
@@ -443,6 +490,9 @@ void Scrobble::submit_finished(bool success, QString msg)
 
 void Scrobble::remove_sent()
 {
+    if (submissions.isEmpty())
+        return;
+
     for (int i = entries.size() - 1; i >= 0; i--)
     {
         bool submitted = true;
@@ -469,6 +519,9 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
     }
 
     scrobble_method = SCROBBLE_NONE;
+    ++metadata_generation;
+    api_info->cancel_pending();
+    zero_length_tracks.clear();
     entries.clear();
     switch (method)
     {
@@ -503,8 +556,14 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
 
 void Scrobble::parse_open(QString path, int offset)
 {
-    if (parser != NULL)
+    if (parser != nullptr)
+    {
+        ++metadata_generation;
+    api_info->cancel_pending();
+        zero_length_tracks.clear();
+        entries.clear();
         parser->open(path, offset);
+    }
 }
 
 void Scrobble::add_entry(scrob_entry new_entry)
@@ -517,8 +576,13 @@ void Scrobble::parser_open_finished(bool success, QString msg)
     if (success)
     {
         add_log(LOG_INFO, msg);
+        // Metadata requests must honor the same configured proxy as submissions.
+        set_proxy();
+        // Resolve positional identities before starting asynchronous requests.
+        sort_tracks();
         check_track_lengths();
-        check_timestamps();
+        if (zero_length_tracks.isEmpty())
+            check_timestamps();
     }
     else
     {
@@ -534,6 +598,9 @@ void Scrobble::parser_open_finished(bool success, QString msg)
 
 void Scrobble::parser_clear()
 {
+    ++metadata_generation;
+    api_info->cancel_pending();
+    zero_length_tracks.clear();
     if (parser != NULL)
         parser->clear();
     else
@@ -582,6 +649,9 @@ void Scrobble::set_proxy()
 
 void Scrobble::cancel_submission()
 {
+    ++metadata_generation;
+    api_info->cancel_pending();
+    zero_length_tracks.clear();
     QHashIterator<int, Submit *> i(submissions);
     while (i.hasNext())
     {
@@ -617,12 +687,14 @@ void Scrobble::clear_submission_state(bool success)
     // parser will disconnect & delete itself after clearing
     if (overall_success)
         parser_clear();
-    else
+    else if (parser != nullptr)
     {
         parser->disconnect();
         delete parser;
-        parser = NULL;
+        parser = nullptr;
     }
+    submissions.clear();
+    num_submissions = 0;
 
-    emit submission_finished(success);
+    emit submission_finished(success && overall_success);
 }

@@ -20,17 +20,15 @@
 
 int main(int argc, char **argv)
 {
-    app *cli = new app(argc, argv);
-    if (!cli->parse_cmd(argc, argv))
-        exit(1);
-    
+    app cli(argc, argv);
+    if (!cli.parse_cmd(argc, argv))
+        return 2;
+
     QTranslator translator;
     if (translator.load(":/language"))
-        cli->installTranslator(&translator);
+        cli.installTranslator(&translator);
 
-    // HACK - allows exec() to kick in before run() is called
-    // how else are you supposed to get a class setup as a console app in Qt?
-    QTimer::singleShot(100, cli, &app::run);
-
-    return cli->exec();
+    // Start work after the event loop is active so synchronous failures can set its exit code.
+    QTimer::singleShot(0, &cli, &app::run);
+    return cli.exec();
 }

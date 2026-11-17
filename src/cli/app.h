@@ -34,6 +34,7 @@ private:
 
     QString config_path;
     QString path;
+    bool metadata_pending = false;
     bool do_time;
     bool do_tzoverride;
     int do_db;
@@ -51,6 +52,7 @@ private:
 
 public:
     app(int&, char**);
+    ~app() override;
     bool parse_cmd(int argc, char** argv);
     
 public slots:

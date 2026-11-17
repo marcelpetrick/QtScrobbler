@@ -28,6 +28,7 @@ Parse_Log::~Parse_Log()
 
 void Parse_Log::open(QString folder_path, int tz)
 {
+    parsed = false;
     CHECK_RESULT chk = check_path(SCROBBLE_LOG, folder_path);
     if (chk == CHECK_FAIL)
     {
@@ -146,10 +147,10 @@ void Parse_Log::open(QString folder_path, int tz)
         if (!line.startsWith( '#' ) && line.length() > 0)
         {
             QStringList const log_entry = line.split( '\t' );
-            if (log_entry.size() == ((have_mb)?8:7))
+            if (log_entry.size() == ((have_mb)?8:7) && !log_entry[5].isEmpty())
             {
                 //right number of tabs in the line
-                scrob_entry temp_entry;
+                scrob_entry temp_entry{};
 
                 temp_entry.artist = QString::fromUtf8(log_entry[0].toLocal8Bit());
                 temp_entry.album = QString::fromUtf8(log_entry[1].toLocal8Bit());
@@ -177,6 +178,8 @@ void Parse_Log::open(QString folder_path, int tz)
         parsed = true;
         emit open_finished(true, tr("Successfully parsed %1 log entries").arg(entries));
     }
+    else
+        emit open_finished(false, tr("Parsing failed - no valid log entries"));
 }
 
 void Parse_Log::clear()
@@ -188,8 +191,11 @@ void Parse_Log::clear()
         return;
     }
     if (QFile(file_path).remove())
+    {
+        parsed = false;
         emit clear_finished(true,
             tr("Deleted log file %1").arg(file_path));
+    }
     else
         emit clear_finished(false,
             tr("Failed to remove log file %1").arg(file_path));

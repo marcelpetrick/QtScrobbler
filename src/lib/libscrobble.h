@@ -59,6 +59,7 @@ private:
     void check_track_lengths();
     GetTrackInfo *api_info;
     QList<int> zero_length_tracks;
+    quint64 metadata_generation = 0;
     void remove_sent();
     void clear_submission_state(bool);
 
