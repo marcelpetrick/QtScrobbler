@@ -38,3 +38,6 @@ target_compile_definitions(test_translations PRIVATE TRANSLATION_SOURCE_DIR="${P
 add_dependencies(test_translations translations_qm)
 add_test(NAME translations COMMAND test_translations)
 set_tests_properties(translations PROPERTIES TIMEOUT 20 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;TZ=UTC")
+add_test(NAME gui_process COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gui_process.py" "$<TARGET_FILE:qtscrob>")
+set_tests_properties(gui_process PROPERTIES TIMEOUT 20)
+target_compile_definitions(test_gui PRIVATE PYTHON_BINARY="${Python3_EXECUTABLE}" GUI_PROCESS_TEST="${CMAKE_CURRENT_SOURCE_DIR}/test_gui_process.py")

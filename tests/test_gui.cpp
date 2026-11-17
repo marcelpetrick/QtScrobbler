@@ -94,6 +94,24 @@ private slots:
         QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
     }
 
+    void displayBackedProcess()
+    {
+        QProcess child;
+        child.start(QString::fromUtf8(PYTHON_BINARY),
+                    {QString::fromUtf8(GUI_PROCESS_TEST), QString::fromUtf8(GUI_BINARY)});
+        QVERIFY(child.waitForStarted(1000));
+        if (!child.waitForFinished(12000)) {
+            child.kill();
+            child.waitForFinished(1000);
+            QFAIL("Private-display GUI workflow exceeded its timeout");
+        }
+        QCOMPARE(child.exitStatus(), QProcess::NormalExit);
+        const auto errors = child.readAllStandardError();
+        QVERIFY2(child.exitCode() == 0, errors.constData());
+        QCOMPARE(errors, QByteArray());
+        QVERIFY(child.readAllStandardOutput().startsWith("PASS: private X11 main window"));
+    }
+
     void processOptions_data()
     {
         QTest::addColumn<QStringList>("arguments");
