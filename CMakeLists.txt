@@ -64,6 +64,7 @@ file(CONFIGURE OUTPUT "${QTSCROBBLER_CLI_RESOURCE_FILE}" CONTENT "${QTSCROBBLER_
 add_subdirectory(src/lib)
 add_subdirectory(src/qt)
 add_subdirectory(src/cli)
+include(cmake/Instrumentation.cmake)
 
 include(CTest)
 if(BUILD_TESTING)
