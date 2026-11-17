@@ -28,7 +28,7 @@
 
 struct site_conf {
     QString conf_name;
-    bool enabled;
+    bool enabled = false;
     QString username;
     QString password_hash;
     QString handshake_host;
@@ -62,7 +62,7 @@ public:
 private:
     QSettings *settings;
     bool upgrade_from_0_10();
-    void upgrade_from_old_location();
+    bool upgrade_from_old_location();
     void status();
 signals:
     void add_log(LOG_LEVEL, QString);

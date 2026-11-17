@@ -5,6 +5,25 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <cstring>
+#include <new>
+
+namespace {
+// A normal allocator can return storage that held arbitrary prior data. Use a
+// fixed prior pattern so omitted scalar initializers fail deterministically.
+class ConfStorage
+{
+    alignas(Conf) unsigned char storage[sizeof(Conf)];
+public:
+    Conf *value;
+    ConfStorage()
+    {
+        std::memset(storage, 0x13, sizeof(storage));
+        value = new (storage) Conf;
+    }
+    ~ConfStorage() { value->~Conf(); }
+};
+}
 
 class ConfTest : public QObject
 {
@@ -13,10 +32,52 @@ class ConfTest : public QObject
 private slots:
     void init()
     {
+        QTest::failOnWarning(QRegularExpression(".*"));
         const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
         QVERIFY(!config.isEmpty());
         QVERIFY(QDir(config).removeRecursively());
         QVERIFY(QDir().mkpath(config));
+    }
+
+    void saveBeforeLoadHasDisabledSiteDefaults()
+    {
+        ConfStorage storage;
+        auto &conf = *storage.value;
+        for (const auto &site : conf.sites) {
+            QVERIFY(!site.enabled);
+            QVERIFY(site.username.isEmpty());
+            QVERIFY(site.password_hash.isEmpty());
+        }
+        QCOMPARE(conf.sites[CONFIG_LASTFM].conf_name, "Last.fm");
+        QCOMPARE(conf.sites[CONFIG_LASTFM].handshake_host, LAST_FM_HOST);
+        QCOMPARE(conf.sites[CONFIG_LIBREFM].conf_name, "Libre.fm");
+        QCOMPARE(conf.sites[CONFIG_LIBREFM].handshake_host, LIBRE_FM_HOST);
+        QVERIFY(conf.sites[CONFIG_CUSTOM].conf_name.isEmpty());
+        QVERIFY(conf.sites[CONFIG_CUSTOM].handshake_host.isEmpty());
+        QVERIFY(conf.save_config());
+        Conf reopened;
+        QVERIFY(reopened.load_config());
+        for (const auto &site : reopened.sites)
+            QVERIFY(!site.enabled);
+    }
+
+    void failedMigrationLeavesSafeSiteDefaults()
+    {
+        {
+            QSettings old("qtscrob");
+            old.setValue("application/tz_override", true);
+            old.setValue("application/username", "preserved-user");
+        }
+        QTemporaryDir directory;
+        ConfStorage storage;
+        auto &conf = *storage.value;
+        conf.set_custom_location(directory.path());
+        QVERIFY(!conf.load_config());
+        for (const auto &site : conf.sites)
+            QVERIFY(!site.enabled);
+        QVERIFY(!conf.save_config());
+        QSettings preserved("qtscrob");
+        QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
     void defaults()
@@ -193,6 +254,141 @@ private slots:
         QVERIFY(!conf.save_config());
         QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_ERROR);
         QCOMPARE(logs.last().at(1).toString(), "Conf: Access Error");
+    }
+
+    void customLocationSwitchingPreservesBothFiles()
+    {
+        QTemporaryDir directory;
+        const QString first = directory.filePath("first.ini");
+        const QString second = directory.filePath("second.ini");
+        Conf conf;
+        conf.set_custom_location(first);
+        conf.utc_offset = 3600;
+        QVERIFY(conf.save_config());
+        conf.save_custom("window", {{"name", "First Window"}});
+        conf.set_custom_location(second);
+        QCOMPARE(conf.utc_offset, 0);
+        QVERIFY(conf.load_custom("window").isEmpty());
+        conf.utc_offset = -7200;
+        QVERIFY(conf.save_config());
+        conf.save_custom("window", {{"name", "Second Window"}});
+        conf.set_custom_location(first);
+        QCOMPARE(conf.utc_offset, 3600);
+        QCOMPARE(conf.load_custom("window").value("name").toString(), "First Window");
+        conf.set_custom_location(QString());
+        conf.utc_offset = 5400;
+        QVERIFY(conf.save_config());
+        QSettings unchanged(second, QSettings::IniFormat);
+        QCOMPARE(unchanged.value("application/utc_offset").toInt(), -7200);
+        QCOMPARE(unchanged.value("window/name").toString(), "Second Window");
+        conf.set_custom_location(first);
+        QCOMPARE(conf.utc_offset, 5400);
+    }
+
+    void savingPreservesUnknownSettingsAndDoesNotLogCredentials()
+    {
+        QTemporaryDir directory;
+        const QString file = directory.filePath("settings.ini");
+        {
+            QSettings initial(file, QSettings::IniFormat);
+            initial.setValue("unrelated/key", "keep me");
+            initial.setValue("application/customFlag", true);
+        }
+        Conf conf;
+        QSignalSpy logs(&conf, &Conf::add_log);
+        conf.set_custom_location(file);
+        conf.proxy_pass = "sensitive-proxy-secret";
+        conf.sites[CONFIG_CUSTOM].username = "sensitive-user";
+        conf.sites[CONFIG_CUSTOM].password_hash = "sensitive-password-hash";
+        QVERIFY(conf.save_config());
+        QVERIFY(conf.load_config());
+        QSettings actual(file, QSettings::IniFormat);
+        QCOMPARE(actual.value("unrelated/key").toString(), "keep me");
+        QVERIFY(actual.value("application/customFlag").toBool());
+        for (const auto &log : logs) {
+            const auto text = log.at(1).toString();
+            QVERIFY(!text.contains("sensitive-proxy-secret"));
+            QVERIFY(!text.contains("sensitive-user"));
+            QVERIFY(!text.contains("sensitive-password-hash"));
+        }
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+        QCOMPARE(logs.last().at(1).toString(), "Conf: Success on read/write");
+    }
+
+    void migrationFromVersion011PreservesSections()
+    {
+        {
+            QSettings old("qtscrob");
+            old.setValue("application/tz_override", true);
+            old.setValue("application/utc_offset", 2700);
+            old.setValue("application/mru", QStringList{"/fictional/device"});
+            old.setValue("window/size", QSize(700, 500));
+            old.setValue("Last.fm/enabled", true);
+            old.setValue("Last.fm/username", "old-user");
+            old.setValue("Last.fm/password_hash", "old-hash");
+        }
+        Conf conf;
+        QVERIFY(conf.load_config());
+        QCOMPARE(conf.utc_offset, 2700);
+        QVERIFY(conf.tz_override);
+        QCOMPARE(conf.mru, QStringList{"/fictional/device"});
+        QVERIFY(conf.sites[CONFIG_LASTFM].enabled);
+        QCOMPARE(conf.sites[CONFIG_LASTFM].username, "old-user");
+        QCOMPARE(conf.sites[CONFIG_LASTFM].password_hash, "old-hash");
+        QCOMPARE(conf.load_custom("window").value("size").toSize(), QSize(700, 500));
+        QSettings old("qtscrob");
+        QVERIFY(old.allKeys().isEmpty());
+        QVERIFY(conf.load_config());
+        QCOMPARE(conf.utc_offset, 2700);
+    }
+
+    void migrationDoesNotDeleteSourceOnFailedSave()
+    {
+        {
+            QSettings old("qtscrob");
+            old.setValue("application/tz_override", true);
+            old.setValue("application/lastDirectory", "/fictional/player");
+            old.setValue("application/username", "preserved-user");
+        }
+        QTemporaryDir directory;
+        Conf conf;
+        // A directory is a deterministic inaccessible INI target, including as root.
+        conf.set_custom_location(directory.path());
+        QVERIFY(!conf.load_config());
+        QSettings old("qtscrob");
+        QCOMPARE(old.value("application/username").toString(), "preserved-user");
+        QCOMPARE(old.value("application/lastDirectory").toString(), "/fictional/player");
+    }
+
+    void version010MigrationPropagatesWriteFailure()
+    {
+        QTemporaryDir directory;
+        const QString parent = directory.filePath("parent");
+        const QString backup = directory.filePath("backup");
+        QVERIFY(QDir().mkpath(parent));
+        const QString file = parent + "/config.ini";
+        Conf conf;
+        conf.set_custom_location(file);
+        {
+            QSettings legacy(file, QSettings::IniFormat);
+            legacy.setValue("application/lastDirectory", "/fictional/player");
+            legacy.setValue("application/username", "preserved-user");
+        }
+        bool blocked = false;
+        connect(&conf, &Conf::add_log, this, [&](LOG_LEVEL, const QString &message) {
+            if (message == "Conf: Upgrading from 0.10 or before") {
+                blocked = QDir().rename(parent, backup);
+                QFile blocker(parent);
+                blocked = blocker.open(QIODevice::WriteOnly) && blocked;
+            }
+        });
+        QSignalSpy logs(&conf, &Conf::add_log);
+        QVERIFY(!conf.load_config());
+        QVERIFY(blocked);
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_ERROR);
+        QCOMPARE(logs.last().at(1).toString(), "Conf: Access Error");
+        QSettings preserved(backup + "/config.ini", QSettings::IniFormat);
+        QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
     void legacyMigration()

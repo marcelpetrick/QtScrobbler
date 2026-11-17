@@ -87,12 +87,15 @@ void Conf::set_custom_location(QString location)
 
 bool Conf::load_config()
 {
-    upgrade_from_old_location();
+    if (!upgrade_from_old_location())
+    {
+        status();
+        return false;
+    }
     if (settings->contains("application/lastDirectory"))
     {
         emit add_log(LOG_INFO, "Conf: Upgrading from 0.10 or before");
-        upgrade_from_0_10();
-        return true;
+        return upgrade_from_0_10();
     }
 
     settings->beginGroup("application");
@@ -188,20 +191,20 @@ bool Conf::upgrade_from_0_10()
 
     // Now we're back at the lowest level of the config tree,
     // clear all old entries.
+    // Keep the on-disk legacy settings until the replacement can be written
+    // atomically by save_config(); an intermediate sync would erase the source.
     settings->clear();
-    settings->sync();
 
     sites[CONFIG_LASTFM].enabled = true;
     // Since we've just wiped out the old settings, save back the new version
     // straight away.
-    save_config();
-    // Load them back in so we get the defaults for uninitialised values
-    load_config();
-
-    return true;
+    if (!save_config())
+        return false;
+    // Load them back in so we get the defaults for uninitialised values.
+    return load_config();
 }
 
-void Conf::upgrade_from_old_location()
+bool Conf::upgrade_from_old_location()
 {
     QSettings old("qtscrob");
     old.setFallbacksEnabled(false);
@@ -217,6 +220,9 @@ void Conf::upgrade_from_old_location()
             settings->setValue(keys.at(i), old.value(keys.at(i)));
         }
         settings->sync();
+        // The old location is the recovery copy until persistence succeeds.
+        if (settings->status() != QSettings::NoError)
+            return false;
 
         // delete all old keys
         old.clear();
@@ -226,6 +232,7 @@ void Conf::upgrade_from_old_location()
         QFile(old.fileName()).remove();
 #endif
     }
+    return true;
 }
 
 QHash<QString, QVariant> Conf::load_custom(QString section)
