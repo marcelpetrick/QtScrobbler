@@ -81,3 +81,33 @@ finds its main window with libX11 and requests WM_DELETE_WINDOW. Normal terminat
 checks cleanup and flushes subprocess LLVM profiles. Display helpers are rejected
 unless they advertise the window-close protocol. These tests use no existing user
 display, settings, credentials or devices.
+
+## Measured results
+
+Frozen commit `20bd7f8` / client `0.13.59`, measured on 2026-11-17 with Qt6.12.0,
+Clang/LLVM20.1.8, MTP enabled, and pinned zlib1.4:
+
+| Check | Observed result |
+| --- | --- |
+| Source lines | 2722 /2749, 99.017824663514%;95% gate PASS |
+| Source branches | 1017 /1063, 95.67262464722484%;95% gate PASS |
+| Missing production files | None; library, CLI, GUI, and Linux MTP included |
+| Normal CTest | 20 /20 PASS |
+| ASan/UBSan/leak CTest | 20 /20 PASS |
+| Format, static, documentation | PASS |
+| Extracted package checks | PASS (separate package stage on the same frozen build) |
+| Native mutation | Interrupted after verified tool defects; no qualified complete score |
+
+Coverage reports: `/tmp/qtscrobbler-frozen-59-full-reports/coverage/summary.json`,
+with hashed exports, raw profiles, HTML, JUnit, source/test/tool inventories, and no
+missing production files. Package evidence: `/tmp/qtscrobbler-frozen-59-package`.
+README badges display these measured coverage values truncated to two decimals;
+passing uses integer totals. They do not imply a passing mutation campaign or a
+qualified release. Historical measurements remain associated with their own commit.
+
+The mutation investigation found both false-uncovered filtering and invalid native
+void-call replacements around C++ exception cleanup. LLVM IR shows that some advertised
+signal removals leave the signal intact while removing a destructor instead. These
+are tool defects, not equivalent source mutations or missing signal assertions.
+See [mutation qualification](MUTATION_TESTING.md); publication remains pending the
+corrected native tool and a complete passing campaign.

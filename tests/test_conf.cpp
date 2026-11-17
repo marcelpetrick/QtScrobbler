@@ -73,6 +73,41 @@ class ConfTest : public QObject {
         QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
+    void systemFallbacksCannotEnableAccountsOrTriggerLegacyMigration() {
+        {
+            QSettings current(QSettings::NativeFormat, QSettings::SystemScope, "qtscrob", "qtscrob");
+            current.setValue("application/utc_offset", 7200);
+            current.setValue("Last.fm/enabled", true);
+            current.setValue("Last.fm/username", "system-account");
+            current.setValue("Last.fm/password_hash", "system-account-hash");
+            current.sync();
+            QCOMPARE(current.status(), QSettings::NoError);
+            QSettings legacy(QSettings::NativeFormat, QSettings::SystemScope, "qtscrob");
+            legacy.setValue("application/tz_override", true);
+            legacy.setValue("application/utc_offset", 3600);
+            legacy.setValue("Last.fm/enabled", true);
+            legacy.sync();
+            QCOMPARE(legacy.status(), QSettings::NoError);
+        }
+        // Show the isolated system fixtures really are visible through ordinary fallbacks.
+        QSettings ordinary(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        QCOMPARE(ordinary.value("Last.fm/username").toString(), "system-account");
+        Conf conf;
+        QSignalSpy logs(&conf, &Conf::add_log);
+        QVERIFY(conf.load_config());
+        QCOMPARE(conf.utc_offset, 0);
+        QVERIFY(!conf.tz_override);
+        QVERIFY(!conf.sites[CONFIG_LASTFM].enabled);
+        QVERIFY(conf.sites[CONFIG_LASTFM].username.isEmpty());
+        QVERIFY(conf.sites[CONFIG_LASTFM].password_hash.isEmpty());
+        for (const auto& log : logs) QVERIFY(!log[1].toString().contains("Moving config"));
+        QVERIFY(conf.save_config());
+        QSettings written(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        written.setFallbacksEnabled(false);
+        QCOMPARE(written.value("application/utc_offset").toInt(), 0);
+        QVERIFY(!written.value("Last.fm/enabled").toBool());
+    }
+
     void defaults() {
         Conf conf;
         QVERIFY(conf.load_config());
@@ -407,6 +442,7 @@ int main(int argc, char** argv) {
     if (!home.isValid()) return 1;
     qputenv("HOME", home.path().toUtf8());
     qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
+    qputenv("XDG_CONFIG_DIRS", (home.path() + "/system").toUtf8());
     QCoreApplication application(argc, argv);
     qRegisterMetaType<LOG_LEVEL>();
     ConfTest tests;

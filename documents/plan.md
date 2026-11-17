@@ -146,11 +146,14 @@ Exit: at least one real parser test and one process test pass; deliberate failur
 - [ ] Complete upstream inventory, patch availability, installer and compiler/Mull compatibility spike.
 - [ ] Provision and lock toolchain; record hashes and exact resolved transitive dependencies.
 - [x] Upgrade all used Qt modules/tools together; select prefix explicitly and verify runtime Qt version.
-- [ ] Add CMake presets or equivalent separate release/debug/coverage/sanitizer/mutation directories.
-- [ ] Add explicit optional-MTP selection; require dependency discovery when ON and test ON/OFF.
+- [x] Add CMake presets or equivalent separate release/debug/coverage/sanitizer/mutation directories.
+      Separate native builds exercised through frozen0.13.59; reports retained below.
+- [x] Add explicit optional-MTP selection; require dependency discovery when ON and test ON/OFF.
+      ON: frozen0.13.59; OFF: /tmp/qtscrobbler-resumed-mtp-off (18/18 CTests).
 - [ ] Resolve Qt 6.12 compile/runtime regressions using characterization tests before fixes.
 - [ ] Update CI and release dependency provisioning and immutable Action references.
-- [ ] Correct install instructions and Qt minimum claims (CMake/SDK instructions updated); characterize or retire duplicate qmake path explicitly.
+- [x] Correct install instructions and Qt minimum claims; legacy qmake files explicitly
+      unqualified in the historical port assessment, with CMake as the maintained build path.
 
 Exit: clean Qt 6.12 release build plus passing P0 tests, isolated GUI startup/close, translations,
 SQL plugin loading, and library dependencies verified on the actual requested Qt version.
@@ -217,15 +220,17 @@ Exit: the user-visible import/edit/submit/cancel workflow passes on Qt 6.12, bey
 ### P6 — Coverage accounting and 95% gates
 
 - [ ] Spike GCC/gcovr versus Clang/llvm-cov against Qt-generated and exception branches; choose and pin one.
-- [ ] Instrument all maintained production targets including CLI main and GUI; collect subprocess profiles.
-- [ ] Include never-executed compiled production files in denominator; publish file inventory and raw totals.
+- [x] Instrument all maintained production targets including CLI main and GUI; collect subprocess profiles.
+- [x] Include never-executed compiled production files in denominator; publish file inventory and raw totals.
+      Frozen0.13.59 coverage inventory has no missing production files.
 - [ ] Exclude Qt/system headers, generated moc/uic/rcc, tests, and vendored xgetopt only with explicit scope.
       Windows-only source excluded on Linux is listed separately as unmeasured, not tested.
 - [ ] Report raw compiler branch results and any justified normalized view separately; choose the gate's
       branch semantics before baseline and never relabel decision coverage as branch coverage.
 - [ ] Register every exception/unreachable exclusion with file, reason, evidence and review; no blanket UI/MTP exclusions.
 - [ ] Establish baseline; raise ratchet at verified milestones (e.g. 50/70/85/95), never lowering it silently.
-- [ ] Enforce separate 95% line/branch thresholds from raw totals, so 94.995 does not pass by display rounding.
+- [x] Enforce separate 95% line/branch thresholds from raw totals, so 94.995 does not pass by display rounding.
+      Integer gate contracts pass; both thresholds pass on frozen0.13.59.
 - [ ] Emit HTML, machine-readable coverage, JUnit and per-module gaps; enforce missing/stale reports as errors.
 
 Exit: fresh complete report meets both thresholds locally and in CI; no excluded high-risk subsystem.
@@ -252,19 +257,23 @@ Exit: a reproducible full campaign passes score and integrity gates; scores from
 
 ### P8 — Static checks, docs, and unified pipeline
 
-- [ ] Pin clang-format; Google base, four-space indentation and 120-column limit as already requested in TODO.
+- [x] Pin clang-format; Google base, four-space indentation and 120-column limit as already requested in TODO.
       Separate mechanical formatting commit and enforce source/test checks afterwards.
 - [ ] Add clang-tidy, clazy and cppcheck incrementally; verify findings before changing behavior,
       document narrow false-positive suppressions, zero findings on enabled rules.
 - [ ] Add ASan/UBSan and leak/lifetime checks; TSan only where Qt/toolchain produces actionable evidence.
-- [ ] Add Doxygen API docs with warnings fatal; document public contracts, ownership and signals.
-- [ ] Create current/history documentation map, requirements, architecture/state diagrams,
+- [x] Add Doxygen API docs with warnings fatal; document public contracts, ownership and signals.
+- [x] Create current/history documentation map, requirements, architecture/state diagrams,
       quality/dependency instructions and an append-only mutation results record.
-- [ ] Add docs checks (required files, links, headings, whitespace, examples, version/source consistency).
+- [x] Add docs checks (required files, links, headings, examples, version/source consistency).
+      Local Markdown links include moved and historical guides; compiler/source versions
+      are checked through packaged entry points. Narrow validation scope is documented.
 - [x] `localPipeline.sh --noRun --noOpen --report-dir <path>` becomes CI's quality entry point.
       It checks tools, format, analyzers, translations, docs, build, tests, coverage, packaging,
-      optional mutation and optional launch, with actual exit statuses and retained reports.
-- [ ] Exercise deliberate failure in every gate; optional mutation absence must never look like a passed campaign.
+      mandatory native mutation and optional launch, with actual exit statuses and retained reports.
+- [x] Exercise deliberate failure in every gate; missing mandatory mutation tools/reports fail.
+      Pipeline fixtures exercise every stage failure; native semantic correctness has
+      a separate preflight under implementation and remains a P7 qualification item.
 
 Exit: one documented quality command provides truthful, reproducible results in local and CI environments.
 
@@ -441,3 +450,24 @@ Independent review of the integrated retry diff found no verified introduced fin
 removed parser deletion is replaced by explicit retained-parser ownership; every
 release/replacement path is covered, fully successful sites skip resubmission while
 partially successful sites retry unsent tracks. Final native qualification is separate.
+
+| Frozen0.13.59 qualification | Immutable git archive of20bd7f8, full default command (not quick/baseline) using explicit Qt6.12, native LLVM20 and zlib1.4 prefixes | Normal20/20 and ASan/UBSan/leak20/20 PASS; format/static/docs PASS. Valid source-fingerprinted coverage gate PASS:2722/2749 lines (99.017824663514%),1017/1063 branches (95.67262464722484%), no missing production files; HTML/JUnit/exports retained /tmp/qtscrobbler-frozen-59-full-reports. Separate extracted-package stage on same frozen binaries PASS /tmp/qtscrobbler-frozen-59-package | Whole pipeline interrupted at mutation because verified tool defect makes source replacements invalid; no full-green/release claim |
+| Native void-call replacement defect | Fresh no-filter campaign produced Parse_Log signal-removal survivors despite exact QSignalSpy assertions. Direct activation reproduces25/25 passes; LLVM IR proves actual Invoke signal is untouched and generated cleanup destructor removed instead, with duplicate internal clones sharing public ID | Latest stable/main rechecked via official GitHub API:0.38.0 b383a52. Raw SQLite /tmp/qtscrobbler-frozen-59-full-reports/mutation; IR /tmp/qtscrobbler-conf-fallback-proof/parse-log.instrumented.ll | Native correction being built privately under updateDependencies workflow; no equivalent exclusion or false kill permitted. Need semantic sentinel and successful exact-mutant proof before full campaign |
+| Boundary and diagnostic contracts (prepared0.13.60) | Added exact GUI timestamp/edit/MRU/settings/rejected-submit boundaries, repeated iPod/MTP count summaries, and isolated system-settings fallback contracts. Added evidence-linked line/branch README badges for last qualified coverage measurement0.13.59 | Isolated originals: GUI43/43, iPod77/77, MTP18/18, Conf20/20 PASS. Manual source mutants for timestamp boundaries and parser counters produce assertion failures; supplementary probes are not added to native scores. Whole-source incremental gate20/20 PASS (/tmp/qtscrobbler-boundary-60-reports) | Native tool correction, complete mutation threshold, actual green Actions, final audit and public release remain open |
+
+Prepared0.13.60 root incremental gate PASS20/20 CTests (8.59s), reports
+`/tmp/qtscrobbler-boundary-60-reports`. Supported individual checklist items above
+are now marked against retained evidence; whole-package/final-CI/release criteria
+remain open. Independent subagents resumed successfully to finish semantic-tool
+validation, qualify a private native call-removal correction, and review boundary tests.
+
+Independent .60 review found no verified defect in the new test contracts or measured
+badges. Corrected stale plan wording: native mutation is mandatory in the default gate.
+New semantic-toolchain script/tests remain a separate infrastructure change. The only
+format correction joins the new Conf log assertion into the pinned formatter's form.
+
+Prepared0.13.60 follow-up checks: pinned format PASS for all four changed C++ tests;
+Conf rebuilt after format-only adjustment and its CTest PASS; documentation/Doxygen
+stage PASS (/tmp/qtscrobbler-boundary-60-docs). Independent read-only review found no
+verified finding. Existing sourceversion hook was already run before the20-test gate;
+commit invocation disables only that already-executed hook.

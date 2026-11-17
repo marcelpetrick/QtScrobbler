@@ -185,6 +185,36 @@ class ParseMtpTest : public QObject {
         QVERIFY(!fake.wrongArguments);
     }
 
+    void importSummaryCountsTracksAndRepeatedPlaysOnEveryOpen() {
+        FakeMtp fake;
+        fake.secondDevice = true;
+        fake.tracks[0] = {Track{}, {"Artist", nullptr, "", 1, 8}, {"Artist", "Unplayed", "", 0, 9}};
+        fake.tracks[1] = {{"Other Artist", "Repeated", "", 3, 10}};
+        Parse_MTP parser(fake.backend());
+        QStringList summaries;
+        QList<LOG_LEVEL> levels;
+        connect(&parser, &Parse::add_log, this, [&](LOG_LEVEL level, const QString& message) {
+            if (message.startsWith("Found ")) {
+                summaries.append(message);
+                levels.append(level);
+            }
+        });
+        int emitted = 0;
+        connect(&parser, &Parse::entry, this, [&](scrob_entry) { ++emitted; });
+        QSignalSpy completed(&parser, &Parse::open_finished);
+        for (int run = 1; run <= 2; ++run) {
+            parser.open("ignored", 0);
+            QCOMPARE(completed.size(), run);
+            QVERIFY(completed.last()[0].toBool());
+            QCOMPARE(emitted, run * 5);
+            QCOMPARE(summaries.size(), run);
+            QCOMPARE(summaries.last(), "Found 5 entries, 2 of 4 tracks had playcount information");
+            QCOMPARE(levels.last(), LOG_INFO);
+            QCOMPARE(fake.destroyed, run * 4);
+        }
+        QVERIFY(!fake.wrongArguments);
+    }
+
     void emptyDeviceAndUnnamedPlayer() {
         FakeMtp fake;
         fake.tracks[0].clear();

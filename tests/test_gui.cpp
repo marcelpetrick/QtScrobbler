@@ -191,6 +191,22 @@ class GuiTest : public QObject {
         window.open_ipod();
         QVERIFY(sawChooser);
         QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
+        // Automatic reopen falls back to the chooser when a remembered player
+        // was removed, or when there is no remembered directory yet.
+        window.scrob->conf->auto_open = true;
+        for (const QStringList& history : {QStringList{}, QStringList{missing.filePath("removed-player")}}) {
+            window.scrob->conf->mru = history;
+            sawChooser = false;
+            QTimer::singleShot(0, &window, [&] {
+                auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
+                sawChooser = chooser != nullptr;
+                if (chooser) chooser->reject();
+            });
+            window.open_log();
+            QVERIFY(sawChooser);
+            QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
+            QCOMPARE(window.scrob->get_num_tracks(), 0);
+        }
     }
 
     void emptySubmissionAboutQtAndWindowState() {
@@ -329,6 +345,9 @@ class GuiTest : public QObject {
         QCOMPARE(window.scrob->get_track(0).played, QChar('S'));
         table->item(0, 5)->setText("bad");
         QCOMPARE(window.scrob->get_track(0).played, QChar('S'));
+        table->item(0, 5)->setText("");
+        QCOMPARE(table->item(0, 5)->text(), "S");
+        QCOMPARE(window.scrob->get_track(0).played, QChar('S'));
         table->item(0, 5)->setText("L");
         QCOMPARE(window.scrob->get_track(0).played, QChar('L'));
         table->item(0, 6)->setText("2026-11-17 10:00:00");
@@ -342,6 +361,82 @@ class GuiTest : public QObject {
         QCOMPARE(table->item(0, 6)->text(), "2026-11-17 11:00:00");
         table->item(0, 6)->setText("2026-11-17 12:00:00");
         QCOMPARE(window.scrob->get_track(0).when, 1794913200);
+    }
+
+    void timestampEditsRespectStorageBounds_data() {
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<bool>("displayUtc");
+        QTest::addColumn<int>("offset");
+        QTest::addColumn<int>("expectedTimestamp");
+        QTest::newRow("epoch") << "1970-01-01 00:00:00" << true << 0 << 0;
+        QTest::newRow("maximum") << "2038-01-19 03:14:07" << true << 0 << 2147483647;
+        QTest::newRow("before-epoch") << "1969-12-31 23:59:59" << true << 0 << -1;
+        QTest::newRow("after-maximum") << "2038-01-19 03:14:08" << true << 0 << -1;
+        QTest::newRow("local-epoch") << "1970-01-01 01:00:00" << false << 3600 << 0;
+        QTest::newRow("local-before-epoch") << "1970-01-01 00:59:59" << false << 3600 << -1;
+        QTest::newRow("local-maximum") << "2038-01-19 02:14:07" << false << -3600 << 2147483647;
+        QTest::newRow("local-after-maximum") << "2038-01-19 04:14:08" << false << 3600 << -1;
+        QTest::newRow("invalid-calendar") << "2026-02-30 10:00:00" << true << 0 << -1;
+        QTest::newRow("empty") << "" << true << 0 << -1;
+    }
+
+    void timestampEditsRespectStorageBounds() {
+        QFETCH(QString, text);
+        QFETCH(bool, displayUtc);
+        QFETCH(int, offset);
+        QFETCH(int, expectedTimestamp);
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        QTScrob window;
+        window.scrob->conf->display_utc = displayUtc;
+        window.scrob->conf->tz_override = true;
+        window.scrob->conf->utc_offset = offset;
+        window.setupWindow();
+        window.parse(SCROBBLE_LOG, directory.path());
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table);
+        const auto before = window.scrob->get_track(0);
+        const QString displayedBefore = table->item(0, 6)->text();
+        table->item(0, 6)->setText(text);
+        const auto after = window.scrob->get_track(0);
+        QCOMPARE(after.when, expectedTimestamp < 0 ? before.when : expectedTimestamp);
+        if (expectedTimestamp < 0) QCOMPARE(table->item(0, 6)->text(), displayedBefore);
+        QCOMPARE(after.artist, before.artist);
+        QCOMPARE(after.title, before.title);
+        QCOMPARE(after.length, before.length);
+        QCOMPARE(after.mb_track_id, before.mb_track_id);
+    }
+
+    void rejectedSubmissionLeavesSourceAvailable() {
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        QTScrob window;
+        window.setupWindow();
+        for (auto& site : window.scrob->conf->sites) site.enabled = false;
+        window.parse(SCROBBLE_LOG, directory.path());
+        window.scrob->recalc_now();
+        auto* submit = button(window, "Submit");
+        QVERIFY(submit);
+        QString diagnostic;
+        connect(window.scrob, &Scrobble::submission_finished, &window, [&] {
+            QTimer::singleShot(0, &window, [&] {
+                auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+                if (box) {
+                    diagnostic = box->text();
+                    box->button(QMessageBox::Ok)->click();
+                }
+            });
+        });
+        QSignalSpy finished(window.scrob, &Scrobble::submission_finished);
+        submit->click();
+        QCOMPARE(finished.count(), 1);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QTRY_VERIFY_WITH_TIMEOUT(submit->isEnabled(), 1000);
+        QVERIFY(diagnostic.contains("No sites were configured and/or enabled"));
+        QVERIFY(!window.findChild<Progress*>());
+        QCOMPARE(window.scrob->get_num_tracks(), 3);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+        QVERIFY(window.scrob->submissions.isEmpty());
     }
 
     void deleteSelectionAndReimport() {
@@ -386,6 +481,24 @@ class GuiTest : public QObject {
         table->setCurrentCell(-1, -1);
         table->clearSelection();
         window.deleteRow();
+        QCOMPARE(table->rowCount(), 1);
+        // Selection and the current index are independent in Qt. A selection
+        // without a current row must not open a destructive confirmation.
+        table->selectionModel()->select(table->model()->index(0, 0),
+                                        QItemSelectionModel::Select | QItemSelectionModel::Rows);
+        QVERIFY(!table->selectedItems().isEmpty());
+        QCOMPARE(table->currentRow(), -1);
+        bool requestedConfirmation = false;
+        QTimer::singleShot(0, &window, [&] {
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            if (box) {
+                requestedConfirmation = true;
+                box->button(QMessageBox::No)->click();
+            }
+        });
+        window.deleteRow();
+        QCoreApplication::processEvents();
+        QVERIFY(!requestedConfirmation);
         QCOMPARE(table->rowCount(), 1);
         table->selectRow(0);
         answer(QMessageBox::No);
@@ -455,6 +568,10 @@ class GuiTest : public QObject {
         QCOMPARE(sites[CONFIG_CUSTOM]->password->text(), "********");
         QCOMPARE(sites[CONFIG_CUSTOM]->password->echoMode(), QLineEdit::Password);
         sites[CONFIG_CUSTOM]->username->setText("discarded-change");
+        window.settings();
+        QCOMPARE(window.findChild<Settings*>(), settings);
+        QCOMPARE(window.findChildren<Settings*>().size(), 1);
+        QCOMPARE(siteWidgets(*settings)[CONFIG_CUSTOM]->username->text(), "discarded-change");
         settings->findChild<QPushButton*>("btnCancel")->click();
         QCOMPARE(window.scrob->conf->sites[CONFIG_CUSTOM].username, "fictional-user");
         window.settings();

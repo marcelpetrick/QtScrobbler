@@ -10,6 +10,8 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![CMake 4.5.0](https://img.shields.io/badge/CMake-4.5.0-064f8c.svg)](documents/DEPENDENCIES.md)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599c.svg)](CMakeLists.txt)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
+[![Measured line coverage: 99.01%](https://img.shields.io/badge/lines-99.01%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
+[![Measured branch coverage: 95.67%](https://img.shields.io/badge/branches-95.67%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
 [![Tests: Qt Test](https://img.shields.io/badge/tests-Qt_Test-41cd52.svg)](tests/CMakeLists.txt)
 [![Code style: clang-format](https://img.shields.io/badge/code%20style-clang--format-4c566a.svg)](.clang-format)
 
@@ -29,8 +31,9 @@ The screenshot comes from the running application after importing the
 [fictional example log](examples/README.md). Recreate it with
 `tools/capture_screenshot.sh /path/to/build`; the capture uses temporary settings and a log copy.
 
-**Quality work is in progress.** The complete gate requires 95% line coverage,
-95% branch coverage, and 95% proven mutation kills. See the
+**Quality work is in progress.** Frozen build `0.13.59` passed the 95% line and
+branch gates. The complete gate also requires 95% proven mutation kills; native
+mutation-tool qualification remains open. See the
 [execution record](documents/plan.md) for measurements and remaining work.
 
 [Build and dependencies](documents/DEPENDENCIES.md) ·

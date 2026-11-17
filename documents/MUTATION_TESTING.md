@@ -201,3 +201,21 @@ Primary tool references:
 [compiler/plugin setup](https://mull-project.com/getting-started/setup/),
 [reporters](https://mull-project.com/reference/reporters/), and the
 [0.38.0 SQLite reporter implementation](https://github.com/mull-project/mull/blob/0.38.0/rust/mull-reporters/src/sqlite_reporter.rs).
+
+## Open native call-replacement defect
+
+The corrected no-filter run on frozen client0.13.59 exposed a second defect.
+Mull/libirm0.38 accepts only LLVM `Call` for void-call removal; exception-capable Qt
+signals are `Invoke`. Generated temporary cleanup destructors are wrongly associated
+with the source call, producing two internal clones with the same public mutant ID.
+Both leave the real signal intact and remove one destructor, although the advertised
+source replacement removes the signal. Direct activation of the fresh :134/:143/:145
+Parse_Log signal mutants still passes all25 signal-contract rows.
+
+This was verified in generated LLVM IR, not inferred from survivors. Evidence is
+retained in `/tmp/qtscrobbler-conf-fallback-proof/parse-log.instrumented.ll` and the
+frozen .59 SQLite reports. The campaign was interrupted and is not qualified.
+The latest upstream stable/main was rechecked:0.38.0 at
+`b383a52ed56c95a45bd43e7f2aad7f010687c74b`. A reproducible private-prefix correction
+is under investigation. These misreported mutations must not be called equivalents,
+counted as kills, or silently removed to raise the score.

@@ -193,6 +193,42 @@ class ParseIpodTest : public QObject {
         QCOMPARE(entries.first().when, static_cast<int>(TrackTime));
     }
 
+    void importSummaryCountsOnlyUsablePlayedTracks_data() {
+        QTest::addColumn<bool>("compressed");
+        QTest::newRow("plain") << false;
+        QTest::newRow("compressed") << true;
+    }
+
+    void importSummaryCountsOnlyUsablePlayedTracks() {
+        QFETCH(bool, compressed);
+        QTemporaryDir directory;
+        const auto body =
+            payload({track("Artist", "Repeated twice"), track("Artist", "Unplayed"), track("", "Missing artist"),
+                     track("Artist", "Repeated three times"), track("Artist", "Also unplayed")});
+        QVERIFY(writeFixture(directory.path(), database(body, compressed), playCounts({2, 0, 5, 3, 0}), compressed));
+        Parse_Ipod parser;
+        QStringList summaries;
+        QList<LOG_LEVEL> levels;
+        connect(&parser, &Parse::add_log, this, [&](LOG_LEVEL level, const QString& message) {
+            if (message.startsWith("Found ")) {
+                summaries.append(message);
+                levels.append(level);
+            }
+        });
+        int emitted = 0;
+        connect(&parser, &Parse::entry, this, [&](scrob_entry) { ++emitted; });
+        QSignalSpy completed(&parser, &Parse::open_finished);
+        for (int run = 1; run <= 2; ++run) {
+            parser.open(directory.path(), 0);
+            QCOMPARE(completed.size(), run);
+            QVERIFY(completed.last()[0].toBool());
+            QCOMPARE(emitted, run * 5);
+            QCOMPARE(summaries.size(), run);
+            QCOMPARE(summaries.last(), "Found 5 entries, 2 of 5 tracks had playcount information");
+            QCOMPARE(levels.last(), LOG_INFO);
+        }
+    }
+
     void optionalBlocksAndPlaylistEnd_data() {
         QTest::addColumn<QByteArray>("prefix");
         QTest::addColumn<QByteArray>("suffix");
