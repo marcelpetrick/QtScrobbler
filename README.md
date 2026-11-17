@@ -1,5 +1,14 @@
 # Qt Scrobbler
 
+[![CI](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/ci.yml)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
+
+![QtScrobbler importing the fictional example tracks on Qt 6.12](documents/images/qtscrobbler.png)
+
+This screenshot is captured from the running Qt window after a real fixture import.
+Regenerate it with `tools/capture_screenshot.sh /path/to/build`; the test uses temporary
+settings and a disposable log copy. No real tracks are submitted.
+
 Initially a clone/fork from the SourceForge project by Tomasz Mon, Robert Keevil and others. Now maintained by Marcel Petrick.  
 The code has since been adapted for Qt5 and is now being ported to **Qt6**.  
 QTScrobbler ships both a multiplatform GUI and a CLI version.  

@@ -24,7 +24,7 @@ are the source for the vision record to be added. Do not invent additional produ
 - [ ] Do not add Docker, GHCR publication, container checks or Docker docs; the owner explicitly
       excluded Docker from the supplied generic workflow.
 - [ ] Keep scripts small, reusable and documented; complete lint/format/static/coverage/build/E2E gates.
-- [ ] Add README badges grounded in actual CI/metrics and a real screenshot of the running Qt UI.
+- [x] Add README badges grounded in actual CI/metrics and a real screenshot of the running Qt UI.
 - [ ] Run the reviewBranch skill, fix verified issues, then run githubAbout; public About changes
       follow that skill's authorization rule and must not make unmeasured quality claims.
 - [ ] Final vision audit, complete pipeline, actual green Actions, all work pushed, clean working tree.
@@ -159,7 +159,7 @@ SQL plugin loading, and library dependencies verified on the actual requested Qt
 - [ ] Add reusable temporary-directory/INI/SQLite fixtures, synthetic track factory, and log fixtures.
 - [ ] Set test-only HOME/XDG settings before QApplication; prevent real credentials/cache access.
 - [ ] Introduce narrow clock, storage path, network endpoint/reply, and MTP backend injection where needed.
-- [ ] Link GUI behavior into a testable target without duplicating `main()` or changing production semantics.
+- [x] Link GUI behavior into a testable target without duplicating `main()` or changing production semantics.
 - [ ] Use QSignalSpy/QTest events and bounded QTRY assertions; avoid arbitrary sleeps and private-access hacks.
 - [ ] Capture unexpected Qt warnings/fatal conditions; scope allowances for known platform messages.
 - [ ] Provide loopback/fake HTTP replies and deny unintended external network traffic in default tests.
@@ -330,20 +330,14 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 | Change | Completed | Validation | Remaining / blockers |
 | --- | --- | --- | --- |
 | `a0c5a75` planning | Repository baseline, dependency candidate assessment, staged plan, red-team review, contribution rules | Inspected CMake/CI/pipeline, source risks and local tools; CTest listed 0 tests; existing CLI help passed | P0–P9 implementation; exact version lock and actual Qt 6.12 installation still pending |
-
 | `aebf52a` example log | Added three fictional Audioscrobbler 1.1 tracks and safe-copy instructions | Rebuilt source targets; a temporary C++ harness using the real Parse_Log imported exactly three entries without network | Automated Qt Test contracts and strict pipeline remain P0 work |
-
 | `68273f3` initial Qt Test suite | Registered parser, common/path-discovery and CLI-process tests; exact fixture fields, header errors, timezone rules, clear safety, version/help assertions | Full existing local pipeline passed; CTest 3/3 executables passed (0.13 s), Qt 6.11.2 | Strict failure propagation and coverage instrumentation remain; no 95% claim |
-
 | Strict local gate | Fatal missing/failed CTest, fatal CLI error/timeout, preserved exit status, retained logs/JUnit, configurable build directory/jobs, noOpen flag | Full pipeline passed 4/4 CTest executables (6.38 s); 5 black-box pipeline tests deliberately exercise failures | CI still needs unified invocation; dependency qualification and further tests remain |
-
 | `0df3efc` Qt 6.12 dependency upgrade | Raised CMake Qt floor to 6.12, pinned CI/release Qt 6.12.0 and four Action SHAs, resolved Python tooling lock, documented inventory; qualified CMake 4.5.0 | Official Qt SDK + ICU provisioned outside repo; full pipeline 4/4 passed on Qt 6.12.0/CMake 4.5.0; ldd resolves Qt to selected prefix; isolated GUI survived offscreen startup | CI not run; full environment/runtime-library pins, Mull-compatible Linux compiler and packaging still pending; GUI startup is not yet a full workflow test |
-
 | `8c7ab63` parser signal regression fix | Removed duplicate derived signal declarations from log, iPod and MTP parsers so typed base-class connections receive emissions | New base-signal fixture assertion failed on original (0 completions instead of 1), then complete Qt 6.12 pipeline passed 4/4 after fix | GUI workflow, malformed record behavior, coverage/mutation targets still outstanding |
-
 | Delegation authorization | Updated AGENTS.md to use subagents for independent work with explicit file ownership and primary-agent integration | Owner explicitly requested delegation and this rule commit; documentation diff checked | Parallel CI, mutation-tool and storage-test tasks to begin; GUI tests currently in progress |
-
 | Updated owner requirements | Main branch, continuous green pushes, semver, no Docker, preserved GPLv2, final review/About/screenshot and vision audit added to plan and rules | Existing license files and source headers inspected; main renamed from master; missing visions.md confirmed | Complete native product/quality initiative and audit; delegated work active |
+| GUI workflow and screenshot | Shared production GUI library, real Qt import/display/edit/settings-reopen/clear/close contract, SQL/runtime Qt checks, real screenshot and capture script | Full Qt 6.12 baseline 5/5 CTest executables passed; targeted screenshot test passed; image visually inspected | More UI/error/cancel coverage, coverage measurements, full mutation campaign and other P2–P9 items remain |
 
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.

@@ -1,5 +1,4 @@
 set(GUI_SOURCES
-    src/main.cpp
     src/qtscrob.cpp
     src/settings.cpp
     src/about.cpp
@@ -7,27 +6,26 @@ set(GUI_SOURCES
     src/progress.cpp
     src/console.cpp
     src/missingtimeprogress.cpp
-    qtscrob.qrc
 )
 
-add_executable(qtscrob ${GUI_SOURCES})
+add_library(scrobble_gui STATIC ${GUI_SOURCES})
 
 # Ensure .ui files are found by AUTOUIC when scanning headers
-set_target_properties(qtscrob PROPERTIES
+set_target_properties(scrobble_gui PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/src/ui"
 )
 
 # Ensure .qm files are generated before the .qrc is processed
-add_dependencies(qtscrob translations_qm)
+add_dependencies(scrobble_gui translations_qm)
 
-target_include_directories(qtscrob PRIVATE
+target_include_directories(scrobble_gui PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ui"
     "${CMAKE_SOURCE_DIR}/src/common"
 )
 
-target_link_libraries(qtscrob
-    PRIVATE
+target_link_libraries(scrobble_gui
+    PUBLIC
         scrobble
         Qt6::Core
         Qt6::Gui
@@ -36,3 +34,7 @@ target_link_libraries(qtscrob
         Qt6::Sql
         Qt6::Xml
 )
+
+add_executable(qtscrob src/main.cpp qtscrob.qrc)
+add_dependencies(qtscrob translations_qm)
+target_link_libraries(qtscrob PRIVATE scrobble_gui)
