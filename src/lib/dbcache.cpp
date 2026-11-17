@@ -23,10 +23,24 @@
 #include <QSqlRecord>
 #include <QSqlError>
 #include <QDateTime>
+#include <QUuid>
+#include <utility>
 
 DBCache::DBCache(QObject *parent) :
-    QObject(parent)
+    DBCache(QString(), [] { return QDateTime::currentSecsSinceEpoch(); }, parent)
 {
+}
+
+DBCache::DBCache(const QString &directory, std::function<qint64()> clock, QObject *parent) :
+    QObject(parent), clock(std::move(clock))
+{
+    if (!this->clock)
+        this->clock = [] { return QDateTime::currentSecsSinceEpoch(); };
+    if (!directory.isEmpty())
+    {
+        path = directory;
+        return;
+    }
     // let QSettings do the heavy lifing and work out a suitable path for us
     QSettings *settings = new QSettings(QSettings::IniFormat,
                                         QSettings::UserScope,
@@ -37,15 +51,19 @@ DBCache::DBCache(QObject *parent) :
 
 DBCache::~DBCache()
 {
-    if (db.isOpen())
-    {
-        query.clear();
-        db.close();
-    }
+    const QString connectionName = db.connectionName();
+    query = QSqlQuery();
+    db.close();
+    db = QSqlDatabase();
+    if (!connectionName.isEmpty())
+        QSqlDatabase::removeDatabase(connectionName);
 }
 
 bool DBCache::init()
 {
+    if (initialized)
+        return true;
+
     if (!QDir(path).exists())
     {
         // try to create the path. This is the same as the default conf path,
@@ -66,7 +84,8 @@ bool DBCache::init()
     }
 
     QString filename = QString("%1/qtscrob.db").arg(path);
-    db = QSqlDatabase::addDatabase("QSQLITE", "db_qtscrob");
+    if (!db.isValid())
+        db = QSqlDatabase::addDatabase("QSQLITE", "qtscrob_" + QUuid::createUuid().toString(QUuid::WithoutBraces));
     db.setDatabaseName(filename);
     bool ok = db.open();
     if (!ok)
@@ -82,12 +101,22 @@ bool DBCache::init()
 
     if (tables.contains("schema"))
     {
-        query.exec("SELECT value FROM schema WHERE name='version'");
-        if (query.first())
+        if (!query.exec("SELECT value FROM schema WHERE name='version'") || !query.first()
+            || query.value(0).toInt() != DB_CURRENT_SCHEMA || !tables.contains("track_length"))
         {
-            emit add_log(LOG_DEBUG, QString("DB: version: %1")
-                         .arg(query.value(0).toString()));
+            emit add_log(LOG_ERROR, "DB: incompatible cache schema");
+            return false;
         }
+        const QSqlRecord record = db.record("track_length");
+        for (const QString &column : {QString("artist"), QString("title"), QString("length"), QString("timestamp")})
+        {
+            if (record.indexOf(column) < 0)
+            {
+                emit add_log(LOG_ERROR, "DB: incompatible cache schema: missing " + column);
+                return false;
+            }
+        }
+        emit add_log(LOG_DEBUG, QString("DB: version: %1").arg(query.value(0).toString()));
     }
     else
     {
@@ -98,6 +127,7 @@ bool DBCache::init()
         }
     }
 
+    initialized = true;
     return true;
 }
 
@@ -148,8 +178,8 @@ int DBCache::get_track_length(QString artist, QString title)
     if (query.first())
     {
         int ret = query.value(0).toInt();
-        uint age = query.value(1).toInt();
-        uint now = QDateTime::currentDateTime().toSecsSinceEpoch();
+        const qint64 age = query.value(1).toLongLong();
+        const qint64 now = clock();
         if (age > (now - MAX_TRACK_LENGTH_AGE))
             return ret;
     }
@@ -159,7 +189,7 @@ int DBCache::get_track_length(QString artist, QString title)
 
 void DBCache::set_track_length(QString artist, QString title, int length)
 {
-    uint time = QDateTime::currentDateTime().toSecsSinceEpoch();
+    const qint64 time = clock();
     // use prepare to ensure the strings are correctly escaped
     query.prepare("replace into track_length (artist,title,length,timestamp) "
                        "values (:artist,:title,:length,:timestamp)");

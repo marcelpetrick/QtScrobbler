@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <functional>
 #include "common.h"
 
 
@@ -33,6 +34,7 @@ class DBCache : public QObject
     Q_OBJECT
 public:
     explicit DBCache(QObject *parent = 0);
+    DBCache(const QString &directory, std::function<qint64()> clock, QObject *parent = nullptr);
     ~DBCache();
     bool init();
     int get_track_length(QString artist, QString title);
@@ -47,6 +49,8 @@ private:
     QSqlDatabase db;
     QSqlQuery query;
     QString path;
+    std::function<qint64()> clock;
+    bool initialized = false;
     bool create();
 };
 

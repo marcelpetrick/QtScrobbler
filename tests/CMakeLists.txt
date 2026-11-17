@@ -1,4 +1,4 @@
-foreach(name IN ITEMS parse_log common cli gui conf)
+foreach(name IN ITEMS parse_log common cli gui conf dbcache)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE scrobble Qt6::Test)
     target_compile_definitions(test_${name} PRIVATE
