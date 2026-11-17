@@ -13,6 +13,8 @@ class ParseLogTest : public QObject {
     }
 
    private slots:
+    void initTestCase() { qRegisterMetaType<LOG_LEVEL>(); }
+
     void init() { QTest::failOnWarning(QRegularExpression(".*")); }
 
     void example() {
@@ -24,6 +26,7 @@ class ParseLogTest : public QObject {
         connect(&parser, &Parse_Log::entry, this, [&](scrob_entry entry) { entries.append(entry); });
         QSignalSpy completed(&parser, &Parse_Log::open_finished);
         QSignalSpy baseCompleted(&parser, &Parse::open_finished);
+        QSignalSpy logs(&parser, &Parse::add_log);
         int baseEntries = 0;
         connect(&parser, &Parse::entry, this, [&](scrob_entry) { ++baseEntries; });
 
@@ -50,6 +53,19 @@ class ParseLogTest : public QObject {
         QCOMPARE(entries[2].artist, "Fictional Ensemble");
         QCOMPARE(entries[2].when, 1794903000);
         QCOMPARE(parser.get_method(), SCROBBLE_LOG);
+        const QList<QPair<LOG_LEVEL, QString>> expectedLogs = {
+            {LOG_INFO, "Opening log file: " + directory.filePath(".scrobbler.log")},
+            {LOG_INFO, "UTC Offset: 3600"},
+            {LOG_DEBUG, "Log version: 1.1"},
+            {LOG_DEBUG, "Log TZ: UTC"},
+            {LOG_INFO, "Overriding detected timezone"},
+            {LOG_DEBUG, "Log CLIENT: QtScrobbler-example-1.0"},
+        };
+        QCOMPARE(logs.size(), expectedLogs.size());
+        for (qsizetype index = 0; index < expectedLogs.size(); ++index) {
+            QCOMPARE(logs[index][0].value<LOG_LEVEL>(), expectedLogs[index].first);
+            QCOMPARE(logs[index][1].toString(), expectedLogs[index].second);
+        }
 
         QSignalSpy cleared(&parser, &Parse_Log::clear_finished);
         parser.clear();

@@ -7,6 +7,33 @@ what changed, evidence, remaining work, and blockers. Use small atomic commits. 
 commit contained only this plan and `AGENTS.md`; implementation has started.
 
 
+## Highest priority owner requests — 2026-11-17 continuation
+
+Execute these requests first, then finish the remaining initiative checklist. Quality
+requirements remain acceptance conditions; public release must follow successful
+qualification rather than bypassing an unfinished gate.
+
+- [x] Record all new owner requests here, ahead of the remaining work.
+- [ ] Run `updateDependencies` again for **all tools**: verify upstream releases,
+      exact pins, SDK, native compiler/Mull, Python lock and GitHub Actions; record
+      any deliberately retained compatibility pin with evidence.
+- [ ] Bump the version and commit the tested work. Prepared 0.13.62 already includes
+      the executed version hook; validate that version before its atomic commit.
+- [ ] Push the qualified work and run qualification **on GitHub via Actions**;
+      inspect actual job conclusions and artifacts, fix failures and rerun.
+- [ ] Cut a **public release**, explicitly authorized in this continuation, using
+      the GitHub Actions release workflow after complete green qualification.
+- [ ] Finish all remaining plan requirements and final evidence audit; ensure
+      quality software through exact behavioral contracts, independent review,
+      at least 95% line/branch coverage and native mutation evidence, sanitizer,
+      extracted-package and real CLI/GUI workflow checks.
+- [ ] Report the public release URL, actual Actions results, measured quality and
+      final clean/pushed repository state. Never substitute targets for results.
+
+Current work: independent full dependency audit and native correction review;
+primary agent integrates and runs the frozen full pipeline. Existing Actions run
+44130632157 remains in progress on observed inspection; no green claim is made.
+
 ## Owner updates and final product requirements
 
 The owner subsequently authorized parallel subagents, continuous pushes after green checks,
@@ -483,3 +510,163 @@ CLI/GUI startup PASS (/tmp/qtscrobbler-readme-61-package). Parse_Log formatting 
 CRLF-aware whitespace checks PASS. Owner explicitly requested pushing the README-first
 work now; these are green diagnostic checks, not full mutation qualification. The next
 actual Actions run must be inspected and any full-gate failure remains open until fixed.
+
+README-first work pushed successfully: main advanced dd8c51c→b79aca1. Actual Actions
+run44130632157 was observed in progress, not claimed green. Acceptance/E2E documentation
+and labels are public. Work continues on the native correction and full qualification.
+
+Native correction progress: original official0.38 signal preflight genuinely fails;
+private corrected compiler passes the exact missing-signal assertion. Native settings
+fallback operators previously missed are now generated and assertion-killed by the new
+Conf contract. The source-corrected shim and installer remain uncommitted dependency
+work until full gates pass. A native LLVM CFG test and post-preflight artifact provenance
+are being integrated, with four mutation workers and bounded longer campaign/CI limits.
+
+| Native dependency and integrity integration (prepared0.13.62) | Pinned libirm/LLVM-header correction built in a separate prefix; ordinary/intrinsic/invoke/cleanup and shared-unwind-PHI CFG checks pass. Native Qt signal-removal preflight is mandatory; wrapper/shim/manifest/CFG/original LLVM inputs and every compiler command are bound to fresh raw proof and loader environment. Workflow provisioning and four-worker/7200s command/360min job bounds configured | Private real install/reuse /tmp/qtscrobbler-mull-callfix-qualified2 PASS (2257 entries); Qt sentinel1/1 genuine kill and3 real Parse_Log signal kills; Conf fallback2/2 kills. Installer10, semantic10, evidence14, reader16, pipeline12 contracts PASS. Independent review found loader-env mismatch acceptance; fixed and regression-tested. No dependency commit or full mutation-score claim yet | Register new contracts, run prepared exact-source full native gate and inspect actual Actions. Mutation95%, full dependency/environment audit, final review and release remain open |
+
+The dependency correction now has a successful real installed-prefix CFG verifier,
+Qt sentinel and recognized reuse, with all artifacts retained. One independent
+MEDIUM review finding (loader environment not bound to proof) was fixed: changed
+LD_LIBRARY_PATH or LD_PRELOAD now fails evidence validation;14 evidence contracts
+pass. The coverage summary explicitly lists the build-only native correction and
+CFG helper as separately qualified tooling; application Linux scope is unchanged.
+
+## Restart checkpoint — 2026-11-17
+
+Owner requested documenting state before restarting. No local full pipeline or
+mutation campaign was running. No checks were rerun, commits made or releases
+published during this checkpoint.
+
+- Branch `main`, HEAD and last pushed commit `b79aca1` (client 0.13.61).
+  `git push origin main` returned `Everything up-to-date`. README's 12 badges
+  and real application screenshot are already pushed.
+- Prepared client **0.13.62** is staged in `src/lib/common.h`. The version hook
+  already ran for this prepared version; do not bump again merely to resume its
+  validation. Commit tested content with only that already-executed hook disabled,
+  as AGENTS.md specifies.
+- Actual Actions run **44130632157** for `b79aca1` was checked again and remained
+  `in_progress`, without a conclusion. Recheck
+  <https://github.com/marcelpetrick/QtScrobbler/actions/runs/44130632157> after restart.
+- Checklist accounting: 24 complete / 73 open (97 total). This is not an estimate
+  of implementation effort. Some open requirements have historical or partial
+  evidence and need an explicit evidence audit before being checked off.
+
+Pending changes, all uncommitted:
+
+- New `tools/install_mull_callfix.py`, `tools/check_mutation_toolchain.py`,
+  `tools/mutation_toolchain_evidence.py`, `tools/native/` and three Python test
+  files implement private native correction, semantic preflight and provenance
+  validation. `tests/CMakeLists.txt` now registers those three contracts.
+- `localPipeline.sh`, `tools/run_mutation_tests.py`, `tests/test_pipeline.py` and
+  `mull.yml` integrate mandatory preflight, evidence checks, four workers and longer
+  campaign bounds. Both workflows provision the correction and allow 360-minute jobs.
+- `src/lib/CMakeLists.txt` separately switches libmtp linkage to `PkgConfig::LIBMTP`;
+  include this build adjustment in exact-source qualification and atomic review.
+- `tools/run_coverage.py` lists build-only native tooling separately from the
+  unchanged application denominator. README setup, AGENTS and dependency/Actions/
+  mutation/quality documents describe the pending correction. README's remaining
+  local diff concerns setup instructions, not unpublished badges.
+- Preserve every tracked and untracked file. Pushing HEAD has not published this
+  pending dependency/infrastructure work.
+
+Retained evidence directories were confirmed present:
+
+- `/tmp/qtscrobbler-frozen-59-full-reports`: historical 0.13.59 coverage PASS,
+  2722/2749 lines and 1017/1063 branches; normal and sanitizer suites 20/20 PASS.
+  Whole pipeline did not pass: mutation exposed the native tool defect.
+- `/tmp/qtscrobbler-readme-61-reports`: historical quick diagnostic 20/20 PASS;
+  separate acceptance/E2E/docs/package evidence is recorded above. This is not
+  complete qualification of prepared 0.13.62.
+- `/tmp/qtscrobbler-mull-callfix-qualified2`: private installed correction. Its
+  `env.sh` sources `/tmp/qtscrobbler-native-llvm20-patched/env.sh` and selects
+  corrected CXX plus manifest/shim/source evidence. Targeted results are recorded
+  above and were not rerun in this checkpoint. Temporary prefixes/reports may need
+  reprovisioning after reboot.
+
+Resume in this order:
+
+1. Read AGENTS.md and this plan; inspect tracked/untracked changes and recheck
+   actual Actions. Verify private SDK/tool/zlib prefixes. Apply updateDependencies
+   to native dependency work; do not upgrade the OS globally.
+2. Rerun targeted infrastructure contracts and confirm their CTest registrations.
+   Freeze the entire prepared tree, including untracked tooling, into an isolated
+   snapshot so concurrent edits cannot invalidate collected evidence.
+3. Source the corrected native `env.sh`; set `QTSCROBBLER_QT_PREFIX`, `ZLIB_ROOT`,
+   `QTSCROBBLER_JOBS=4` and an isolated `QTSCROBBLER_BUILD_DIR`. Run
+   `./localPipeline.sh --noRun --noOpen --report-dir <new-dir>` on frozen sources.
+   Use fresh reports. Quick/baseline modes do not qualify final completion.
+4. Investigate the actual campaign survivors and add exact contracts until at least
+   95% proven assertion kills. Preserve unresolved outcome categories and scope.
+   No trustworthy current full mutation score or 0.13.62 full-green result exists.
+5. Finish dependency/environment and vision/checklist audits, lifecycle/workflow/
+   package qualification, reviewBranch and verified fixes, then githubAbout.
+   The existing About proposal is not an applied public metadata change.
+6. Commit/push validated atomic work with plan evidence, observe actual green
+   Actions, and finish clean-tree/package/release qualification under the owner's
+   recorded authorization. Do not weaken thresholds to publish.
+
+No user input is currently needed. The principal technical blocker remains a fresh,
+semantically trustworthy full native mutation campaign reaching 95%; final review,
+the complete gate and actual green remote CI also remain mandatory.
+
+## Continuation execution — current owner priorities
+
+- Recorded every continuation request at highest priority above. Public release and
+  GitHub Actions execution are explicitly authorized, subject to the existing gates.
+- Fresh `updateDependencies` audit checked all 31 Python resolutions and all four
+  Action SHAs against upstream: no changes required there. Detailed SDK, native,
+  host/runtime and Qt patch evidence is in
+  [the fresh dependency audit](DEPENDENCY_REVIEW_2026-11-17.md). Private pkgconf
+  3.0.11 and Graphviz 16.1.1 provisioning is underway; compatibility retentions
+  and environment qualification remain explicit, not a completed all-tools claim.
+- Independent native review found no verified defect: 24 semantic/provenance and
+  10 installer contracts PASS; native CFG verifier PASS; fresh real Qt signal
+  removal sentinel PASS at `/tmp/qtscrobbler-native-independent-review-62`.
+- Current frozen snapshot `/tmp/qtscrobbler-resume-62-source`, qualified toolchain
+  build `/tmp/qtscrobbler-resume-62-qualified-build`, new reports
+  `/tmp/qtscrobbler-resume-62-qualified-reports`: normal **23/23 CTests PASS**
+  (12.41s). Static/docs, sanitizers, coverage, mutation and package remain running
+  or pending; this is not a full passing gate.
+- Two startup attempts were stopped rather than used as qualification: the first
+  encountered existing `.62` paths and overwrote normal configure/build logs before
+  stopping (historical mutation files were untouched); the second selected the
+  known broken user CTest because the CMake prefix lacked its nested directory.
+  The current run verifies the actual sibling CMake/CTest 4.5.0 executables first.
+  Preserve these failed attempts as failures, not fresh successful evidence.
+- Review follow-up now makes localPipeline reject nonempty report directories
+  before any stage, preserving historical evidence. Both Actions tee their outer
+  log outside the fresh report directory, then retain it with an EXIT trap.
+  A regression test verifies nonempty/hidden historical files remain untouched in
+  every pipeline mode. Fresh checks and final exact-tree qualification are pending.
+- New parser diagnostic contracts and auxiliary tool provisioning remain separate
+  pending work, outside the running immutable snapshot. Every implementation
+  commit still requires the prepared version, updated plan and appropriate gate.
+
+Continuation measurements on the immutable .62 snapshot: static/docs PASS;
+ASan/UBSan/leak **23/23 CTests PASS** (13.27s); coverage gate PASS with
+**2722/2749 lines (99.017824663514%)** and **1027/1063 branches
+(96.613358419567%)**, no missing production files. Full mutation remains running
+and package has not yet run; these results do not qualify a release.
+Random-order, three-repeat CTest run PASS (47.06s), retained at
+`/tmp/qtscrobbler-resume-62-random-repeat.xml`. A separate network-namespace
+probe passed22/23; display smoke failed because inherited abstract session DBus
+is inaccessible in the fresh namespace. A private session bus is being qualified;
+do not suppress the unexpected warning or call that probe green.
+
+Private auxiliary tools pkgconf3.0.11/Graphviz16.1.1 installed and reuse verified:
+429 upstream pkgconf tests, actual Graphviz SVG/plugin contract and9 installer
+contracts PASS, `/tmp/qtscrobbler-aux-tools-current-reports3`. Both Actions now
+provision this exact selection and CTest registers its installer contracts.
+Separate application qualification is still pending. Parser diagnostic assertions
+prove six exact previously surviving signal-removal mutants now assertion-killed;
+original25/25 rows PASS, evidence `/tmp/qtscrobbler-parser-survivor-review/proof`.
+
+Atomic parser/audit commit qualification (client0.13.62): staged-only source
+snapshot `/tmp/qtscrobbler-parser62-index-source` ran the authorized incremental
+`--quick --noRun --noOpen` gate; **20/20 CTests PASS**, reports
+`/tmp/qtscrobbler-parser62-index-reports`. This commit contains the exact parser
+diagnostic assertions and audit/priority records, not the pending native-tool,
+auxiliary/Python dependency or network-isolation implementation. The prepared
+version hook had already run before testing; only that hook is disabled for the
+commit. These diagnostic checks authorize an incremental push under AGENTS.md;
+they do not establish the full gate, mutation95% or release readiness.
