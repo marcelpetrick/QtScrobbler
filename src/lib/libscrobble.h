@@ -40,6 +40,8 @@ class Scrobble : public QObject {
    private:
     int num_submissions;
     Parse* parser;
+    // Retain source cleanup identity across an unsuccessful submission.
+    Parse* retry_parser = nullptr;
     QMutex* mutex;
 
     QString error_str;

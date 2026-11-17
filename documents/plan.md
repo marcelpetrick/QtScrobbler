@@ -428,3 +428,16 @@ Additional prepared0.13.58 checks: standalone mandatory documentation/Doxygen st
 PASS (/tmp/qtscrobbler-integration-58-docs); extracted package CLI/GUI/dependency
 stage PASS (/tmp/qtscrobbler-integration-58-package), including shipped documentation
 and the actual screenshot. These independent passes do not replace the full gate.
+
+| Submission retry source identity (prepared0.13.59) | Retain the original parser's cleanup identity after failure/cancel while reporting import idle; restore it on retry, skip already-successful sites, discard it on replacement import/delete-all/destruction | Original fails POST/auth/cancel retry source-clear assertions and mixed-site retry. Prepared fix65/65 Scrobble rows PASS, including independent ASan/UBSan/leak run (/tmp/qtscrobbler-retry-fix/asan/full.log). New exact30s submission contract detects the specific <30→<=30 mutant while original passes | Root exact-version incremental gate pending; fresh frozen full gate then actual Actions/public release remain open. This source-clear defect predates the initiative and is a plan-driven behavior fix, not an introduced review finding |
+
+Root prepared0.13.59 incremental gate (`--quick --noRun --noOpen`) PASS20/20 CTests
+(/tmp/qtscrobbler-retry-59-reports), including65/65 Scrobble rows. Pinned clang-format
+check PASS for all three changed C++ files. Existing CRLF is preserved in library
+sources; `git -c core.whitespace=cr-at-eol diff --check` passes without treating the
+retained line endings as trailing whitespace. Whole-source native gates remain next.
+
+Independent review of the integrated retry diff found no verified introduced finding:
+removed parser deletion is replaced by explicit retained-parser ownership; every
+release/replacement path is covered, fully successful sites skip resubmission while
+partially successful sites retry unsent tracks. Final native qualification is separate.

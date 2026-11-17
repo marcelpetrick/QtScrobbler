@@ -8,6 +8,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QUrlQuery>
 #include <QtTest>
 #include <memory>
 
@@ -700,6 +701,161 @@ class ScrobbleTest : public QObject {
         scrobble.cancel_submission();  // Repeated cancellation is harmless.
         QCOMPARE(finished.count(), 2);
         QCOMPARE(scrobble.get_num_tracks(), 1);
+    }
+
+    void thirtySecondTracksSubmitWhileShortAndSkippedTracksAreFiltered() {
+        LocalService service;
+        QVERIFY(service.listen());
+        Scrobble scrobble;
+        service.configure(scrobble);
+        QTemporaryDir directory;
+        const int recent = static_cast<int>(scrobble.get_gmt()) - 60;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Too short", 29, recent},
+                            {"Artist", "Exactly thirty", 30, recent + 1},
+                            {"Artist", "Over thirty", 31, recent + 2},
+                            {"Artist", "Skipped thirty", 30, recent + 3, 'S'}}));
+        QCOMPARE(scrobble.get_track(0).played, QChar('S'));
+        QCOMPARE(scrobble.get_track(1).played, QChar('L'));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        QCOMPARE(finished.first()[0].toBool(), true);
+        QCOMPARE(service.requests.size(), 2);
+        const QByteArray body = service.requests[1].mid(service.requests[1].indexOf("\r\n\r\n") + 4);
+        const QUrlQuery fields(QString::fromUtf8(body));
+        QCOMPARE(fields.queryItemValue("t[0]", QUrl::FullyDecoded), "Exactly thirty");
+        QCOMPARE(fields.queryItemValue("l[0]"), "30");
+        QCOMPARE(fields.queryItemValue("t[1]", QUrl::FullyDecoded), "Over thirty");
+        QCOMPARE(fields.queryItemValue("l[1]"), "31");
+        QVERIFY(!fields.hasQueryItem("t[2]"));
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        QVERIFY(!scrobble.get_parser_busy());
+        QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void retryAfterFailureClearsSource_data() {
+        QTest::addColumn<QString>("failure");
+        QTest::newRow("submission-error") << "submission";
+        QTest::newRow("authentication-error") << "authentication";
+        QTest::newRow("cancel-handshake") << "cancel";
+    }
+
+    void retryAfterFailureClearsSource() {
+        QFETCH(QString, failure);
+        LocalService service;
+        QVERIFY(service.listen());
+        if (failure == "submission") service.submissionReply = "FAILED try again\n";
+        if (failure == "authentication") service.handshakeReply = "BADAUTH\n";
+        service.holdHandshake = failure == "cancel";
+        Scrobble scrobble;
+        service.configure(scrobble);
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Retry", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        if (failure == "cancel") {
+            QTRY_COMPARE_WITH_TIMEOUT(service.requests.size(), 1, 2000);
+            scrobble.cancel_submission();
+        }
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QVERIFY(!scrobble.get_parser_busy());
+        QCOMPARE(scrobble.get_num_tracks(), 1);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+        const int previousRequests = service.requests.size();
+        service.submissionReply = "OK\n";
+        service.handshakeReply.clear();
+        service.holdHandshake = false;
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 2000);
+        QCOMPARE(finished.last()[0].toBool(), true);
+        QCOMPARE(service.requests.size(), previousRequests + 2);
+        QVERIFY(service.requests.last().contains("t[0]=Retry"));
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        QVERIFY(!scrobble.get_parser_busy());
+        QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void mixedSiteRetryDoesNotResubmitSuccessfulSite_data() {
+        QTest::addColumn<bool>("disableFailedSite");
+        QTest::newRow("retry-failed-site") << false;
+        QTest::newRow("disable-failed-site") << true;
+    }
+
+    void mixedSiteRetryDoesNotResubmitSuccessfulSite() {
+        QFETCH(bool, disableFailedSite);
+        LocalService failing;
+        LocalService successful;
+        QVERIFY(failing.listen());
+        QVERIFY(successful.listen());
+        failing.submissionReply = "FAILED try again\n";
+        successful.submissionDelay = 50;
+        Scrobble scrobble;
+        failing.configure(scrobble, CONFIG_LASTFM);
+        successful.configure(scrobble, CONFIG_LIBREFM);
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Retry only failed site", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QCOMPARE(scrobble.get_track(0).sent[CONFIG_LASTFM], SENT_FAILED);
+        QCOMPARE(scrobble.get_track(0).sent[CONFIG_LIBREFM], SENT_SUCCESS);
+        QCOMPARE(failing.requests.size(), 2);
+        QCOMPARE(successful.requests.size(), 2);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+        failing.submissionReply = "OK\n";
+        if (disableFailedSite) scrobble.conf->sites[CONFIG_LASTFM].enabled = false;
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 2000);
+        QCOMPARE(finished.last()[0].toBool(), true);
+        QCOMPARE(failing.requests.size(), disableFailedSite ? 2 : 4);
+        QCOMPARE(successful.requests.size(), 2);
+        if (!disableFailedSite) QVERIFY(failing.requests.last().contains("t[0]=Retry%20only%20failed%20site"));
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void newImportAfterFailurePreservesPreviousSource_data() {
+        QTest::addColumn<bool>("deleteAll");
+        QTest::newRow("replace-import") << false;
+        QTest::newRow("delete-all-then-import") << true;
+    }
+
+    void newImportAfterFailurePreservesPreviousSource() {
+        QFETCH(bool, deleteAll);
+        LocalService service;
+        QVERIFY(service.listen());
+        service.submissionReply = "FAILED try again\n";
+        Scrobble scrobble;
+        service.configure(scrobble);
+        QTemporaryDir previousDirectory;
+        QTemporaryDir nextDirectory;
+        const int recent = static_cast<int>(scrobble.get_gmt()) - 60;
+        QVERIFY(loadTracks(scrobble, previousDirectory.path(), {{"Artist", "Previous", 180, recent}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        if (deleteAll) {
+            scrobble.remove_track(0);
+            scrobble.clear_method();
+            QCOMPARE(scrobble.get_num_tracks(), 0);
+            QVERIFY(!scrobble.get_parser_busy());
+        }
+        QVERIFY(loadTracks(scrobble, nextDirectory.path(), {{"Artist", "Next", 180, recent + 1}}));
+        QCOMPARE(scrobble.get_num_tracks(), 1);
+        QCOMPARE(scrobble.get_track(0).title, "Next");
+        service.submissionReply = "OK\n";
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 2, 2000);
+        QCOMPARE(finished.last()[0].toBool(), true);
+        QVERIFY(service.requests.last().contains("t[0]=Next"));
+        QVERIFY(QFile::exists(previousDirectory.filePath(".scrobbler.log")));
+        QVERIFY(!QFile::exists(nextDirectory.filePath(".scrobbler.log")));
     }
 
     void successfulSubmissionClearsSource() {

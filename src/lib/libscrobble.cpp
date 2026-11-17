@@ -36,6 +36,10 @@
 
 void Scrobble::clear_method() {
     scrobble_method = SCROBBLE_NONE;
+    if (entries.isEmpty()) {
+        delete retry_parser;
+        retry_parser = nullptr;
+    }
     if (entries.isEmpty() && parser != nullptr) {
         ++metadata_generation;
         api_info->cancel_pending();
@@ -83,6 +87,7 @@ Scrobble::~Scrobble() {
     ++metadata_generation;
     api_info->cancel_pending();
     delete parser;
+    delete retry_parser;
     for (Submit* submission : std::as_const(submissions)) {
         submission->disconnect();
         delete submission;
@@ -334,9 +339,16 @@ bool Scrobble::submit() {
 
     submissions.clear();
     num_submissions = 0;
+    int configured_sites = 0;
     for (int i = 0; i < CONFIG_NUM_SITES; i++) {
         if (conf->sites[i].enabled && !conf->sites[i].username.isEmpty() && !conf->sites[i].password_hash.isEmpty() &&
             !conf->sites[i].handshake_host.isEmpty() && !conf->sites[i].conf_name.isEmpty()) {
+            ++configured_sites;
+            // A previous attempt may have succeeded for this site. Never send
+            // those tracks again while retrying a different site's failure.
+            if (std::all_of(entries.cbegin(), entries.cend(),
+                            [i](const scrob_entry& track) { return track.sent[i] == SENT_SUCCESS; }))
+                continue;
             num_submissions++;
             conn.username = conf->sites[i].username;
             conn.password_hash = conf->sites[i].password_hash;
@@ -359,6 +371,17 @@ bool Scrobble::submit() {
         }
     }
 
+    if (configured_sites > 0 && parser == nullptr && retry_parser != nullptr) {
+        parser = retry_parser;
+        retry_parser = nullptr;
+    }
+
+    if (0 == submissions.size() && configured_sites > 0) {
+        entries.clear();
+        parser_clear();
+        emit submission_finished(true);
+        return true;
+    }
     if (0 == submissions.size()) {
         add_log(LOG_ERROR, tr("No sites were configured and/or enabled. Unable to submit"));
         emit submission_finished(false);
@@ -377,12 +400,6 @@ bool Scrobble::submit() {
 void Scrobble::submit_finished(bool success, QString msg) {
     add_log(LOG_INFO, "Submit() complete");
     if (!msg.isEmpty()) add_log(LOG_ERROR, msg);
-
-    if (!success && parser != nullptr) {
-        parser->disconnect();
-        delete parser;
-        parser = NULL;
-    }
 
     num_submissions--;
 
@@ -413,6 +430,8 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path) {
         return false;
     }
 
+    delete retry_parser;
+    retry_parser = nullptr;
     scrobble_method = SCROBBLE_NONE;
     ++metadata_generation;
     api_info->cancel_pending();
@@ -557,8 +576,10 @@ void Scrobble::clear_submission_state(bool success) {
     if (overall_success)
         parser_clear();
     else if (parser != nullptr) {
-        parser->disconnect();
-        delete parser;
+        // Import is no longer busy, but retry still needs the original parser's
+        // source/device identity to clear only after every site has succeeded.
+        delete retry_parser;
+        retry_parser = parser;
         parser = nullptr;
     }
     submissions.clear();
