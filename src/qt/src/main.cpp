@@ -54,13 +54,14 @@ int main(int argc, char **argv)
     if (translator.load(":/language"))
         app.installTranslator(&translator);
 
-    QTextStream out(stdout);
+    QTextStream error(stderr);
+    opterr = 0;
 
     while (1)
     {
-        static struct option long_options[] =
+        const struct option long_options[] =
         {
-            {"help",    no_argument,       &do_help,   1},
+            {"help",    no_argument,       nullptr,    'h'},
             {"config",  required_argument, 0,        'c'},
             {"verbose", required_argument, 0,        'v'},
             {0, 0, 0, 0}
@@ -76,37 +77,47 @@ int main(int argc, char **argv)
 
         switch (c)
         {
-            case 0: //long option
-                break;
             case 'c':
-                config_path = optarg;
+                config_path = QString::fromLocal8Bit(optarg);
+                if (config_path.isEmpty()) {
+                    error << "Configuration path must not be empty" << Qt::endl;
+                    return 2;
+                }
                 break;
             case 'h':
                 do_help = 1;
                 break;
             case 'v':
-                verbosity = (LOG_LEVEL)QString(optarg).toInt();
+            {
+                bool valid = false;
+                const int level = QString::fromLocal8Bit(optarg).toInt(&valid);
+                if (!valid || level < LOG_ERROR || level >= LOG_NUM_LEVELS) {
+                    error << "Verbosity must be an integer between 0 and 3" << Qt::endl;
+                    return 2;
+                }
+                verbosity = static_cast<LOG_LEVEL>(level);
                 break;
-            case '?':
-                break;
+            }
             default:
-                abort ();
+                error << "Invalid option or missing argument: " << QString::fromLocal8Bit(argv[optind - 1])
+                      << Qt::endl;
+                return 2;
         }
     }
 
     if (optind < argc)
     {
-        out << "Unknown option argument:";
+        error << "Unknown option argument:";
         while (optind < argc)
-            out << " " << argv[optind++];
-        out << Qt::endl;
-        exit(1);
+            error << " " << QString::fromLocal8Bit(argv[optind++]);
+        error << Qt::endl;
+        return 2;
     }
 
     if (do_help)
     {
         printusage();
-        exit(0);
+        return 0;
     }
 
     QTScrob mainWin;

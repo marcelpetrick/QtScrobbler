@@ -65,12 +65,15 @@ Progress::~Progress()
 void Progress::cancel(void)
 {
     this->hide();
-    qtscrob->scrob->cancel_submission();
+    if (!qtscrob->scrob->submissions.isEmpty())
+        qtscrob->scrob->cancel_submission();
 }
 
 void Progress::update_progress(int index, int batch_current, int batch_total)
 {
     Progress_UI *tmp = sites.value(index);
+    if (tmp == nullptr)
+        return;
 
     tmp->progress->setMaximum(batch_total);
     tmp->progress->setValue(batch_current);

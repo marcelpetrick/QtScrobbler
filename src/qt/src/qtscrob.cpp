@@ -31,6 +31,7 @@
 #include <QtGui>
 #include <QFileDialog>
 #include <QHeaderView>
+#include <limits>
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
@@ -40,7 +41,7 @@
 QTScrob::QTScrob(QWidget *parent) : QMainWindow( parent ) {
 	scrob = new Scrobble();
 
-	logTable = new QTableWidget();
+	logTable = new QTableWidget(this);
 	tableLabels << tr("Artist") << tr("Album") << tr("Title") << tr("TrackNumber") << tr("Length") << tr("Played") << "";
 	logTable->setColumnCount(7);
 	logTable->setRowCount(0);
@@ -258,7 +259,8 @@ void QTScrob::connectSlots() {
     connect(btnRecalcDT,   &QPushButton::clicked, this, &QTScrob::recalcDT);
     connect(DTedit,  &QDateTimeEdit::dateTimeChanged, this, &QTScrob::updaterecalcDT);
     connect(logTable, &QTableWidget::cellChanged,     this, &QTScrob::changeRow);
-    connect(scrob, &Scrobble::submission_finished,    this, &QTScrob::scrobbled);
+    // Completion can show a modal dialog: let the network callback unwind first.
+    connect(scrob, &Scrobble::submission_finished, this, &QTScrob::scrobbled, Qt::QueuedConnection);
     connect(scrob, &Scrobble::parsing_opened,         this, &QTScrob::parsed);
     connect(scrob, &Scrobble::missing_times_start,    this, &QTScrob::missing_times_start);
     connect(scrob, &Scrobble::missing_times_progress, this, &QTScrob::missing_times_progress);
@@ -325,11 +327,6 @@ void QTScrob::open(SCROBBLE_METHOD method) {
 		parse(method, scrob->conf->mru.first());
 	else
 	{
-		QFileDialog *dlg = new QFileDialog;
-		dlg->setFileMode(QFileDialog::Directory);
-		if (!scrob->conf->mru.isEmpty())
-			dlg->setHistory(scrob->conf->mru);
-
 		QString mount_root;
 
 		if (!scrob->conf->mru.isEmpty() &&
@@ -344,14 +341,20 @@ void QTScrob::open(SCROBBLE_METHOD method) {
 			mount_root = "/";
 #endif
 
-		QString mount_point = dlg->getExistingDirectory(0,
+		QFileDialog dialog(this,
 #if defined(Q_OS_WIN32)
                 tr("Select media player drive letter"),
 #else
                 tr("Select media player mountpoint"),
 #endif
-				mount_root,
-				QFileDialog::ShowDirsOnly);
+                mount_root);
+        dialog.setFileMode(QFileDialog::Directory);
+        dialog.setOption(QFileDialog::ShowDirsOnly);
+        if (!scrob->conf->mru.isEmpty())
+            dialog.setHistory(scrob->conf->mru);
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+        const QString mount_point = dialog.selectedFiles().value(0);
 
 		if (mount_point.isEmpty())
 			return;
@@ -504,8 +507,13 @@ void QTScrob::recalcDT(void) {
 }
 
 void QTScrob::deleteRow() {
-	if (logTable->rowCount()) { // Items are displayed. 
+	if (logTable->rowCount()) { // Items are displayed.
+        if (logTable->selectedItems().isEmpty()) {
+            return;
+        }
 	if (logTable->rowCount() == 1) { // Handle it as one item.
+        if (logTable->currentRow() < 0)
+            return;
         QTableWidgetItem * artist = logTable->item(logTable->currentRow(),0);
         QTableWidgetItem * title = logTable->item(logTable->currentRow(),2);
         if (QMessageBox::question(this,
@@ -563,22 +571,24 @@ void QTScrob::changeRow(int r, int c) {
 				clear_mb = true;
 			}
 			break;
-		case 3:  // only allow numbers - check each digit...
-			{
-				QString tracknum = logTable->item(r, c)->text();
-				bool only_num = true;
-				for (int i = 0; i < tracknum.size(); i++)
-				{
-					if (!tracknum[i].isDigit())
-						only_num = false;
-				}
-				if (only_num)
-					tmp.tracknum = tracknum.toInt();
-			}
-			break;
+		case 3:
+            {
+                const QString text = logTable->item(r, c)->text();
+                bool valid = false;
+                const int tracknum = text.toInt(&valid);
+                if (text.isEmpty())
+                    tmp.tracknum = 0;
+                else if (valid && tracknum >= 0)
+                    tmp.tracknum = tracknum;
+            }
+            break;
 		case 4:
-			if (!logTable->item(r, c)->text().isEmpty())
-				tmp.length = logTable->item(r, c)->text().toInt();
+            {
+                bool valid = false;
+                const int length = logTable->item(r, c)->text().toInt(&valid);
+                if (valid && length >= 0)
+                    tmp.length = length;
+            }
 			break;
 		case 5:
 			if (!logTable->item(r, c)->text().isEmpty())
@@ -592,8 +602,13 @@ void QTScrob::changeRow(int r, int c) {
 			if (!logTable->item(r, c)->text().isEmpty())
 			{
 				QDateTime dt = QDateTime::fromString(logTable->item(r, c)->text(), "yyyy-MM-dd hh:mm:ss");
-				dt.setTimeZone(QTimeZone::utc());
-				tmp.when = dt.toSecsSinceEpoch();
+                if (dt.isValid()) {
+                    dt.setTimeZone(QTimeZone::utc());
+                    const qint64 timestamp = dt.toSecsSinceEpoch()
+                        - (scrob->conf->display_utc ? 0 : scrob->get_custom_offset());
+                    if (timestamp >= 0 && timestamp <= std::numeric_limits<int>::max())
+                        tmp.when = timestamp;
+                }
 			}
 			break;
 	}
@@ -626,7 +641,7 @@ void QTScrob::scrobble() {
         if (winProgress==NULL)
         {
             winProgress = new Progress(this);
-            connect(scrob, &Scrobble::signalCancelProgress, winProgress, &Progress::cancel);
+            connect(scrob, &Scrobble::signalCancelProgress, winProgress, &Progress::cancel, Qt::QueuedConnection);
         }
         winProgress->show();
     }
@@ -678,10 +693,12 @@ void QTScrob::settings_close()
 	// forces the window to reload the config changes.
 	// prevents a cancelled window from showing any changed settings next time
 	// it is opened
-	winSettings->close();
-	winSettings->disconnect();
-	delete winSettings;
-	winSettings = NULL;
+    if (winSettings != nullptr) {
+        winSettings->close();
+        winSettings->disconnect();
+        delete winSettings;
+        winSettings = nullptr;
+    }
 
 	// reload the table to show the effect of any timezone related settings
 	DT_labels();
@@ -690,6 +707,7 @@ void QTScrob::settings_close()
 
 void QTScrob::missing_times_start(int total)
 {
+    delete progress_missing;
     progress_missing = new MissingTimeProgress(total, this);
     connect(this, &QTScrob::update_missing_times_progress,
             progress_missing, &MissingTimeProgress::update_progress);
@@ -703,9 +721,11 @@ void QTScrob::missing_times_progress(int remaining)
 
 void QTScrob::missing_times_finished()
 {
-    progress_missing->close();
-    progress_missing->disconnect();
-    delete progress_missing;
+    if (progress_missing != nullptr) {
+        progress_missing->close();
+        delete progress_missing;
+        progress_missing = nullptr;
+    }
     loadtable();
 }
 

@@ -19,3 +19,7 @@ add_dependencies(test_gui translations_qm)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME pipeline_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pipeline.py")
 set_tests_properties(pipeline_contract PROPERTIES TIMEOUT 40)
+
+target_include_directories(test_gui PRIVATE "${PROJECT_BINARY_DIR}/src/qt/scrobble_gui_autogen/include")
+target_compile_definitions(test_gui PRIVATE GUI_BINARY="$<TARGET_FILE:qtscrob>")
+add_dependencies(test_gui qtscrob)

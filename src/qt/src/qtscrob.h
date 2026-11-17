@@ -60,11 +60,11 @@ class QTScrob : public QMainWindow {
         bool eventFilter(QObject *obj, QEvent *event);
 
 	private:
-		Settings *winSettings;
-		About *winAbout;
-		Help *winHelp;
-		Progress *winProgress;
-		Console *winConsole;
+		Settings *winSettings = nullptr;
+		About *winAbout = nullptr;
+		Help *winHelp = nullptr;
+		Progress *winProgress = nullptr;
+		Console *winConsole = nullptr;
 		QAction *actOpen;
 		QAction *actOpeniTunes;
 		QAction *actExit;
@@ -110,7 +110,7 @@ class QTScrob : public QMainWindow {
 		bool display_utc;
 		QString dt_format(time_t);
 
-        MissingTimeProgress *progress_missing;
+        MissingTimeProgress *progress_missing = nullptr;
 
     signals:
         void update_missing_times_progress(int remaining);

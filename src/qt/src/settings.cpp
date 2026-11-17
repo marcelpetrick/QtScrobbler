@@ -112,7 +112,7 @@ void Settings::save()
 	{
 		qtscrob->scrob->conf->sites[i].enabled = site_tabs.at(i)->enabled->isChecked();
 		qtscrob->scrob->conf->sites[i].username = site_tabs.at(i)->username->text();
-		if (i != CONFIG_CUSTOM)
+		if (i == CONFIG_CUSTOM)
 		{
 			qtscrob->scrob->conf->sites[i].conf_name = site_tabs.at(i)->name->text();
 			qtscrob->scrob->conf->sites[i].handshake_host = site_tabs.at(i)->host->text();
