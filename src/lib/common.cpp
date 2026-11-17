@@ -42,7 +42,6 @@ CHECK_RESULT check_path(SCROBBLE_METHOD method, QString folder_path)
                 return CHECK_LOG_TIMELESS;
             }
             return CHECK_FAIL;
-        break;
         case SCROBBLE_IPOD:
             if (QFile(folder_path + "/iPod_Control/iTunes/Play Counts").exists())
             {
@@ -65,16 +64,12 @@ CHECK_RESULT check_path(SCROBBLE_METHOD method, QString folder_path)
                 //emit add_log(LOG_ERROR, tr("Could not find iTunes Database file"));
                 return CHECK_FAIL;
             }
-        break;
 #ifdef HAVE_MTP
         case SCROBBLE_MTP:
             return CHECK_MTP;
-        break;
 #endif
         default:
             return CHECK_FAIL;
-        break;
     }
-    return CHECK_FAIL;
 }
 
