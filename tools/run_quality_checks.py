@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import tarfile
@@ -28,6 +29,16 @@ def source_fingerprint() -> dict[str, str]:
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted((ROOT / "src").rglob("*"))
             if path.is_file() and path.suffix in {".cpp", ".h"}}
+
+
+def clazy_extra_arguments(environment=os.environ) -> list[str]:
+    """Extra compiler arguments for clazy only, from QTSCROBBLER_CLAZY_EXTRA_ARGS.
+
+    Ubuntu 24.04 ships clazy 1.11 on Clang 15, which cannot parse GCC 14's
+    libstdc++; CI points it at the GCC 13 headers. The build itself is unchanged.
+    """
+    return [f"--extra-arg={argument}"
+            for argument in shlex.split(environment.get("QTSCROBBLER_CLAZY_EXTRA_ARGS", ""))]
 
 
 def production_commands(build: Path, root: Path = ROOT) -> list[dict]:
@@ -129,7 +140,7 @@ class Checks:
             ("clang-tidy", ["-p", str(build), "--checks=-*,clang-analyzer-core.*,clang-analyzer-unix.Malloc",
                             "--warnings-as-errors=*", *files]),
             ("clazy-standalone", ["-p", str(build), "-checks=connect-non-signal,incorrect-emit", *files,
-                                  "--extra-arg=-Werror"]),
+                                  "--extra-arg=-Werror", *clazy_extra_arguments()]),
             ("cppcheck", [f"--project={inventory}", "--library=qt", "--error-exitcode=1", "--quiet",
                           "--suppress=missingIncludeSystem"]),
         )

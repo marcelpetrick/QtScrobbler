@@ -29,7 +29,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y \
             build-essential pkg-config python3 python3-venv \
-            libgl-dev libmtp-dev zlib1g-dev libarchive-tools \
+            libgl-dev libmtp-dev zlib1g-dev libarchive-tools libstdc++-13-dev \
             clazy cppcheck doxygen graphviz shellcheck xvfb bison flex iproute2 util-linux dbus
 
       - name: Install verified pkgconf and Graphviz
@@ -113,11 +113,22 @@ jobs:
           python3 tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib"
           echo "ZLIB_ROOT=$RUNNER_TEMP/qtscrobbler-zlib" >> "$GITHUB_ENV"
 
+      - name: Allow unprivileged user namespaces for offline test isolation
+        # Ubuntu 24.04 runners restrict them via AppArmor; tools/run_offline.py needs
+        # user, network, PID and mount namespaces and fails closed without them.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          unshare --user --map-root-user --net --pid --fork --mount-proc true
+
       - name: Run the local quality pipeline
         id: pipeline
         env:
           QTSCROBBLER_QT_PREFIX: ${{ steps.qt.outputs.qt-root-dir }}
           QTSCROBBLER_JOBS: '4'
+          # Ubuntu's clazy 1.11 (Clang 15) cannot parse GCC 14 libstdc++; analyze against GCC 13.
+          QTSCROBBLER_CLAZY_EXTRA_ARGS: >-
+            -nostdinc++ -isystem /usr/include/c++/13
+            -isystem /usr/include/x86_64-linux-gnu/c++/13 -isystem /usr/include/c++/13/backward
         run: |
           set -o pipefail
           trap 'mkdir -p build-reports; cp "$RUNNER_TEMP/pipeline.log" build-reports/pipeline.log' EXIT

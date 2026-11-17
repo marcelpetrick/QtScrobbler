@@ -28,6 +28,12 @@ The Qt install action's explicit `qt-root-dir` output selects the SDK for the lo
 pipeline. This prevents a system `qmake6` from selecting an older Qt installation.
 CMake and CTest are taken from the same installed prefix.
 
+Ubuntu 24.04 runners restrict unprivileged user namespaces through AppArmor, which
+makes `tools/run_offline.py` fail closed (`write failed /proc/self/uid_map`). Both
+workflows set `kernel.apparmor_restrict_unprivileged_userns=0` and probe the exact
+namespace set before the pipeline. They also set `QTSCROBBLER_CLAZY_EXTRA_ARGS` so
+Ubuntu's Clazy 1.11 analyzes against GCC 13 libstdc++ (see [quality](QUALITY.md)).
+
 The quality step uses `pipefail` while teeing output, so saving its log cannot hide
 a failure. The always-run report includes actual pipeline output, including failures,
 or states that provisioning prevented the pipeline from running. It does not print

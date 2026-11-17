@@ -45,6 +45,28 @@ class QualityChecksTest(unittest.TestCase):
                 self.checks.tool("clang-tidy")
         self.assertEqual(self.checks.versions, {})
 
+    def test_clazy_extra_arguments_are_split_and_wrapped_without_a_shell(self):
+        self.assertEqual(QUALITY.clazy_extra_arguments({}), [])
+        self.assertEqual(QUALITY.clazy_extra_arguments({"QTSCROBBLER_CLAZY_EXTRA_ARGS": ""}), [])
+        value = "-nostdinc++ -isystem '/usr/include/c++/13' -isystem /a\\ b"
+        self.assertEqual(QUALITY.clazy_extra_arguments({"QTSCROBBLER_CLAZY_EXTRA_ARGS": value}),
+                         ["--extra-arg=-nostdinc++", "--extra-arg=-isystem", "--extra-arg=/usr/include/c++/13",
+                          "--extra-arg=-isystem", "--extra-arg=/a b"])
+
+    def test_static_passes_clazy_extra_arguments_only_to_clazy(self):
+        build = self.root / "build"
+        build.mkdir()
+        calls = []
+        with mock.patch.object(QUALITY, "production_commands", return_value=[{"file": "/s/a.cpp"}]), \
+                mock.patch.object(self.checks, "tool", side_effect=lambda name: "/bin/" + name), \
+                mock.patch.object(self.checks, "command", side_effect=lambda name, args: calls.append((name, args))), \
+                mock.patch.dict(QUALITY.os.environ, {"QTSCROBBLER_CLAZY_EXTRA_ARGS": "-nostdinc++"}):
+            self.checks.static(build)
+        arguments = dict(calls)
+        self.assertEqual(arguments["clazy-standalone"][-2:], ["--extra-arg=-Werror", "--extra-arg=-nostdinc++"])
+        self.assertNotIn("--extra-arg=-nostdinc++", arguments["clang-tidy"])
+        self.assertNotIn("--extra-arg=-nostdinc++", arguments["cppcheck"])
+
     def test_complete_production_scope_includes_unexecuted_mtp(self):
         source, build = self.root / "source", self.root / "build"
         build.mkdir()

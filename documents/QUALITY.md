@@ -34,6 +34,9 @@ with compiler warnings fatal. Cppcheck enables its default error checks and uses
 Qt library model. Missing system includes are suppressed because Cppcheck cannot model
 the complete compiler SDK; production parse errors and other diagnostics remain fatal.
 These selected checks are incremental and do not constitute all available checks.
+`QTSCROBBLER_CLAZY_EXTRA_ARGS` adds shell-split compiler arguments for Clazy only.
+CI uses it because Ubuntu 24.04's Clazy 1.11 (Clang 15) cannot parse GCC 14
+libstdc++; it points Clazy at the GCC 13 headers. The build is unchanged.
 
 Qualified host tools are recorded per report. The initial native host supplies
 clang-tidy/Clazy built on LLVM 23.1.1, Clazy 1.17.1, Cppcheck 2.22.0 and Doxygen 1.18.0.
@@ -123,8 +126,9 @@ retained in each application campaign. No GUI/CLI/library/MTP code is excluded.
 ## Enforced offline execution
 
 Normal and sanitizer CTest runs, coverage test collection, the complete native Mull
-campaign and extracted-package checks use `tools/run_offline.py`. It creates a
-fresh Linux user/network namespace, enables only loopback and starts a private
+campaign and extracted-package checks use `tools/run_offline.py`. It creates fresh
+Linux user, network, PID and mount namespaces with a matching `/proc` (LeakSanitizer
+reads `/proc/<pid>/task`), enables only loopback and starts a private
 DBus session with no desktop service directories. Descendant GUI/CLI/network tests
 retain their real event loops and loopback fixtures while external routes and
 host desktop service activation are unavailable. Missing namespace support, `ip`,

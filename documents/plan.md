@@ -763,3 +763,16 @@ but `run_coverage.py` kept its own list without it, so every full run rejected
 the coverage evidence ("fingerprints differ"). Client **0.13.68** moves the scope
 into one shared `tools/source_fingerprint.py` used by both runners; a contract
 asserts both import the same function and that the bootstrap lock is included.
+
+Actions **44161814413** on `c8c4693` concluded **failure**. All provisioning
+passed (including the zlib fallback). Two CI-only causes, besides (1)/(2):
+(3) Ubuntu 24.04 AppArmor blocks unprivileged user namespaces
+(`unshare: write failed /proc/self/uid_map`), so CTest, sanitizers, coverage,
+mutation and package failed before any test ran. (4) Ubuntu's Clazy 1.11
+(Clang 15) cannot parse GCC 14 libstdc++ `<format>`; this already failed static in
+44130632157, and the earlier green CI runs were only `--quick`. Client
+**0.13.69** sets the sysctl and probes the exact namespace set in both workflows,
+and adds `QTSCROBBLER_CLAZY_EXTRA_ARGS` (Clazy-only arguments, contract-tested)
+which the workflows use to select GCC 13 headers via `libstdc++-13-dev`. The
+Clazy fix cannot be reproduced on this Arch host without Docker (excluded), so
+it is verified only by the next observed Actions run.
