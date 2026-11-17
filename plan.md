@@ -354,3 +354,5 @@ with the already-executed hook disabled for that invocation to avoid a second bu
 
 Next actions: unify CI on the strict pipeline; add actual GUI import/close contracts and parser
 error-path regressions; establish complete coverage accounting and qualify a Linux Mull toolchain.
+
+| iPod corruption and clear safety | Validate every binary offset/length before publishing tracks, bounded streaming decompression, reject truncated counts and failed-reopen clearing, repeated plain/compressed reuse | 73/73 synthetic Qt Test rows, three repeat runs; targeted failed-reopen and truncation tests fail on original; root exact-staged-source Qt 6.12 gate passed 8/8 CTests; client 0.13.34; /tmp/qtscrobbler-ipod-staged-reports | Real hardware remains unverified; coverage and full mutation target still open |

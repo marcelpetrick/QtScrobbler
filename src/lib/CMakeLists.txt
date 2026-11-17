@@ -23,6 +23,8 @@ if(HAVE_LIBMTP)
 endif()
 
 add_library(scrobble STATIC ${SCROBBLE_SOURCES})
+find_package(ZLIB REQUIRED)
+target_link_libraries(scrobble PRIVATE ZLIB::ZLIB)
 
 target_include_directories(scrobble PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 

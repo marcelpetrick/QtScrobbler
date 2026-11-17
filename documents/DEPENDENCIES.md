@@ -56,3 +56,11 @@ not yet provide 4.5.0, so it must not be presented as an installable PyPI pin.
 5. Update one coherent dependency group, then run the entire local pipeline and package/runtime checks.
 6. Record exact old/new versions, measured results and outstanding limitations in `plan.md`.
 7. Commit only after mandatory checks pass. Never publish/push as part of the review.
+
+## iPod decompression dependency
+
+The iPod parser now links zlib directly for bounded streaming decompression rather
+than allocating an unbounded decoded database. The behavioral qualification uses
+installed zlib 1.3.2. [Upstream zlib 1.4](https://zlib.net/) is the current stable
+release (2026-11-04); isolated provisioning and separate dependency qualification
+are in progress. The system library is not claimed to be the latest resolution.
