@@ -37,7 +37,7 @@ jobs:
           host: linux
           target: desktop
           arch: linux_gcc_64
-          archives: qtbase qttools qttranslations icu
+          archives: qtbase qtdeclarative qttools qttranslations icu
           aqtversion: '==3.3.0'
           py7zrversion: '==1.1.4'
           setup-python: false

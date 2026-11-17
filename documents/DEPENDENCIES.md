@@ -7,7 +7,7 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | Component | Previous project selection | Selected or measured | Source / status |
 | --- | --- | --- | --- |
 | Qt Core, Network, Sql, Xml, Widgets, Test and tools | >=6.8, CI 6.8.* | 6.12.0 | [Official downloads](https://download.qt.io/official_releases/qt/6.12/); 6.12.1 not yet in download index at review |
-| Qt installer | Unpinned indirect tool | aqtinstall 3.3.0 | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); Linux archive set qtbase, qttools, qttranslations, icu |
+| Qt installer | Unpinned indirect tool | aqtinstall 3.3.0 | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); Linux archive set qtbase, qtdeclarative, qttools, qttranslations, icu |
 | CMake / CTest | >=3.28; local 4.4.4 | 4.5.0 qualified toolchain; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.0) |
 | libmtp | Unversioned pkg-config | 1.1.23 locally | [Upstream releases](https://github.com/libmtp/libmtp/releases); current upstream stable; CI distro package resolution still needs a reproducible pin |
 | Compiler | OS-selected | GCC 16.2.1 locally | Exact CI compiler/environment lock pending |
@@ -35,7 +35,7 @@ on hosts with a newer system ICU. No OS-wide package replacement is needed.
 python3 -m venv /path/to/quality-tools
 /path/to/quality-tools/bin/python -m pip install -r requirements-quality.txt
 /path/to/quality-tools/bin/aqt install-qt linux desktop 6.12.0 linux_gcc_64 \
-  --outputdir /path/to/Qt --archives qtbase qttools qttranslations icu
+  --outputdir /path/to/Qt --archives qtbase qtdeclarative qttools qttranslations icu
 
 QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
