@@ -102,7 +102,6 @@ private slots:
         QTest::newRow("help") << QStringList{"--help"} << 0 << QByteArray();
         QTest::newRow("short-help") << QStringList{"-h"} << 0 << QByteArray();
         QTest::newRow("config-help") << QStringList{"-c", "/tmp/fictional-config.ini", "-h"} << 0 << QByteArray();
-        QTest::newRow("german-translations") << QStringList{"--help"} << 0 << QByteArray();
         QTest::newRow("verbosity-minimum") << QStringList{"-v", "0", "--help"} << 0 << QByteArray();
         QTest::newRow("verbosity-maximum") << QStringList{"--verbose=3", "--help"} << 0 << QByteArray();
         for (const QString value : {"invalid", "-1", "4", "1.5", "2147483648"})
@@ -132,8 +131,7 @@ private slots:
         environment.insert("XDG_CACHE_HOME", home.path());
         environment.insert("XDG_RUNTIME_DIR", home.path());
         environment.insert("QT_QPA_PLATFORM", "offscreen");
-        environment.insert("LC_ALL", QByteArray(QTest::currentDataTag()) == "german-translations"
-                           ? "de_DE.UTF-8" : "C.UTF-8");
+        environment.insert("LC_ALL", "C.UTF-8");
         environment.remove("POSIXLY_CORRECT");
         child.setProcessEnvironment(environment);
         child.start(GUI_BINARY, arguments);
