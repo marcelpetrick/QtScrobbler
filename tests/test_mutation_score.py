@@ -29,7 +29,12 @@ RUNNER_SPEC = importlib.util.spec_from_file_location(
     "run_mutation_tests", Path(__file__).resolve().parents[1] / "tools/run_mutation_tests.py"
 )
 RUNNER = importlib.util.module_from_spec(RUNNER_SPEC)
-with mock.patch.dict(sys.modules, {"mutation_score": SCORE}):
+FINGERPRINT_SPEC = importlib.util.spec_from_file_location(
+    "source_fingerprint", Path(__file__).resolve().parents[1] / "tools/source_fingerprint.py"
+)
+FINGERPRINT = importlib.util.module_from_spec(FINGERPRINT_SPEC)
+FINGERPRINT_SPEC.loader.exec_module(FINGERPRINT)
+with mock.patch.dict(sys.modules, {"mutation_score": SCORE, "source_fingerprint": FINGERPRINT}):
     RUNNER_SPEC.loader.exec_module(RUNNER)
 ASSERTION = "FAIL!  : Test::boundary() assertion failed\nTotals: 0 passed, 1 failed, 0 skipped,\n"
 

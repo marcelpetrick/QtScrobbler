@@ -26,6 +26,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from source_fingerprint import source_hashes
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,16 +63,6 @@ def passes(covered: int, total: int, minimum: Decimal) -> bool:
     return total > 0 and Decimal(covered) * 100 >= minimum * total
 
 
-def fingerprints() -> dict[str, str]:
-    paths = {path for folder in ("src", "tests", "cmake", "tools")
-             for path in (ROOT / folder).rglob("*") if path.is_file()
-             and "__pycache__" not in path.parts and path.suffix != ".pyc"}
-    paths.update(path for name in ("CMakeLists.txt", "localPipeline.sh", "mull.yml", "Doxyfile",
-                                  "requirements-quality.txt", ".clang-format")
-                 if (path := ROOT / name).is_file())
-    return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(paths)}
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, required=True)
@@ -83,7 +74,7 @@ def main() -> int:
     try:
         if not args.minimum.is_finite() or not 0 <= args.minimum <= 100 or args.jobs < 1:
             raise ValueError("minimum must be 0..100 and jobs positive")
-        initial_sources = fingerprints()
+        initial_sources = source_hashes(ROOT)
         build, reports = args.build_dir.resolve(), args.report_dir.resolve()
         if reports.exists() and any(reports.iterdir()):
             raise ValueError("report directory must be new or empty to prevent stale profiles")
@@ -149,7 +140,7 @@ def main() -> int:
             if path.exists():
                 content = path.read_text()
                 diagnostics[name] = content[:content.find("{")] if name.endswith("stdout.log") else content
-        if fingerprints() != initial_sources:
+        if source_hashes(ROOT) != initial_sources:
             raise ValueError("source/test/build definitions changed during coverage run")
         summary = {"source_sha256": initial_sources, "mapping_diagnostics": diagnostics,
                    "exports_sha256": {name: hashlib.sha256((reports / name).read_bytes()).hexdigest()

@@ -39,6 +39,7 @@ import sys
 import tempfile
 import time
 
+from source_fingerprint import source_hashes  # noqa: F401  (shared with run_coverage)
 from mutation_score import REQUIRED_COLUMNS, STATUSES, assertion_killed, passes, summarize
 
 
@@ -47,17 +48,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def source_hashes(root: Path = ROOT) -> dict[str, str]:
-    """Fingerprint source, resources, test contracts, tooling and build definitions."""
-    paths = {path for folder in ("src", "tests", "cmake", "tools")
-             for path in (root / folder).rglob("*") if path.is_file()
-             and "__pycache__" not in path.parts and path.suffix != ".pyc"}
-    paths.update(path for name in ("CMakeLists.txt", "localPipeline.sh", "mull.yml", "Doxyfile",
-                                  "requirements-quality.txt", "requirements-bootstrap.txt", ".clang-format")
-                 if (path := root / name).is_file())
-    return {str(path.relative_to(root)): sha256(path) for path in sorted(paths)}
 
 
 def validate_build(build: Path, root: Path, *, require_objects: bool = False) -> dict:

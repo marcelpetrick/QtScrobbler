@@ -758,3 +758,8 @@ them on the host. With a private `/proc` those would be unrelated host PIDs, so
 it now finds descendants on the host by a unique token in their `-c` script.
 Proof: without `--mount-proc` the `/proc` contract fails; without `--kill-child`
 the escape test fails (escapees hold the pipe) and cleanup leaves 0 processes.
+(2) Mutation: `run_mutation_tests.py` fingerprinted `requirements-bootstrap.txt`
+but `run_coverage.py` kept its own list without it, so every full run rejected
+the coverage evidence ("fingerprints differ"). Client **0.13.68** moves the scope
+into one shared `tools/source_fingerprint.py` used by both runners; a contract
+asserts both import the same function and that the bootstrap lock is included.
