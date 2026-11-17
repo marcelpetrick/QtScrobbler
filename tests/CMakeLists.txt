@@ -20,6 +20,13 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME pipeline_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_pipeline.py")
 set_tests_properties(pipeline_contract PROPERTIES TIMEOUT 40)
 
+if(HAVE_LIBMTP)
+    add_executable(test_parse_mtp test_parse_mtp.cpp)
+    target_link_libraries(test_parse_mtp PRIVATE scrobble Qt6::Test PkgConfig::LIBMTP)
+    add_test(NAME parse_mtp COMMAND test_parse_mtp)
+    set_tests_properties(parse_mtp PROPERTIES TIMEOUT 20 ENVIRONMENT "TZ=UTC;QT_QPA_PLATFORM=offscreen")
+endif()
+
 target_include_directories(test_gui PRIVATE "${PROJECT_BINARY_DIR}/src/qt/scrobble_gui_autogen/include")
 target_compile_definitions(test_gui PRIVATE GUI_BINARY="$<TARGET_FILE:qtscrob>")
 add_dependencies(test_gui qtscrob)

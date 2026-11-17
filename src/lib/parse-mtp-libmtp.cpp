@@ -17,158 +17,166 @@
  ***************************************************************************/
 
 #include <cstdlib>
+#include <utility>
 #include "parse-mtp.h"
 
-Parse_MTP::Parse_MTP()
+Parse_MTP::Parse_MTP() : Parse_MTP(Backend{})
 {
-    mtp_device_list = NULL;
-    LIBMTP_Init();
+}
+
+Parse_MTP::Parse_MTP(Backend operations) : mtp_device_list(nullptr), backend(std::move(operations))
+{
+    backend.init();
 }
 
 Parse_MTP::~Parse_MTP()
 {
-    if (mtp_device_list != NULL)
-    {
-        LIBMTP_Release_Device_List(mtp_device_list);
-    }
+    if (mtp_device_list)
+        backend.release(mtp_device_list);
 }
 
 void Parse_MTP::open(QString file_path, int tz)
 {
-    tracks = playcounts = entries = 0;
-
     (void)file_path;
     (void)tz;
-
-    emit add_log(LOG_DEBUG, "MTP: Attempting to connect device(s)");
-
-    switch(LIBMTP_Get_Connected_Devices(&mtp_device_list))
+    parsed = false;
+    pending_entries.clear();
+    tracks = playcounts = entries = 0;
+    if (mtp_device_list)
     {
-    case LIBMTP_ERROR_NO_DEVICE_ATTACHED:
-        mtp_device_list = NULL;
-        emit open_finished(false, tr("MTP: No devices have been found"));
-        return;
-    case LIBMTP_ERROR_CONNECTING:
-        mtp_device_list = NULL;
-        emit open_finished(false, tr("MTP: Error connecting."));
-        return;
-    case LIBMTP_ERROR_MEMORY_ALLOCATION:
-        mtp_device_list = NULL;
-        emit open_finished(false, tr("MTP: Memory Allocation Error."));
-        return;
-
-    // Unknown general errors - This should never execute
-    case LIBMTP_ERROR_GENERAL:
-    default:
-        mtp_device_list = NULL;
-        emit open_finished(false, tr("MTP: Unknown error!"));
-    return;
-
-    // Successfully connected at least one device, so continue
-    case LIBMTP_ERROR_NONE:
-        emit add_log(LOG_INFO, "MTP: Successfully connected");
-        mtp_iterate(false);
-    
-        emit add_log(LOG_INFO, QString("Found %1 entries, %2 of %3 tracks had playcount information")
-                     .arg(entries)
-                     .arg(playcounts)
-                     .arg(tracks));
-    
-        emit open_finished(true, tr("MTP: Finished parsing tracks"));
+        backend.release(mtp_device_list);
+        mtp_device_list = nullptr;
     }
+    emit add_log(LOG_DEBUG, "MTP: Attempting to connect device(s)");
+    const auto result = backend.connected(&mtp_device_list);
+    if (result != LIBMTP_ERROR_NONE || !mtp_device_list)
+    {
+        if (mtp_device_list)
+        {
+            backend.release(mtp_device_list);
+            mtp_device_list = nullptr;
+        }
+        QString error;
+        switch (result)
+        {
+        case LIBMTP_ERROR_NO_DEVICE_ATTACHED:
+            error = tr("MTP: No devices have been found");
+            break;
+        case LIBMTP_ERROR_CONNECTING:
+            error = tr("MTP: Error connecting.");
+            break;
+        case LIBMTP_ERROR_MEMORY_ALLOCATION:
+            error = tr("MTP: Memory Allocation Error.");
+            break;
+        default:
+            error = tr("MTP: Unknown error!");
+            break;
+        }
+        emit open_finished(false, error);
+        return;
+    }
+    emit add_log(LOG_INFO, "MTP: Successfully connected");
+    if (!mtp_iterate(false))
+    {
+        pending_entries.clear();
+        emit open_finished(false, tr("MTP: Failed to read tracks"));
+        return;
+    }
+    parsed = true;
+    for (const auto &item : std::as_const(pending_entries))
+        emit entry(item);
+    pending_entries.clear();
+    emit add_log(LOG_INFO, QString("Found %1 entries, %2 of %3 tracks had playcount information")
+                 .arg(entries).arg(playcounts).arg(tracks));
+    emit open_finished(true, tr("MTP: Finished parsing tracks"));
 }
 
 void Parse_MTP::clear()
 {
-    mtp_iterate(true);
+    if (!parsed)
+    {
+        emit clear_finished(false, tr("Asked to clear without successfully parsing"));
+        return;
+    }
+    if (!mtp_iterate(true))
+    {
+        emit clear_finished(false, tr("MTP: Failed to clear tracks"));
+        return;
+    }
+    parsed = false;
     emit clear_finished(true, tr("MTP: Finished clearing tracks"));
 }
 
-void Parse_MTP::mtp_iterate(bool clear_tracks)
+bool Parse_MTP::mtp_iterate(bool clear_tracks)
 {
-// This is mostly taken straight from libmtp examples/tracks.c
-
-    LIBMTP_mtpdevice_t *iter;
-    LIBMTP_track_t *tracks;
-
-
-    // iterate through connected MTP devices
-    for(iter = mtp_device_list; iter != NULL; iter = iter->next)
+    bool success = true;
+    for (auto *device = mtp_device_list; device; device = device->next)
     {
-        char *friendlyname;
-        // Echo the friendly name so we know which device we are working with
-
-        friendlyname = LIBMTP_Get_Friendlyname(iter);
-        if (friendlyname == NULL)
+        char *friendlyname = backend.friendlyName(device);
+        emit add_log(LOG_DEBUG, friendlyname ? "MTP: Friendly name: " + QString::fromUtf8(friendlyname)
+                                            : QString("MTP: Friendly name: (NULL)"));
+        free(friendlyname);
+        backend.clearErrors(device);
+        auto *track = backend.listing(device, nullptr, nullptr);
+        if (backend.errors(device))
         {
-            add_log(LOG_DEBUG, "MTP: Friendly name: (NULL)");
-        } else {
-            add_log(LOG_DEBUG, "MTP: Friendly name: " + QString(friendlyname));
-            free(friendlyname);
+            emit add_log(LOG_ERROR, tr("MTP: Failed to retrieve track listing"));
+            success = false;
         }
-
-        // Get track listing.
-        tracks = LIBMTP_Get_Tracklisting_With_Callback(iter, NULL, NULL);
-        if (tracks == NULL)
+        if (!track)
+            emit add_log(LOG_INFO, "MTP: No tracks.");
+        while (track)
         {
-            add_log(LOG_INFO, "MTP: No tracks.");
-        } else {
-            LIBMTP_track_t *track;
-            track = tracks;
-            while (track != NULL)
-            {
-                mtp_trackinfo(iter, track, clear_tracks);
-                LIBMTP_track_t *tmp = track;
-                track = track->next;
-                LIBMTP_destroy_track_t(tmp);
-            }
+            auto *next = track->next;
+            // A partial listing must be freed even if libmtp reported a read error.
+            if (success && !mtp_trackinfo(device, track, clear_tracks))
+                success = false;
+            backend.destroyTrack(track);
+            track = next;
         }
     }
+    return success;
 }
 
-void Parse_MTP::mtp_trackinfo(LIBMTP_mtpdevice_t *device, LIBMTP_track_t *track, bool clear_track)
+bool Parse_MTP::mtp_trackinfo(LIBMTP_mtpdevice_t *device, LIBMTP_track_t *track, bool clear_track)
 {
     tracks++;
-
-    emit add_log(LOG_TRACE,
-        QString("%1 : %2 : %3 : %4 : %5 : %6")
-        .arg(track->artist)
-        .arg(track->title)
-        .arg(track->album)
-        .arg(track->tracknumber)
-        .arg(track->duration/1000)
-        .arg(track->usecount)
-        );
-
-    if (track->artist != NULL // check if missing
-        && track->title != NULL // check if missing
-        && track->usecount > 0 // check track has been played
-        )
+    emit add_log(LOG_TRACE, QString("%1 : %2 : %3 : %4 : %5 : %6")
+                 .arg(QString::fromUtf8(track->artist)).arg(QString::fromUtf8(track->title))
+                 .arg(QString::fromUtf8(track->album)).arg(track->tracknumber)
+                 .arg(track->duration / 1000).arg(track->usecount));
+    if (!track->artist || !track->title || !track->usecount)
+        return true;
+    if (clear_track)
     {
-        if (clear_track)
+        track->usecount = 0;
+        if (backend.update(device, track) != 0)
         {
-            track->usecount = 0;
-            LIBMTP_Update_Track_Metadata(device, track);
+            emit add_log(LOG_ERROR, tr("MTP: Failed to update track metadata"));
+            return false;
         }
-        else
-        {
-            playcounts++;
-
-            scrob_entry tmp;
-            tmp.artist = QString::fromUtf8(track->artist);
-            tmp.title = QString::fromUtf8(track->title);
-            tmp.album = (track->album==NULL)?"":QString::fromUtf8(track->album);
-            tmp.tracknum = track->tracknumber;
-            tmp.length = track->duration/1000;
-            tmp.played = 'L';
-            tmp.when = 0; // no idea when it was played :(
-            tmp.mb_track_id = "";
-
-            for (unsigned int i = 0; i < track->usecount; i++)
-            {
-                entries++;
-                emit entry(tmp);
-            }
-        }
+        return true;
     }
+    // Match the iPod importer cap: malformed counts must not allocate billions
+    // of rows. No entries are emitted until every device has been read.
+    if (track->usecount > 1000000U - pending_entries.size())
+    {
+        emit add_log(LOG_ERROR, tr("MTP: Excessive play count"));
+        return false;
+    }
+    ++playcounts;
+    scrob_entry item{};
+    item.artist = QString::fromUtf8(track->artist);
+    item.title = QString::fromUtf8(track->title);
+    item.album = QString::fromUtf8(track->album);
+    item.tracknum = track->tracknumber;
+    item.length = track->duration / 1000;
+    item.played = 'L';
+    item.when = 0;
+    for (unsigned int i = 0; i < track->usecount; ++i)
+    {
+        ++entries;
+        pending_entries.append(item);
+    }
+    return true;
 }

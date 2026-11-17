@@ -19,19 +19,16 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Qt6
 find_package(Qt6 6.12 REQUIRED COMPONENTS Core Network Sql Xml Widgets)
 
-# Optional MTP support via libmtp (pkg-config)
-find_package(PkgConfig QUIET)
+# Explicit selection keeps device code in the required quality denominator.
+option(QTSCROBBLER_MTP "Build the Linux libmtp adapter" ON)
 set(HAVE_LIBMTP FALSE)
-if(PkgConfig_FOUND)
-    pkg_check_modules(LIBMTP libmtp)
-    if(LIBMTP_FOUND)
-        set(HAVE_LIBMTP TRUE)
-        message(STATUS "libmtp ${LIBMTP_VERSION} found — MTP device support enabled")
-    else()
-        message(STATUS "libmtp not found — MTP device support disabled")
-    endif()
+if(QTSCROBBLER_MTP)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBMTP REQUIRED IMPORTED_TARGET libmtp)
+    set(HAVE_LIBMTP TRUE)
+    message(STATUS "libmtp ${LIBMTP_VERSION} found — MTP device support enabled")
 else()
-    message(STATUS "pkg-config not found — MTP device support disabled")
+    message(STATUS "MTP device support explicitly disabled")
 endif()
 
 # Translation catalogs (.ts -> .qm) — must exist before the .qrc files are processed
