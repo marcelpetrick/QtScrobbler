@@ -31,30 +31,35 @@ else()
     message(STATUS "MTP device support explicitly disabled")
 endif()
 
-# Translation catalogs (.ts -> .qm) — must exist before the .qrc files are processed
-find_program(LRELEASE_EXECUTABLE NAMES lrelease lrelease-qt6
-    HINTS "${Qt6_DIR}/../../../bin"
-)
+# Compile catalogs into each build directory; parallel builds never share generated files.
+find_program(LRELEASE_EXECUTABLE NAMES lrelease
+    HINTS "${Qt6_DIR}/../../../bin" NO_DEFAULT_PATH REQUIRED)
 set(TRANSLATION_DIR "${CMAKE_SOURCE_DIR}/src/language")
-if(LRELEASE_EXECUTABLE)
+set(TRANSLATION_OUTPUT_DIR "${CMAKE_BINARY_DIR}/translations")
+file(MAKE_DIRECTORY "${TRANSLATION_OUTPUT_DIR}")
+foreach(language IN ITEMS de pl)
     add_custom_command(
-        OUTPUT
-            "${TRANSLATION_DIR}/de.qm"
-            "${TRANSLATION_DIR}/pl.qm"
-        COMMAND "${LRELEASE_EXECUTABLE}" -silent "${TRANSLATION_DIR}/language.pro"
-        DEPENDS
-            "${TRANSLATION_DIR}/de.ts"
-            "${TRANSLATION_DIR}/pl.ts"
-        WORKING_DIRECTORY "${TRANSLATION_DIR}"
-        COMMENT "Compiling Qt translations (.ts -> .qm)"
-    )
-    add_custom_target(translations_qm ALL
-        DEPENDS "${TRANSLATION_DIR}/de.qm" "${TRANSLATION_DIR}/pl.qm"
-    )
-else()
-    message(WARNING "lrelease not found — translations will not be compiled automatically")
-    add_custom_target(translations_qm)
-endif()
+        OUTPUT "${TRANSLATION_OUTPUT_DIR}/${language}.qm"
+        COMMAND "${LRELEASE_EXECUTABLE}" -silent "${TRANSLATION_DIR}/${language}.ts"
+                -qm "${TRANSLATION_OUTPUT_DIR}/${language}.qm"
+        DEPENDS "${TRANSLATION_DIR}/${language}.ts"
+        VERBATIM)
+endforeach()
+add_custom_target(translations_qm ALL DEPENDS
+    "${TRANSLATION_OUTPUT_DIR}/de.qm" "${TRANSLATION_OUTPUT_DIR}/pl.qm")
+file(READ "${CMAKE_SOURCE_DIR}/src/qt/qtscrob.qrc" QTSCROBBLER_RESOURCE_CONTENT)
+string(REPLACE ">resources/" ">${CMAKE_SOURCE_DIR}/src/qt/resources/"
+    QTSCROBBLER_RESOURCE_CONTENT "${QTSCROBBLER_RESOURCE_CONTENT}")
+string(REPLACE ">../language/" ">${TRANSLATION_OUTPUT_DIR}/"
+    QTSCROBBLER_RESOURCE_CONTENT "${QTSCROBBLER_RESOURCE_CONTENT}")
+set(QTSCROBBLER_RESOURCE_FILE "${CMAKE_BINARY_DIR}/qtscrob.qrc")
+file(CONFIGURE OUTPUT "${QTSCROBBLER_RESOURCE_FILE}" CONTENT "${QTSCROBBLER_RESOURCE_CONTENT}" @ONLY)
+
+file(READ "${CMAKE_SOURCE_DIR}/src/cli/scrobbler.qrc" QTSCROBBLER_CLI_RESOURCE_CONTENT)
+string(REPLACE ">../language/" ">${TRANSLATION_OUTPUT_DIR}/"
+    QTSCROBBLER_CLI_RESOURCE_CONTENT "${QTSCROBBLER_CLI_RESOURCE_CONTENT}")
+set(QTSCROBBLER_CLI_RESOURCE_FILE "${CMAKE_BINARY_DIR}/scrobbler.qrc")
+file(CONFIGURE OUTPUT "${QTSCROBBLER_CLI_RESOURCE_FILE}" CONTENT "${QTSCROBBLER_CLI_RESOURCE_CONTENT}" @ONLY)
 
 add_subdirectory(src/lib)
 add_subdirectory(src/qt)

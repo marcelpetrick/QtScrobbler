@@ -13,7 +13,7 @@ foreach(name IN ITEMS parse_log common cli gui conf dbcache parse_ipod submit ge
 endforeach()
 add_dependencies(test_cli scrobbler)
 target_link_libraries(test_gui PRIVATE scrobble_gui)
-target_sources(test_gui PRIVATE "${PROJECT_SOURCE_DIR}/src/qt/qtscrob.qrc")
+target_sources(test_gui PRIVATE "${QTSCROBBLER_RESOURCE_FILE}")
 add_dependencies(test_gui translations_qm)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)

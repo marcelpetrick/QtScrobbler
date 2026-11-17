@@ -35,6 +35,6 @@ target_link_libraries(scrobble_gui
         Qt6::Xml
 )
 
-add_executable(qtscrob src/main.cpp qtscrob.qrc)
+add_executable(qtscrob src/main.cpp "${QTSCROBBLER_RESOURCE_FILE}")
 add_dependencies(qtscrob translations_qm)
 target_link_libraries(qtscrob PRIVATE scrobble_gui)

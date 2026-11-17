@@ -1,7 +1,7 @@
 set(CLI_SOURCES
     scrobbler.cpp
     app.cpp
-    scrobbler.qrc
+    "${QTSCROBBLER_CLI_RESOURCE_FILE}"
 )
 
 add_executable(scrobbler ${CLI_SOURCES})
