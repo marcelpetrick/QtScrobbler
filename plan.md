@@ -18,6 +18,7 @@ are the source for the vision record to be added. Do not invent additional produ
 - [x] Preserve existing GPLv2 license: LICENSE, COPYING and original headers already say version 2.
 - [x] Work on local `main` (renamed from master without rewriting commit history).
 - [ ] Record the stated product vision in `visions.md` and trace every requirement to evidence.
+      (`visions.md` recorded; per-requirement evidence audit remains open until final qualification.)
 - [ ] Push green atomic conventional commits to main throughout the initiative; verify remote CI.
 - [ ] Bump patch on every commit; bump minor for significant new product features. Run the gate on
       the prepared version before committing, rather than relying on a post-validation hook mutation.
@@ -384,3 +385,5 @@ error-path regressions; establish complete coverage accounting and qualify a Lin
 | Per-build translation catalogs | lrelease is required from the selected Qt SDK and writes `.qm` into `<build>/translations`; GUI/CLI/test resources are generated per build directory, so parallel/instrumented builds never share or dirty source-tree catalogs | Root exact-staged-source Qt 6.12 gate (`--noRun --noOpen`, pre-quality-stage pipeline) passed 12/12 CTests, client 0.13.46; no `.qm` created under `src/language`; no remaining tracked reference to source-tree `.qm` | Catalog content restoration and dedicated translation tests follow separately |
 
 | Restored translation catalogs | Re-extracted de/pl catalogs from current sources (223 active, 46 historical each, 0 unfinished); site/log-level labels resolve through the translator; runtime QTranslator test checks every active entry and placeholder multiset, host-locale independent | Translations 6/6 rows; root exact-staged-source Qt 6.12 gate (`--noRun --noOpen`, pre-quality-stage pipeline) passed 13/13 CTests, client 0.13.47; pipeline counts 269 per catalog, 0 untranslated | No native-speaker linguistic review recorded; completeness is mechanical, not a quality claim |
+
+| Product vision record | Added `visions.md` from the owner's explicit requirements; maps them to P1–P9 without inventing features | Root exact-staged-source Qt 6.12 gate (`--noRun --noOpen`, pre-quality-stage pipeline) passed 13/13 CTests, client 0.13.48 | Final per-requirement evidence audit remains open |
