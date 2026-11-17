@@ -4,7 +4,34 @@ Status: implementation started; P0 in progress. Updated: 2026-11-17.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
-commit contains only this plan and `AGENTS.md`; implementation starts afterwards.
+commit contained only this plan and `AGENTS.md`; implementation has started.
+
+
+## Owner updates and final product requirements
+
+The owner subsequently authorized parallel subagents, continuous pushes after green checks,
+and working directly on `main`. This supersedes earlier no-push instructions in this plan.
+The original integration point remains `origin/master` at `c3fbd8f` for reviewing the initiative.
+There was no `visions.md` in the initial checkout; the explicit conversation requirements
+are the source for the vision record to be added. Do not invent additional product features.
+
+- [x] Preserve existing GPLv2 license: LICENSE, COPYING and original headers already say version 2.
+- [x] Work on local `main` (renamed from master without rewriting commit history).
+- [ ] Record the stated product vision in `visions.md` and trace every requirement to evidence.
+- [ ] Push green atomic conventional commits to main throughout the initiative; verify remote CI.
+- [ ] Bump patch on every commit; bump minor for significant new product features. Run the gate on
+      the prepared version before committing, rather than relying on a post-validation hook mutation.
+- [ ] Do not add Docker, GHCR publication, container checks or Docker docs; the owner explicitly
+      excluded Docker from the supplied generic workflow.
+- [ ] Keep scripts small, reusable and documented; complete lint/format/static/coverage/build/E2E gates.
+- [ ] Add README badges grounded in actual CI/metrics and a real screenshot of the running Qt UI.
+- [ ] Run the reviewBranch skill, fix verified issues, then run githubAbout; public About changes
+      follow that skill's authorization rule and must not make unmeasured quality claims.
+- [ ] Final vision audit, complete pipeline, actual green Actions, all work pushed, clean working tree.
+
+Delegated work: CI/release pipeline and CMake provisioning; native mutation qualification;
+configuration and database contracts. Primary agent owns shared integration, GUI coverage,
+plan updates, exact-version gates, commits and pushes. No Docker is used for this work going forward.
 
 ## Objective and acceptance criteria
 
@@ -70,7 +97,7 @@ Risk areas found by reading code (investigation leads, not a completed code revi
 
 Follow the `updateDependencies` skill: inspect all manifests, verify upstream stable releases,
 pin exact resolutions, update deliberately, run the complete existing gate, and commit a
-dependency change only when its gate passes. Never push as part of this work.
+dependency change only when its gate passes. The owner now authorizes continuous green pushes.
 
 Do not upgrade the user's OS globally. Provision Qt and quality tools under an isolated prefix
 or a reproducible build environment. Keep runtime ABI dependencies supplied by Qt/OS visible
@@ -250,7 +277,7 @@ Exit: one documented quality command provides truthful, reproducible results in 
       and call sites; separately audit deleted/weakened guards and remaining invariants.
 - [ ] Report only verified Code/Architecture findings in supplied severity/evidence/fix format; resolve findings.
 - [ ] Attach test/coverage/mutation/static/docs/package evidence to release preparation.
-- [ ] Wait for actual green CI if available; publishing/pushing/merging requires separate authorization.
+- [ ] Wait for actual green CI if available; publishing/merging requires separate authorization; green pushes to main are authorized.
 
 Exit: Qt 6.12 app works through documented workflows; both coverage gates and mutation gate pass with evidence.
 
@@ -316,9 +343,12 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 
 | Delegation authorization | Updated AGENTS.md to use subagents for independent work with explicit file ownership and primary-agent integration | Owner explicitly requested delegation and this rule commit; documentation diff checked | Parallel CI, mutation-tool and storage-test tasks to begin; GUI tests currently in progress |
 
+| Updated owner requirements | Main branch, continuous green pushes, semver, no Docker, preserved GPLv2, final review/About/screenshot and vision audit added to plan and rules | Existing license files and source headers inspected; main renamed from master; missing visions.md confirmed | Complete native product/quality initiative and audit; delegated work active |
+
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.
-Implementation commits retain the existing hook; verify source/runtime versions after rebuilding.
+For subsequent exact-version gates, execute the version hook before validation, then commit
+with the already-executed hook disabled for that invocation to avoid a second bump.
 
 Next actions: unify CI on the strict pipeline; add actual GUI import/close contracts and parser
 error-path regressions; establish complete coverage accounting and qualify a Linux Mull toolchain.

@@ -15,13 +15,17 @@ commands or contribution rules change; it need not change in every implementatio
 ## Scope and working method
 
 - Inspect current code and call sites before editing; preserve public behavior with tests.
-- Work autonomously within the requested scope; no push, merge, tag, or release publication
-  without explicit authorization. Local atomic commits are authorized.
+- Work autonomously on `main`. The owner authorizes continuous pushes after green checks.
+  No merge, tag or release publication without explicit authorization. Local atomic commits
+  and pushes are authorized; inspect actual GitHub Actions results rather than claiming green CI.
 - Keep dependency, mechanical formatting, test infrastructure, and behavioral fixes separate.
 - Use conventional commit subjects and explain why in the body; no tool/AI attribution.
 - Do not adopt every unrelated TODO or the Python playbook's version-bump policy automatically.
   A repository-local pre-commit hook already bumps `CLIENT_VERSION` in `src/lib/common.h`
-  on every commit; retain it for implementation commits and rebuild before runtime validation.
+  on every commit. Execute that hook before the full gate so the tested source version
+  matches the commit, then disable only that already-executed hook for the commit invocation
+  (`git -c core.hooksPath=/dev/null commit`) to avoid a second bump. Significant new product
+  features bump the minor version; ordinary fixes, tests and docs bump the patch.
   The initial documentation-only planning commit intentionally excluded this automatic bump.
 - Use the applicable `updateDependencies` skill for dependency work: verify upstream stable
   versions, pin exact tested resolutions, run the complete gate and commit only after it passes.
@@ -90,3 +94,17 @@ GUI/CLI workflow evidence, not just compilation.
 The exact Python tooling resolution is in `requirements-quality.txt`; upstream version
 review and SDK provisioning are documented in `documents/DEPENDENCIES.md`. The Linux Qt
 SDK requires its ICU archive. The system Qt 6.11 installation is below the new minimum.
+
+## Owner's final product workflow
+
+- There was no `visions.md` in the initial checkout. Record the explicit requested vision,
+  trace its requirements in `plan.md`, implement them, and audit each against evidence.
+- Preserve GPLv2. The owner explicitly withdrew the generic instruction to adopt GPLv3.
+- Do not add Docker/GHCR workflows, container checks or Docker documentation. Use native tools.
+- Add real README badges, setup/testing/quality/usage documentation and a screenshot captured
+  from the running Qt UI. Never use a mockup as product evidence.
+- Run `reviewBranch`, fix verified findings, then run `githubAbout` before completion.
+- Completion requires the whole vision, 95% line and branch coverage, mutation evidence,
+  complete native pipeline, actual green Actions, pushed work and a clean working tree.
+- If there is a genuine external blocker, document precise evidence and continue independent
+  tasks; do not claim that an unavailable check passed or quietly drop a requirement.
