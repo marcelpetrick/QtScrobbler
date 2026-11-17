@@ -37,6 +37,8 @@ class SubmitTest : public QObject
     }
 
 private slots:
+    void init() { QTest::failOnWarning(QRegularExpression(".*")); }
+
     void initTestCase()
     {
         QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -142,6 +144,9 @@ private slots:
         QTest::newRow("empty") << QByteArray() << "Bad handshake response";
         QTest::newRow("truncated") << QByteArray("OK\n") << "Bad handshake response";
         QTest::newRow("invalid-url") << QByteArray("OK\nsession\nnow\nfile:///tmp/not-http\n") << "Bad handshake response";
+        QTest::newRow("malformed-endpoint") << QByteArray("OK\nsession\nhttp://now\nhttp://[invalid]/submit\n") << "Bad handshake response";
+        QTest::newRow("endpoint-without-host") << QByteArray("OK\nsession\nhttp://now\nhttp:/submit\n") << "Bad handshake response";
+        QTest::newRow("unsupported-protocol") << QByteArray("OK\nsession\nhttp://now\nftp://127.0.0.1/submit\n") << "Bad handshake response";
         QTest::newRow("missing-session") << QByteArray("OK\n\nhttp://now\nhttp://submit\n") << "Bad handshake response";
     }
 
@@ -241,6 +246,95 @@ private slots:
         QCOMPARE(finished.size(), 1);
         QVERIFY(!finished.first()[0].toBool());
         QCOMPARE(server.requests.size(), 0);
+    }
+
+    void invalidContext_data()
+    {
+        QTest::addColumn<int>("site");
+        QTest::addColumn<bool>("haveEntries");
+        QTest::addColumn<bool>("haveMutex");
+        QTest::newRow("negative-site") << -1 << true << true;
+        QTest::newRow("site-past-end") << int(CONFIG_NUM_SITES) << true << true;
+        QTest::newRow("missing-entries") << 0 << false << true;
+        QTest::newRow("missing-mutex") << 0 << true << false;
+    }
+
+    void invalidContext()
+    {
+        QFETCH(int, site);
+        QFETCH(bool, haveEntries);
+        QFETCH(bool, haveMutex);
+        HttpFixture server;
+        auto entries = tracks(1);
+        QMutex mutex;
+        auto settings = context(server, entries, mutex);
+        if (!haveEntries)
+            settings.entries = nullptr;
+        if (!haveMutex)
+            settings.mutex = nullptr;
+        Submit submit(site);
+        QVERIFY(!submit.init(settings));
+        submit.do_submit();
+        QCOMPARE(server.requests.size(), 0);
+        QCOMPARE(entries[0].sent[0], SENT_UNSENT);
+        QVERIFY(!submit.submission_successful());
+    }
+
+    void noEligibleTracksNeverPostsOrLosesSuccessfulTracks()
+    {
+        HttpFixture server;
+        server.respond = [&](const auto &) { return HttpFixture::Response{server.handshake()}; };
+        auto entries = tracks(2);
+        entries[0].sent[0] = SENT_SUCCESS;
+        entries[1].sent[0] = SENT_FAILED;
+        QMutex mutex;
+        Submit submit(0);
+        QVERIFY(submit.init(context(server, entries, mutex)));
+        QSignalSpy finished(&submit, &Submit::finished);
+        QSignalSpy progress(&submit, &Submit::progress);
+        submit.do_submit();
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QVERIFY(finished.first()[1].toString().contains("empty submission"));
+        QCOMPARE(server.requests.size(), 1);
+        QCOMPARE(server.requests.first().method, "GET");
+        QCOMPARE(progress.size(), 0);
+        QCOMPARE(entries[0].sent[0], SENT_SUCCESS);
+        QCOMPARE(entries[1].sent[0], SENT_FAILED);
+        QVERIFY(!submit.submission_successful());
+    }
+
+    void secureEndpointIsAcceptedAndCancellationKeepsTrack()
+    {
+        HttpFixture server;
+        const QByteArray endpoint = "https://" + server.host().toLatin1() + "/secure-submit";
+        server.respond = [&](const auto &) {
+            return HttpFixture::Response{"OK\nsecure & session\n" + server.url("/now") + '\n' + endpoint + '\n'};
+        };
+        auto entries = tracks(1);
+        QMutex mutex;
+        Submit submit(0);
+        QVERIFY(submit.init(context(server, entries, mutex)));
+        QSignalSpy finished(&submit, &Submit::finished);
+        QSignalSpy failure(&submit, &Submit::signalHandshakeFailure);
+        submit.do_submit();
+        QPointer<QNetworkReply> secure;
+        auto pendingSecureRequest = [&] {
+            for (auto *reply : submit.findChildren<QNetworkReply *>())
+                if (reply->url() == QUrl(QString::fromLatin1(endpoint)))
+                    secure = reply;
+            return bool(secure);
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(pendingSecureRequest(), 1000);
+        QCOMPARE(secure->operation(), QNetworkAccessManager::PostOperation);
+        submit.cancel_submission();
+        QCOMPARE(failure.size(), 0);
+        QCOMPARE(finished.size(), 0);
+        QVERIFY(!submit.submission_successful());
+        QCOMPARE(entries.size(), 1);
+        QCOMPARE(entries[0].sent[0], SENT_FAILED);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(secure.isNull());
     }
 
     void retriesAreBoundedAndKeepSuccessfulTracks()

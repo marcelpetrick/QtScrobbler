@@ -294,7 +294,8 @@ void Scrobble::updated_track_length(int index, bool success, int length, int ela
     {
         mutex->lock();
         entries[index].length = length;
-        cache->set_track_length(entries[index].artist, entries[index].title, length);
+        if (db_ready)
+            cache->set_track_length(entries[index].artist, entries[index].title, length);
         mutex->unlock();
     }
     zero_length_tracks.removeFirst();

@@ -11,6 +11,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <memory>
 
 namespace {
 QStringList warnings;
@@ -170,6 +171,8 @@ private slots:
         QVERIFY(scrobble.get_gmt() <= after + 1);
         QCOMPARE(scrobble.get_num_tracks(), 0);
         QVERIFY(!scrobble.get_parser_busy());
+        scrobble.clear_method();
+        QVERIFY(!scrobble.get_parser_busy());
         QVERIFY(scrobble.get_error_str().isEmpty());
         QVERIFY(!scrobble.check_age());
         QCOMPARE(scrobble.get_gmt_offset(), 0);
@@ -200,6 +203,7 @@ private slots:
         QTest::newRow("europe") << QByteArray("Europe/Berlin");
         QTest::newRow("america") << QByteArray("America/New_York");
         QTest::newRow("quarter-hour-offset") << QByteArray("Asia/Kathmandu");
+        QTest::newRow("southern-hemisphere-dst") << QByteArray("Australia/Sydney");
     }
 
     void activeTimezone()
@@ -865,6 +869,244 @@ private slots:
         QCOMPARE(finished.count(), 2);
         QCOMPARE(scrobble.get_num_tracks(), 1);
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void destructionDuringSubmissionClosesOwnedRequests()
+    {
+        LocalService service;
+        QVERIFY(service.listen());
+        service.holdHandshake = true;
+        auto scrobble = std::make_unique<Scrobble>();
+        service.configure(*scrobble);
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(*scrobble, directory.path(),
+                           {{"Artist", "Retain on close", 180, static_cast<int>(scrobble->get_gmt()) - 60}}));
+        int completed = 0;
+        connect(scrobble.get(), &Scrobble::submission_finished, this, [&](bool) { ++completed; });
+        QVERIFY(scrobble->submit());
+        QTRY_COMPARE_WITH_TIMEOUT(service.requests.size(), 1, 1000);
+        QPointer<Submit> owned = scrobble->submissions.value(CONFIG_LASTFM);
+        QVERIFY(owned);
+        QList<QPointer<QNetworkAccessManager>> managers;
+        for (auto *manager : owned->findChildren<QNetworkAccessManager *>())
+            managers.append(manager);
+        QCOMPARE(managers.size(), 2);
+        scrobble.reset();
+        QVERIFY(owned.isNull());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        for (const auto &manager : managers)
+            QVERIFY(manager.isNull());
+        QTRY_VERIFY_WITH_TIMEOUT(service.connections.first().isNull(), 1000);
+        QCOMPARE(completed, 0);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void metadataEditsRestartOnlyWhenRequired_data()
+    {
+        QTest::addColumn<QString>("field");
+        for (const QString &field : {QString("artist"), QString("title"), QString("length"), QString("album")})
+            QTest::newRow(qPrintable(field)) << field;
+    }
+
+    void metadataEditsRestartOnlyWhenRequired()
+    {
+        QFETCH(QString, field);
+        LocalService service;
+        QVERIFY(service.listen());
+        service.submissionDelay = 50;
+        service.submissionReply = "<lfm status=\"ok\"><track><duration>111000</duration></track></lfm>";
+        QNetworkProxy::setApplicationProxy(
+            QNetworkProxy(QNetworkProxy::HttpProxy, "127.0.0.1", service.server.serverPort()));
+        Scrobble scrobble;
+        QTemporaryDir directory;
+        QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Original", 0, 1700000000}}));
+        QTRY_COMPARE_WITH_TIMEOUT(service.requests.size(), 1, 1000);
+        service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
+        auto edited = scrobble.get_track(0);
+        if (field == "artist")
+            edited.artist = "Edited artist";
+        else if (field == "title")
+            edited.title = "Edited title";
+        else if (field == "length")
+            edited.length = 180;
+        else
+            edited.album = "Edited album";
+        scrobble.update_track(edited, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        const auto result = scrobble.get_track(0);
+        QCOMPARE(result.artist, edited.artist);
+        QCOMPARE(result.title, edited.title);
+        QCOMPARE(result.album, edited.album);
+        QCOMPARE(result.length, field == "length" ? 180 : field == "album" ? 111 : 235);
+        QCOMPARE(service.requests.size(), field == "artist" || field == "title" ? 2 : 1);
+        DBCache cache;
+        QVERIFY(cache.init());
+        QCOMPARE(cache.get_track_length(result.artist, result.title), field == "length" ? -1 : result.length);
+    }
+
+    void removingLastPendingTrackCompletesWithoutWritingCache()
+    {
+        LocalService service;
+        QVERIFY(service.listen());
+        service.submissionDelay = 50;
+        service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
+        QNetworkProxy::setApplicationProxy(
+            QNetworkProxy(QNetworkProxy::HttpProxy, "127.0.0.1", service.server.serverPort()));
+        Scrobble scrobble;
+        QTemporaryDir directory;
+        QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Removed", 0, 1700000000}}));
+        QTRY_COMPARE_WITH_TIMEOUT(service.requests.size(), 1, 1000);
+        scrobble.remove_track(0);
+        QCOMPARE(finished.size(), 1);
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        scrobble.clear_method();
+        QVERIFY(!scrobble.get_parser_busy());
+        QTRY_VERIFY_WITH_TIMEOUT(service.connections.first().isNull(), 1000);
+        DBCache cache;
+        QVERIFY(cache.init());
+        QCOMPARE(cache.get_track_length("Artist", "Removed"), -1);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void negativeAndEditedShortDurationsAreFilteredSafely()
+    {
+        Scrobble scrobble;
+        QTemporaryDir directory;
+        const int recent = scrobble.get_gmt() - 60;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Negative", -1, recent}, {"Artist", "Edited short", 180, recent}}));
+        auto edited = scrobble.get_track(1);
+        edited.length = 29;
+        scrobble.update_track(edited, 1);
+        QCOMPARE(scrobble.get_track(1).played, QChar('L'));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(!scrobble.submit());
+        QCOMPARE(finished.size(), 1);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QCOMPARE(scrobble.get_error_str(), "Nothing to submit!");
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void unavailableCacheStillAllowsMetadataLookup()
+    {
+        const QString database = qEnvironmentVariable("XDG_CONFIG_HOME") + "/qtscrob/qtscrob.db";
+        QVERIFY(QDir().mkpath(database)); // A directory cannot be opened as a SQLite database file.
+        LocalService service;
+        QVERIFY(service.listen());
+        service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
+        QNetworkProxy::setApplicationProxy(
+            QNetworkProxy(QNetworkProxy::HttpProxy, "127.0.0.1", service.server.serverPort()));
+        Scrobble scrobble;
+        QTemporaryDir directory;
+        QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Uncached", 0, 1700000000}}));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 2000);
+        QCOMPARE(scrobble.get_track(0).length, 235);
+        QCOMPARE(scrobble.get_track(0).title, "Uncached");
+        QCOMPARE(service.requests.size(), 1);
+        QVERIFY(QFileInfo(database).isDir());
+    }
+
+    void synchronousCancellationListenerCompletesOnlyOnce()
+    {
+        LocalService service;
+        QVERIFY(service.listen());
+        service.handshakeReply = "BADAUTH\n";
+        Scrobble scrobble;
+        service.configure(scrobble);
+        connect(&scrobble, &Scrobble::signalCancelProgress, &scrobble, &Scrobble::cancel_submission);
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Retain", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QVERIFY(scrobble.submissions.isEmpty());
+        QCOMPARE(scrobble.get_num_tracks(), 1);
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void synchronousCancellationListenerCanDestroyController()
+    {
+        LocalService service;
+        QVERIFY(service.listen());
+        service.handshakeReply = "BADAUTH\n";
+        QPointer<Scrobble> scrobble = new Scrobble;
+        service.configure(*scrobble);
+        connect(scrobble, &Scrobble::signalCancelProgress, this, [&] { delete scrobble.data(); });
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(*scrobble, directory.path(),
+                           {{"Artist", "Retain", 180, static_cast<int>(scrobble->get_gmt()) - 60}}));
+        QVERIFY(scrobble->submit());
+        QList<QPointer<QNetworkAccessManager>> managers;
+        for (auto *manager : scrobble->submissions.value(CONFIG_LASTFM)->findChildren<QNetworkAccessManager *>())
+            managers.append(manager);
+        QCOMPARE(managers.size(), 2);
+        QTRY_VERIFY_WITH_TIMEOUT(scrobble.isNull(), 1000);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        for (const auto &manager : managers)
+            QVERIFY(manager.isNull());
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+        QCOMPARE(service.requests.size(), 1);
+    }
+
+    void successfulSubmissionAfterImportFailure()
+    {
+        LocalService service;
+        QVERIFY(service.listen());
+        Scrobble scrobble;
+        service.configure(scrobble);
+        QTemporaryDir directory;
+        QVERIFY(scrobble.parse(SCROBBLE_LOG, directory.path()));
+        QVERIFY(!scrobble.get_parser_busy());
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Recovered", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+        QCOMPARE(finished.first()[0].toBool(), true);
+        QCOMPARE(scrobble.get_num_tracks(), 0);
+        QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void allSitesFailWithoutDeletingTrackOrCrashing()
+    {
+        LocalService first;
+        LocalService second;
+        QVERIFY(first.listen());
+        QVERIFY(second.listen());
+        first.submissionReply = "FAILED first\n";
+        second.submissionReply = "FAILED second\n";
+        second.submissionDelay = 50;
+        Scrobble scrobble;
+        first.configure(scrobble, CONFIG_LASTFM);
+        second.configure(scrobble, CONFIG_LIBREFM);
+        QTemporaryDir directory;
+        QVERIFY(loadTracks(scrobble, directory.path(),
+                           {{"Artist", "Retain", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QCOMPARE(scrobble.get_num_tracks(), 1);
+        QCOMPARE(scrobble.get_track(0).sent[CONFIG_LASTFM], SENT_FAILED);
+        QCOMPARE(scrobble.get_track(0).sent[CONFIG_LIBREFM], SENT_FAILED);
+        QVERIFY(!scrobble.get_parser_busy());
+        QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
+    }
+
+    void invalidMethodSentinelDoesNotStartParser()
+    {
+        Scrobble scrobble;
+        QSignalSpy parsed(&scrobble, &Scrobble::parsing_opened);
+        QVERIFY(!scrobble.parse(SCROBBLE_NUM_METHODS, QString()));
+        QCOMPARE(parsed.size(), 0);
+        QVERIFY(!scrobble.get_parser_busy());
+        QCOMPARE(scrobble.get_error_str(), "Error - asked to use an unknown Parser!");
     }
 
     void proxyConfigurationAndReset()

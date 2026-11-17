@@ -39,7 +39,16 @@ Submit::Submit(int submit_index)
 
 Submit::~Submit()
 {
+    // A controller may be destroyed by a handler of QNetworkAccessManager::finished.
+    // Keep the managers and their replies alive until that Qt callback stack unwinds.
+    for (auto *manager : {nam_handshake, nam_submit})
+        QObject::disconnect(manager, nullptr, this, nullptr);
     cancel_submission();
+    for (auto *manager : {nam_handshake, nam_submit})
+    {
+        manager->setParent(QCoreApplication::instance());
+        manager->deleteLater();
+    }
 }
 
 bool Submit::init(submit_context conn)
