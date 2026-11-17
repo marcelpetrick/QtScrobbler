@@ -26,7 +26,10 @@ commands or contribution rules change; it need not change in every implementatio
 - Use the applicable `updateDependencies` skill for dependency work: verify upstream stable
   versions, pin exact tested resolutions, run the complete gate and commit only after it passes.
 - Use a project prefix or reproducible environment; do not upgrade the user's OS globally.
-- Do not add agent delegation unless explicitly requested or required by an applicable skill.
+- The owner explicitly authorized subagents for this initiative. Use subagents where useful
+  for independent investigations, tests, CI/docs, and review. Assign disjoint file ownership,
+  keep shared CMake/plan integration coordinated by the primary agent, and verify returned
+  evidence. Subagents must not commit, push, or mutate shared build directories independently.
 
 ## Build and test commands
 

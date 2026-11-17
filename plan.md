@@ -312,7 +312,9 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 
 | `0df3efc` Qt 6.12 dependency upgrade | Raised CMake Qt floor to 6.12, pinned CI/release Qt 6.12.0 and four Action SHAs, resolved Python tooling lock, documented inventory; qualified CMake 4.5.0 | Official Qt SDK + ICU provisioned outside repo; full pipeline 4/4 passed on Qt 6.12.0/CMake 4.5.0; ldd resolves Qt to selected prefix; isolated GUI survived offscreen startup | CI not run; full environment/runtime-library pins, Mull-compatible Linux compiler and packaging still pending; GUI startup is not yet a full workflow test |
 
-| Parser signal regression fix | Removed duplicate derived signal declarations from log, iPod and MTP parsers so typed base-class connections receive emissions | New base-signal fixture assertion failed on original (0 completions instead of 1), then complete Qt 6.12 pipeline passed 4/4 after fix | GUI workflow, malformed record behavior, coverage/mutation targets still outstanding |
+| `8c7ab63` parser signal regression fix | Removed duplicate derived signal declarations from log, iPod and MTP parsers so typed base-class connections receive emissions | New base-signal fixture assertion failed on original (0 completions instead of 1), then complete Qt 6.12 pipeline passed 4/4 after fix | GUI workflow, malformed record behavior, coverage/mutation targets still outstanding |
+
+| Delegation authorization | Updated AGENTS.md to use subagents for independent work with explicit file ownership and primary-agent integration | Owner explicitly requested delegation and this rule commit; documentation diff checked | Parallel CI, mutation-tool and storage-test tasks to begin; GUI tests currently in progress |
 
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.
