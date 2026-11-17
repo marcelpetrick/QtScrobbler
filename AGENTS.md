@@ -20,7 +20,9 @@ commands or contribution rules change; it need not change in every implementatio
 - Keep dependency, mechanical formatting, test infrastructure, and behavioral fixes separate.
 - Use conventional commit subjects and explain why in the body; no tool/AI attribution.
 - Do not adopt every unrelated TODO or the Python playbook's version-bump policy automatically.
-  Application version changes follow an explicit repository policy when established.
+  A repository-local pre-commit hook already bumps `CLIENT_VERSION` in `src/lib/common.h`
+  on every commit; retain it for implementation commits and rebuild before runtime validation.
+  The initial documentation-only planning commit intentionally excluded this automatic bump.
 - Use the applicable `updateDependencies` skill for dependency work: verify upstream stable
   versions, pin exact tested resolutions, run the complete gate and commit only after it passes.
 - Use a project prefix or reproducible environment; do not upgrade the user's OS globally.

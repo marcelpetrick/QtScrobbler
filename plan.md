@@ -1,6 +1,6 @@
 # Qt 6.12 and quality improvement plan
 
-Status: investigated and ready to begin. Updated: 2026-11-17.
+Status: implementation started; P0 in progress. Updated: 2026-11-17.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
@@ -102,7 +102,7 @@ upgrade, and behavioral change. Each implementation commit updates the execution
 
 ### P0 — Trust the gate and establish fixtures
 
-- [ ] Add a fictional, credential-free `examples/scrobble.log` accepted by the real parser.
+- [x] Add a fictional, credential-free `examples/scrobble.log` accepted by the real parser.
       Explain timestamp units, tabs, format headers, and safe use on a copy; test fixture import.
 - [ ] Preserve initial baseline outputs and build from current sources, not pre-existing binaries.
 - [ ] Make CLI timeout, nonzero exit, and absent/failed unit suite fatal; preserve exact exit codes.
@@ -302,7 +302,13 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 
 | Change | Completed | Validation | Remaining / blockers |
 | --- | --- | --- | --- |
-| Planning commit | Repository baseline, dependency candidate assessment, staged plan, red-team review, contribution rules | Inspected CMake/CI/pipeline, source risks and local tools; CTest listed 0 tests; existing CLI help passed | P0–P9 implementation; exact version lock and actual Qt 6.12 installation still pending |
+| `a0c5a75` planning | Repository baseline, dependency candidate assessment, staged plan, red-team review, contribution rules | Inspected CMake/CI/pipeline, source risks and local tools; CTest listed 0 tests; existing CLI help passed | P0–P9 implementation; exact version lock and actual Qt 6.12 installation still pending |
 
-Next action after the planning commit: add and validate the example log, register initial Qt Test
+| Example log | Added three fictional Audioscrobbler 1.1 tracks and safe-copy instructions | Rebuilt source targets; a temporary C++ harness using the real Parse_Log imported exactly three entries without network | Automated Qt Test contracts and strict pipeline remain P0 work |
+
+Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
+The planning commit was amended without that hook to preserve its documentation-only scope.
+Implementation commits retain the existing hook; verify source/runtime versions after rebuilding.
+
+Next action: add and validate the example log, register initial Qt Test
 contracts, and fix pipeline failure propagation in separate atomic commits, updating this record each time.
