@@ -108,7 +108,7 @@ upgrade, and behavioral change. Each implementation commit updates the execution
 - [ ] Make CLI timeout, nonzero exit, and absent/failed unit suite fatal; preserve exact exit codes.
 - [ ] Use CTest `--no-tests=error`, bounded per-test timeouts, and truthful PASS/FAIL/SKIP summaries.
 - [ ] Add meaningful gate regression checks proving a failed test and timed-out command fail the pipeline.
-- [ ] Add Qt Test and CTest registration plus first contract tests; never claim that zero tests passed.
+- [x] Add Qt Test and CTest registration plus first contract tests; never claim that zero tests passed.
 - [ ] Add retained logs/report directory and stable headless settings; optional app launch remains optional.
 
 Exit: at least one real parser test and one process test pass; deliberate failures make the gate fail.
@@ -304,7 +304,9 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 | --- | --- | --- | --- |
 | `a0c5a75` planning | Repository baseline, dependency candidate assessment, staged plan, red-team review, contribution rules | Inspected CMake/CI/pipeline, source risks and local tools; CTest listed 0 tests; existing CLI help passed | P0–P9 implementation; exact version lock and actual Qt 6.12 installation still pending |
 
-| Example log | Added three fictional Audioscrobbler 1.1 tracks and safe-copy instructions | Rebuilt source targets; a temporary C++ harness using the real Parse_Log imported exactly three entries without network | Automated Qt Test contracts and strict pipeline remain P0 work |
+| `aebf52a` example log | Added three fictional Audioscrobbler 1.1 tracks and safe-copy instructions | Rebuilt source targets; a temporary C++ harness using the real Parse_Log imported exactly three entries without network | Automated Qt Test contracts and strict pipeline remain P0 work |
+
+| Initial Qt Test suite | Registered parser, common/path-discovery and CLI-process tests; exact fixture fields, header errors, timezone rules, clear safety, version/help assertions | Full existing local pipeline passed; CTest 3/3 executables passed (0.13 s), Qt 6.11.2 | Strict failure propagation and coverage instrumentation remain; no 95% claim |
 
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.
