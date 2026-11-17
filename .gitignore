@@ -31,3 +31,11 @@
 /build-qtscrob-Desktop-Debug/
 *.qmake.stash
 /build/
+__pycache__/
+*.pyc
+/.quality-tools/
+/quality-reports/
+aqtinstall.log
+
+*.profraw
+*.profdata

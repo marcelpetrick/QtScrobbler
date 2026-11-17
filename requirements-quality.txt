@@ -27,3 +27,5 @@ soupsieve==4.1.1
 texttable==1.7.3
 typing_extensions==4.16.0
 urllib3==2.8.0
+clang-format==23.1.5
+clang-tidy==23.1.4
