@@ -18,6 +18,7 @@
 
 #include "progress.h"
 #include "qtscrob.h"
+#include "translation_labels.h"
 
 Progress_UI::Progress_UI(QWidget *parent): QWidget(parent)
 {
@@ -44,7 +45,7 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
         i.next();
         int index = i.value()->index;
         Progress_UI *prog = new Progress_UI(this);
-        prog->name->setText(SITE_NAME[index]);
+        prog->name->setText(site_display_name(index));
         layout->addWidget(prog);
         layout->setAlignment(prog, Qt::AlignRight);
         layout->addSpacing(10);

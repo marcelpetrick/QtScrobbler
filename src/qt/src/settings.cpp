@@ -20,6 +20,7 @@
 #include <QCryptographicHash>
 #include "settings.h"
 #include "qtscrob.h"
+#include "translation_labels.h"
 
 Site_UI::Site_UI(QWidget *parent): QWidget(parent)
 {
@@ -65,7 +66,7 @@ Settings::Settings(QTScrob *parent) : QDialog( parent )
 		if ( !qtscrob->scrob->conf->sites[i].password_hash.isEmpty() )
 			site->password->setText("********"); // Indicate that the password has been saved
 
-		tab_widget_sites->addTab(site, SITE_NAME[i]);
+		tab_widget_sites->addTab(site, site_display_name(i));
 		site_tabs.push_back(site);
 	}
 

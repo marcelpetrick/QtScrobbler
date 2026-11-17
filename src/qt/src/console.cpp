@@ -18,6 +18,7 @@
 
 #include "console.h"
 #include "qtscrob.h"
+#include "translation_labels.h"
 
 #include <QPushButton>
 #include <QClipboard>
@@ -38,7 +39,7 @@ Console::Console(QTScrob *parent) : QDialog(parent) {
 
 	for (int i = 0; i < LOG_NUM_LEVELS; i++)
 	comboLevel->insertItem(i, QString("%1 - %2")
-			.arg(i).arg(LOG_LEVEL_NAMES[i]));
+			.arg(i).arg(log_level_display_name(i)));
 
 	comboLevel->setEditable(false);
 
@@ -110,7 +111,7 @@ void Console::read_logs(int start, int end)
 		if (tmp.level <= current_level)
 		{
 			QString line = QString("%0 : %1")
-				.arg(LOG_LEVEL_NAMES[tmp.level], tmp.msg);
+				.arg(log_level_display_name(tmp.level), tmp.msg);
 			edtConsole->append(line);
 		}
 	}
