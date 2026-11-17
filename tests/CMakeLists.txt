@@ -41,3 +41,5 @@ set_tests_properties(translations PROPERTIES TIMEOUT 20 ENVIRONMENT "QT_QPA_PLAT
 add_test(NAME gui_process COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_gui_process.py" "$<TARGET_FILE:qtscrob>")
 set_tests_properties(gui_process PROPERTIES TIMEOUT 20)
 target_compile_definitions(test_gui PRIVATE PYTHON_BINARY="${Python3_EXECUTABLE}" GUI_PROCESS_TEST="${CMAKE_CURRENT_SOURCE_DIR}/test_gui_process.py")
+add_test(NAME zlib_installer_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_install_zlib.py")
+set_tests_properties(zlib_installer_contract PROPERTIES TIMEOUT 30)

@@ -57,6 +57,11 @@ jobs:
           "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install -r requirements-quality.txt
           echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
 
+      - name: Install and test pinned zlib 1.4
+        run: |
+          python3 tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib"
+          echo "ZLIB_ROOT=$RUNNER_TEMP/qtscrobbler-zlib" >> "$GITHUB_ENV"
+
       - name: Run the local quality pipeline
         id: pipeline
         env:

@@ -64,3 +64,11 @@ than allocating an unbounded decoded database. The behavioral qualification uses
 installed zlib 1.3.2. [Upstream zlib 1.4](https://zlib.net/) is the current stable
 release (2026-11-04); isolated provisioning and separate dependency qualification
 are in progress. The system library is not claimed to be the latest resolution.
+
+## Pinned zlib
+
+- `tools/install_zlib.py` pins zlib 1.4 from the official release tarball,
+  SHA-256 `02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584`.
+  It builds a static PIC library in a private prefix, runs all 16 upstream tests,
+  and fingerprints installed artifacts/compiler provenance before allowing reuse.
+  Set `ZLIB_ROOT` to this prefix; CMake requires exactly zlib 1.4 and Actions use it.
