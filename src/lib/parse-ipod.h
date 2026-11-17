@@ -36,12 +36,6 @@ public:
     virtual void clear();
     virtual SCROBBLE_METHOD get_method() { return SCROBBLE_IPOD; }
 
-signals:
-    void open_finished(bool success, QString error_msg);
-    void clear_finished(bool success, QString error_msg);
-    void add_log(LOG_LEVEL, QString);
-    void entry(scrob_entry);
-
 private:
     int entries;
     int playcounts;

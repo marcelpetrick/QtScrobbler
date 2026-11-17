@@ -25,9 +25,14 @@ private slots:
         QList<scrob_entry> entries;
         connect(&parser, &Parse_Log::entry, this, [&](scrob_entry entry) { entries.append(entry); });
         QSignalSpy completed(&parser, &Parse_Log::open_finished);
+        QSignalSpy baseCompleted(&parser, &Parse::open_finished);
+        int baseEntries = 0;
+        connect(&parser, &Parse::entry, this, [&](scrob_entry) { ++baseEntries; });
 
         parser.open(directory.path(), 3600);
 
+        QCOMPARE(baseCompleted.count(), 1);
+        QCOMPARE(baseEntries, 3);
         QCOMPARE(completed.count(), 1);
         QCOMPARE(completed.first().at(0).toBool(), true);
         QCOMPARE(completed.first().at(1).toString(), "Successfully parsed 3 log entries");
