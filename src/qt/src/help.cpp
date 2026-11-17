@@ -17,25 +17,23 @@
  ***************************************************************************/
 
 #include "help.h"
+
 #include "qtscrob.h"
 
-Help::Help(QTScrob *parent) : QDialog( parent ) {
-	qtscrob = parent;
-	this->setWindowTitle(tr("QTScrobbler Help"));
-	resize(QSize(800, 600));
+Help::Help(QTScrob* parent) : QDialog(parent) {
+    qtscrob = parent;
+    this->setWindowTitle(tr("QTScrobbler Help"));
+    resize(QSize(800, 600));
 
-	edtHelp = new QTextEdit();
-	edtHelp->setReadOnly(true);
+    edtHelp = new QTextEdit();
+    edtHelp->setReadOnly(true);
 
-	QFile file(":/index.html");
-	if (file.open(QIODevice::ReadOnly))
-		edtHelp->setHtml(file.readAll());
+    QFile file(":/index.html");
+    if (file.open(QIODevice::ReadOnly)) edtHelp->setHtml(file.readAll());
 
-	QVBoxLayout *layout = new QVBoxLayout;
-	layout->setContentsMargins(0, 0, 0, 0);
-	layout->addWidget(edtHelp);
+    QVBoxLayout* layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(edtHelp);
 
-	setLayout(layout);
-
+    setLayout(layout);
 }
-

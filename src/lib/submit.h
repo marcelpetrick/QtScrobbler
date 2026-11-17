@@ -20,7 +20,7 @@
 #define SUBMIT_H
 
 #include <QtCore>
-//#include <QHttp>
+// #include <QHttp>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QNetworkReply>
@@ -28,24 +28,23 @@
 #include <QString>
 #include <QUrl>
 
-#include "libscrobble.h"
 #include "common.h"
+#include "libscrobble.h"
 
 class Scrobble;
 
-class Submit : public QObject
-{
+class Submit : public QObject {
     Q_OBJECT
-public:
+   public:
     struct submit_context {
         QString friendlyname;
         QString username;
         QString password_hash;
         QString host;
-        QList<scrob_entry> *entries;
+        QList<scrob_entry>* entries;
         bool have_mb;
         int site_index;
-        QMutex *mutex;  // lock used for the entries list
+        QMutex* mutex;  // lock used for the entries list
     };
 
     Submit(int);
@@ -58,23 +57,23 @@ public:
 
     bool submission_successful() { return submission_ok; }
 
-private:
+   private:
     QList<int> entry_index;
     submit_context context;
 
-    QNetworkProxy *proxy;
+    QNetworkProxy* proxy;
 
     // handshaking stuff
-    QNetworkAccessManager *nam_handshake;
-    QNetworkReply *nr_handshake;
+    QNetworkAccessManager* nam_handshake;
+    QNetworkReply* nr_handshake;
     void handshake();
     bool need_handshake;
     QString sessionid;
     QString nowplay_url;
     QString submit_url;
 
-    QNetworkAccessManager *nam_submit;
-    QNetworkReply *nr_submit;
+    QNetworkAccessManager* nam_submit;
+    QNetworkReply* nr_submit;
     void senddata();
     void reset_tracks();
 
@@ -85,11 +84,11 @@ private:
 
     int batch_current, batch_total;
 
-private slots:
+   private slots:
     void handshake_finished(QNetworkReply*);
     void senddata_finished(QNetworkReply*);
 
-signals:
+   signals:
     void finished(bool success, QString error_msg);
     void progress(int, int, int);
     void add_log(LOG_LEVEL, QString);

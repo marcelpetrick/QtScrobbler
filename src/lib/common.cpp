@@ -19,49 +19,35 @@
 #include "common.h"
 
 // global function, used by libscrobble to sort entries chronologically
-bool entry_less_than(const scrob_entry &s1, const scrob_entry &s2)
-    { return s1.when < s2.when; }
+bool entry_less_than(const scrob_entry& s1, const scrob_entry& s2) { return s1.when < s2.when; }
 
-CHECK_RESULT check_path(SCROBBLE_METHOD method, QString folder_path)
-{
-    if (folder_path.isEmpty())
-        return CHECK_FAIL;
+CHECK_RESULT check_path(SCROBBLE_METHOD method, QString folder_path) {
+    if (folder_path.isEmpty()) return CHECK_FAIL;
 
     QString file_path;
-    switch (method)
-    {
+    switch (method) {
         case SCROBBLE_LOG:
-            if (QFile(folder_path + "/.scrobbler.log").exists())
-            {
+            if (QFile(folder_path + "/.scrobbler.log").exists()) {
                 file_path = folder_path + "/.scrobbler.log";
                 return CHECK_LOG;
             }
-            if (QFile(folder_path+"/.scrobbler-timeless.log").exists())
-            {
+            if (QFile(folder_path + "/.scrobbler-timeless.log").exists()) {
                 file_path = folder_path + "/.scrobbler-timeless.log";
                 return CHECK_LOG_TIMELESS;
             }
             return CHECK_FAIL;
         case SCROBBLE_IPOD:
-            if (QFile(folder_path + "/iPod_Control/iTunes/Play Counts").exists())
-            {
-                if (QFile(folder_path + "/iPod_Control/iTunes/iTunesDB").exists())
-                {
+            if (QFile(folder_path + "/iPod_Control/iTunes/Play Counts").exists()) {
+                if (QFile(folder_path + "/iPod_Control/iTunes/iTunesDB").exists()) {
                     return CHECK_ITUNES;
-                }
-                else if (QFile(folder_path + "/iPod_Control/iTunes/iTunesCDB").exists())
-                {
+                } else if (QFile(folder_path + "/iPod_Control/iTunes/iTunesCDB").exists()) {
                     return CHECK_ITUNES_COMPRESSED;
-                }
-                else
-                {
-                    //emit add_log(LOG_ERROR, tr("Could not find iTunes Play Counts file"));
+                } else {
+                    // emit add_log(LOG_ERROR, tr("Could not find iTunes Play Counts file"));
                     return CHECK_FAIL;
                 }
-            }
-            else
-            {
-                //emit add_log(LOG_ERROR, tr("Could not find iTunes Database file"));
+            } else {
+                // emit add_log(LOG_ERROR, tr("Could not find iTunes Database file"));
                 return CHECK_FAIL;
             }
 #ifdef HAVE_MTP
@@ -72,4 +58,3 @@ CHECK_RESULT check_path(SCROBBLE_METHOD method, QString folder_path)
             return CHECK_FAIL;
     }
 }
-

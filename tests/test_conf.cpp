@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include "conf.h"
-
 #include <QCoreApplication>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -8,30 +6,29 @@
 #include <cstring>
 #include <new>
 
+#include "conf.h"
+
 namespace {
 // A normal allocator can return storage that held arbitrary prior data. Use a
 // fixed prior pattern so omitted scalar initializers fail deterministically.
-class ConfStorage
-{
+class ConfStorage {
     alignas(Conf) unsigned char storage[sizeof(Conf)];
-public:
-    Conf *value;
-    ConfStorage()
-    {
+
+   public:
+    Conf* value;
+    ConfStorage() {
         std::memset(storage, 0x13, sizeof(storage));
         value = new (storage) Conf;
     }
     ~ConfStorage() { value->~Conf(); }
 };
-}
+}  // namespace
 
-class ConfTest : public QObject
-{
+class ConfTest : public QObject {
     Q_OBJECT
 
-private slots:
-    void init()
-    {
+   private slots:
+    void init() {
         QTest::failOnWarning(QRegularExpression(".*"));
         const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
         QVERIFY(!config.isEmpty());
@@ -39,11 +36,10 @@ private slots:
         QVERIFY(QDir().mkpath(config));
     }
 
-    void saveBeforeLoadHasDisabledSiteDefaults()
-    {
+    void saveBeforeLoadHasDisabledSiteDefaults() {
         ConfStorage storage;
-        auto &conf = *storage.value;
-        for (const auto &site : conf.sites) {
+        auto& conf = *storage.value;
+        for (const auto& site : conf.sites) {
             QVERIFY(!site.enabled);
             QVERIFY(site.username.isEmpty());
             QVERIFY(site.password_hash.isEmpty());
@@ -57,12 +53,10 @@ private slots:
         QVERIFY(conf.save_config());
         Conf reopened;
         QVERIFY(reopened.load_config());
-        for (const auto &site : reopened.sites)
-            QVERIFY(!site.enabled);
+        for (const auto& site : reopened.sites) QVERIFY(!site.enabled);
     }
 
-    void failedMigrationLeavesSafeSiteDefaults()
-    {
+    void failedMigrationLeavesSafeSiteDefaults() {
         {
             QSettings old("qtscrob");
             old.setValue("application/tz_override", true);
@@ -70,18 +64,16 @@ private slots:
         }
         QTemporaryDir directory;
         ConfStorage storage;
-        auto &conf = *storage.value;
+        auto& conf = *storage.value;
         conf.set_custom_location(directory.path());
         QVERIFY(!conf.load_config());
-        for (const auto &site : conf.sites)
-            QVERIFY(!site.enabled);
+        for (const auto& site : conf.sites) QVERIFY(!site.enabled);
         QVERIFY(!conf.save_config());
         QSettings preserved("qtscrob");
         QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
-    void defaults()
-    {
+    void defaults() {
         Conf conf;
         QVERIFY(conf.load_config());
         QCOMPARE(conf.utc_offset, 0);
@@ -98,16 +90,14 @@ private slots:
         QCOMPARE(conf.sites[CONFIG_LASTFM].handshake_host, LAST_FM_HOST);
         QCOMPARE(conf.sites[CONFIG_LIBREFM].conf_name, "Libre.fm");
         QCOMPARE(conf.sites[CONFIG_LIBREFM].handshake_host, LIBRE_FM_HOST);
-        for (const auto &site : conf.sites)
-        {
+        for (const auto& site : conf.sites) {
             QVERIFY(!site.enabled);
             QVERIFY(site.username.isEmpty());
             QVERIFY(site.password_hash.isEmpty());
         }
     }
 
-    void roundTrip()
-    {
+    void roundTrip() {
         {
             Conf conf;
             QVERIFY(conf.load_config());
@@ -121,8 +111,7 @@ private slots:
             conf.proxy_port = 3128;
             conf.proxy_user = "fictional-user";
             conf.proxy_pass = "fictional-password";
-            for (int i = 0; i < CONFIG_NUM_SITES; ++i)
-            {
+            for (int i = 0; i < CONFIG_NUM_SITES; ++i) {
                 conf.sites[i].enabled = (i != CONFIG_LIBREFM);
                 conf.sites[i].username = QString("user-%1").arg(i);
                 conf.sites[i].password_hash = QString("hash-%1").arg(i);
@@ -143,8 +132,7 @@ private slots:
         QCOMPARE(loaded.proxy_port, 3128);
         QCOMPARE(loaded.proxy_user, "fictional-user");
         QCOMPARE(loaded.proxy_pass, "fictional-password");
-        for (int i = 0; i < CONFIG_NUM_SITES; ++i)
-        {
+        for (int i = 0; i < CONFIG_NUM_SITES; ++i) {
             QCOMPARE(loaded.sites[i].enabled, i != CONFIG_LIBREFM);
             QCOMPARE(loaded.sites[i].username, QString("user-%1").arg(i));
             QCOMPARE(loaded.sites[i].password_hash, QString("hash-%1").arg(i));
@@ -153,8 +141,7 @@ private slots:
         QCOMPARE(loaded.sites[CONFIG_CUSTOM].handshake_host, "scrobble.invalid");
     }
 
-    void newCustomFile()
-    {
+    void newCustomFile() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const QString path = directory.filePath("custom.ini");
@@ -168,8 +155,7 @@ private slots:
         QCOMPARE(actual.value("application/version").toString(), CLIENT_VERSION);
     }
 
-    void existingCustomFile()
-    {
+    void existingCustomFile() {
         QTemporaryDir directory;
         const QString path = directory.filePath("custom.ini");
         {
@@ -183,17 +169,15 @@ private slots:
         QVERIFY(conf.display_utc);
     }
 
-    void invalidCustomLocation_data()
-    {
+    void invalidCustomLocation_data() {
         QTest::addColumn<QString>("location");
         QTest::addColumn<QString>("message");
         QTest::newRow("blank") << QString() << "Conf: Asked to use a blank custom config location";
         QTest::newRow("missing-parent") << qEnvironmentVariable("XDG_CONFIG_HOME") + "/absent/file.ini"
-                                       << "Conf: Custom config parent folder does not exist";
+                                        << "Conf: Custom config parent folder does not exist";
     }
 
-    void invalidCustomLocation()
-    {
+    void invalidCustomLocation() {
         QFETCH(QString, location);
         QFETCH(QString, message);
         Conf conf;
@@ -210,11 +194,9 @@ private slots:
         QCOMPARE(loaded.utc_offset, 99);
     }
 
-    void customSection()
-    {
+    void customSection() {
         Conf conf;
-        const QHash<QString, QVariant> values{{"size", QSize(600, 450)}, {"maximized", true},
-                                              {"nested/key", "value"}};
+        const QHash<QString, QVariant> values{{"size", QSize(600, 450)}, {"maximized", true}, {"nested/key", "value"}};
         conf.save_custom("window", values);
         QCOMPARE(conf.load_custom("window"), values);
         QVERIFY(conf.load_custom("missing").isEmpty());
@@ -223,8 +205,7 @@ private slots:
         QCOMPARE(conf.load_custom("window").value("maximized").toBool(), false);
     }
 
-    void invalidFormat()
-    {
+    void invalidFormat() {
         QTemporaryDir directory;
         const QString path = directory.filePath("broken.ini");
         QFile file(path);
@@ -239,8 +220,7 @@ private slots:
         QCOMPARE(logs.last().at(1).toString(), "Conf: Format Error");
     }
 
-    void saveFailure()
-    {
+    void saveFailure() {
         QTemporaryDir directory;
         const QString parent = directory.filePath("parent");
         QVERIFY(QDir().mkpath(parent));
@@ -256,8 +236,7 @@ private slots:
         QCOMPARE(logs.last().at(1).toString(), "Conf: Access Error");
     }
 
-    void customLocationSwitchingPreservesBothFiles()
-    {
+    void customLocationSwitchingPreservesBothFiles() {
         QTemporaryDir directory;
         const QString first = directory.filePath("first.ini");
         const QString second = directory.filePath("second.ini");
@@ -285,8 +264,7 @@ private slots:
         QCOMPARE(conf.utc_offset, 5400);
     }
 
-    void savingPreservesUnknownSettingsAndDoesNotLogCredentials()
-    {
+    void savingPreservesUnknownSettingsAndDoesNotLogCredentials() {
         QTemporaryDir directory;
         const QString file = directory.filePath("settings.ini");
         {
@@ -305,7 +283,7 @@ private slots:
         QSettings actual(file, QSettings::IniFormat);
         QCOMPARE(actual.value("unrelated/key").toString(), "keep me");
         QVERIFY(actual.value("application/customFlag").toBool());
-        for (const auto &log : logs) {
+        for (const auto& log : logs) {
             const auto text = log.at(1).toString();
             QVERIFY(!text.contains("sensitive-proxy-secret"));
             QVERIFY(!text.contains("sensitive-user"));
@@ -315,8 +293,7 @@ private slots:
         QCOMPARE(logs.last().at(1).toString(), "Conf: Success on read/write");
     }
 
-    void migrationFromVersion011PreservesSections()
-    {
+    void migrationFromVersion011PreservesSections() {
         {
             QSettings old("qtscrob");
             old.setValue("application/tz_override", true);
@@ -342,8 +319,7 @@ private slots:
         QCOMPARE(conf.utc_offset, 2700);
     }
 
-    void migrationDoesNotDeleteSourceOnFailedSave()
-    {
+    void migrationDoesNotDeleteSourceOnFailedSave() {
         {
             QSettings old("qtscrob");
             old.setValue("application/tz_override", true);
@@ -360,8 +336,7 @@ private slots:
         QCOMPARE(old.value("application/lastDirectory").toString(), "/fictional/player");
     }
 
-    void version010MigrationPropagatesWriteFailure()
-    {
+    void version010MigrationPropagatesWriteFailure() {
         QTemporaryDir directory;
         const QString parent = directory.filePath("parent");
         const QString backup = directory.filePath("backup");
@@ -375,7 +350,7 @@ private slots:
             legacy.setValue("application/username", "preserved-user");
         }
         bool blocked = false;
-        connect(&conf, &Conf::add_log, this, [&](LOG_LEVEL, const QString &message) {
+        connect(&conf, &Conf::add_log, this, [&](LOG_LEVEL, const QString& message) {
             if (message == "Conf: Upgrading from 0.10 or before") {
                 blocked = QDir().rename(parent, backup);
                 QFile blocker(parent);
@@ -391,8 +366,7 @@ private slots:
         QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
-    void legacyMigration()
-    {
+    void legacyMigration() {
         {
             QSettings old("qtscrob");
             old.setValue("application/lastDirectory", "/example/player");
@@ -428,11 +402,9 @@ private slots:
     }
 };
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     QTemporaryDir home;
-    if (!home.isValid())
-        return 1;
+    if (!home.isValid()) return 1;
     qputenv("HOME", home.path().toUtf8());
     qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
     QCoreApplication application(argc, argv);

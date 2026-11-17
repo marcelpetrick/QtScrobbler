@@ -20,25 +20,25 @@
 #define PARSE_H
 
 #include <QtCore>
+
 #include "common.h"
 
-class Parse : public QObject
-{
+class Parse : public QObject {
     Q_OBJECT
-public:
+   public:
     Parse() { parsed = false; }
-    virtual ~Parse() { }
+    virtual ~Parse() {}
     virtual void open(QString, int) = 0;
     virtual void clear() = 0;
     virtual SCROBBLE_METHOD get_method() { return SCROBBLE_NONE; }
 
-signals:
+   signals:
     void open_finished(bool success, QString error_msg);
     void clear_finished(bool success, QString error_msg);
     void add_log(LOG_LEVEL, QString);
     void entry(scrob_entry);
 
-protected:
+   protected:
     bool parsed;
 };
 

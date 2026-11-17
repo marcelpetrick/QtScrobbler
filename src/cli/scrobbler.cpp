@@ -18,15 +18,12 @@
 
 #include "app.h"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     app cli(argc, argv);
-    if (!cli.parse_cmd(argc, argv))
-        return 2;
+    if (!cli.parse_cmd(argc, argv)) return 2;
 
     QTranslator translator;
-    if (translator.load(":/language"))
-        cli.installTranslator(&translator);
+    if (translator.load(":/language")) cli.installTranslator(&translator);
 
     // Start work after the event loop is active so synchronous failures can set its exit code.
     QTimer::singleShot(0, &cli, &app::run);

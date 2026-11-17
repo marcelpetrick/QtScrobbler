@@ -18,31 +18,30 @@
 
 #include "conf.h"
 
-Conf::Conf() :
-    utc_offset(0),
-    auto_open(false),
-    del_apple_playlist(false),
-    tz_override(false),
-    display_utc(false),
-    mru(),
-    proxy_host(QString()),
-    proxy_port(0),
-    proxy_user(QString()),
-    proxy_pass(QString())
-{
+Conf::Conf()
+    : utc_offset(0),
+      auto_open(false),
+      del_apple_playlist(false),
+      tz_override(false),
+      display_utc(false),
+      mru(),
+      proxy_host(QString()),
+      proxy_port(0),
+      proxy_user(QString()),
+      proxy_pass(QString()) {
     settings = new QSettings(
 #ifdef Q_OS_WIN32
-                             QSettings::IniFormat,
+        QSettings::IniFormat,
 #else
-                             QSettings::NativeFormat,
+        QSettings::NativeFormat,
 #endif
-                             QSettings::UserScope,
+        QSettings::UserScope,
 #ifdef Q_OS_MAC
-                             "qtscrob.sourceforge.net",
+        "qtscrob.sourceforge.net",
 #else
-                             "qtscrob",
+        "qtscrob",
 #endif
-                             "qtscrob");
+        "qtscrob");
 
     settings->setFallbacksEnabled(false);
 
@@ -53,28 +52,23 @@ Conf::Conf() :
     sites[CONFIG_LIBREFM].handshake_host = LIBRE_FM_HOST;
 }
 
-Conf::~Conf()
-{
+Conf::~Conf() {
     settings->sync();
     delete settings;
 }
 
-void Conf::set_custom_location(QString location)
-{
-    emit add_log(LOG_DEBUG, QString("Conf: setting location to %1")
-            .arg(location));
+void Conf::set_custom_location(QString location) {
+    emit add_log(LOG_DEBUG, QString("Conf: setting location to %1").arg(location));
     // the file may not exist yet, or could be readonly (eg CLI client)
     // only do basic sanity checks
 
-    if (location.isEmpty())
-    {
+    if (location.isEmpty()) {
         emit add_log(LOG_ERROR, tr("Conf: Asked to use a blank custom config location"));
         return;
     }
 
     QDir tmp_folder(QFileInfo(location).absolutePath());
-    if (!tmp_folder.exists())
-    {
+    if (!tmp_folder.exists()) {
         emit add_log(LOG_ERROR, tr("Conf: Custom config parent folder does not exist"));
         return;
     }
@@ -85,15 +79,12 @@ void Conf::set_custom_location(QString location)
     load_config();
 }
 
-bool Conf::load_config()
-{
-    if (!upgrade_from_old_location())
-    {
+bool Conf::load_config() {
+    if (!upgrade_from_old_location()) {
         status();
         return false;
     }
-    if (settings->contains("application/lastDirectory"))
-    {
+    if (settings->contains("application/lastDirectory")) {
         emit add_log(LOG_INFO, "Conf: Upgrading from 0.10 or before");
         return upgrade_from_0_10();
     }
@@ -113,28 +104,23 @@ bool Conf::load_config()
     proxy_pass = settings->value("proxy_pass", "").toString();
     settings->endGroup();
 
-    for (int i = 0; i < CONFIG_NUM_SITES; i++)
-    {
+    for (int i = 0; i < CONFIG_NUM_SITES; i++) {
         settings->beginGroup(SITE_NAME[i]);
         sites[i].enabled = settings->value("enabled", false).toBool();
         sites[i].username = settings->value("username", "").toString();
         sites[i].password_hash = settings->value("password_hash", "").toString();
-        if (i >= CONFIG_CUSTOM)
-        {
+        if (i >= CONFIG_CUSTOM) {
             sites[i].conf_name = settings->value("conf_name", "").toString();
-            sites[i].handshake_host =
-                    settings->value("handshake_host", "").toString();
+            sites[i].handshake_host = settings->value("handshake_host", "").toString();
         }
         settings->endGroup();
     }
     status();
 
-
     return settings->status() == QSettings::NoError;
 }
 
-bool Conf::save_config()
-{
+bool Conf::save_config() {
     settings->beginGroup("application");
     settings->setValue("version", CLIENT_VERSION);
     settings->setValue("utc_offset", utc_offset);
@@ -151,14 +137,12 @@ bool Conf::save_config()
     settings->setValue("proxy_pass", proxy_pass);
     settings->endGroup();
 
-    for (int i = 0; i < CONFIG_NUM_SITES; i++)
-    {
+    for (int i = 0; i < CONFIG_NUM_SITES; i++) {
         settings->beginGroup(SITE_NAME[i]);
         settings->setValue("enabled", sites[i].enabled);
         settings->setValue("username", sites[i].username);
         settings->setValue("password_hash", sites[i].password_hash);
-        if (i >= CONFIG_CUSTOM)
-        {
+        if (i >= CONFIG_CUSTOM) {
             settings->setValue("conf_name", sites[i].conf_name);
             settings->setValue("handshake_host", sites[i].handshake_host);
         }
@@ -170,17 +154,16 @@ bool Conf::save_config()
     return settings->status() == QSettings::NoError;
 }
 
-bool Conf::upgrade_from_0_10()
-{
+bool Conf::upgrade_from_0_10() {
     settings->beginGroup("application");
-    sites[CONFIG_LASTFM].username = settings->value("username","").toString();
-    sites[CONFIG_LASTFM].password_hash = settings->value("password","").toString();
+    sites[CONFIG_LASTFM].username = settings->value("username", "").toString();
+    sites[CONFIG_LASTFM].password_hash = settings->value("password", "").toString();
     // turn lastdirectory into mru entry
-    mru.append(settings->value("lastDirectory","").toString());
-    utc_offset = settings->value("utc_offset","").toInt();
+    mru.append(settings->value("lastDirectory", "").toString());
+    utc_offset = settings->value("utc_offset", "").toInt();
     tz_override = settings->value("tz_override", "false").toBool();
-    auto_open = settings->value("checkAutoOpen","true").toBool();
-    del_apple_playlist = settings->value("checkDelPlayList","false").toBool();
+    auto_open = settings->value("checkAutoOpen", "true").toBool();
+    del_apple_playlist = settings->value("checkDelPlayList", "false").toBool();
     settings->endGroup();
     settings->beginGroup("proxy");
     proxy_host = settings->value("proxy_host", "").toString();
@@ -198,51 +181,44 @@ bool Conf::upgrade_from_0_10()
     sites[CONFIG_LASTFM].enabled = true;
     // Since we've just wiped out the old settings, save back the new version
     // straight away.
-    if (!save_config())
-        return false;
+    if (!save_config()) return false;
     // Load them back in so we get the defaults for uninitialised values.
     return load_config();
 }
 
-bool Conf::upgrade_from_old_location()
-{
+bool Conf::upgrade_from_old_location() {
     QSettings old("qtscrob");
     old.setFallbacksEnabled(false);
     QStringList keys = old.allKeys();
 
     // does old contain a valid key (either 0.10 and 0.11)
-    if (keys.contains("application/tz_override"))
-    {
+    if (keys.contains("application/tz_override")) {
         emit add_log(LOG_INFO, "Moving config to new location");
         // copy all old key/value pairs from old to current
-        for (int i = 0; i < keys.size(); i++)
-        {
+        for (int i = 0; i < keys.size(); i++) {
             settings->setValue(keys.at(i), old.value(keys.at(i)));
         }
         settings->sync();
         // The old location is the recovery copy until persistence succeeds.
-        if (settings->status() != QSettings::NoError)
-            return false;
+        if (settings->status() != QSettings::NoError) return false;
 
         // delete all old keys
         old.clear();
         old.sync();
 
-#ifndef Q_OS_WIN32 // if not registry
+#ifndef Q_OS_WIN32  // if not registry
         QFile(old.fileName()).remove();
 #endif
     }
     return true;
 }
 
-QHash<QString, QVariant> Conf::load_custom(QString section)
-{
+QHash<QString, QVariant> Conf::load_custom(QString section) {
     QHash<QString, QVariant> values;
 
     settings->beginGroup(section);
     QStringList keys = settings->allKeys();
-    for (int i = 0; i < keys.size(); i++)
-    {
+    for (int i = 0; i < keys.size(); i++) {
         values.insert(keys.at(i), settings->value(keys.at(i), ""));
     }
     settings->endGroup();
@@ -250,8 +226,7 @@ QHash<QString, QVariant> Conf::load_custom(QString section)
     return values;
 }
 
-void Conf::save_custom(QString section, QHash<QString, QVariant> values)
-{
+void Conf::save_custom(QString section, QHash<QString, QVariant> values) {
     settings->beginGroup(section);
     QHash<QString, QVariant>::const_iterator i = values.constBegin();
     while (i != values.constEnd()) {
@@ -262,10 +237,8 @@ void Conf::save_custom(QString section, QHash<QString, QVariant> values)
     settings->sync();
 }
 
-void Conf::status()
-{
-    switch (settings->status())
-    {
+void Conf::status() {
+    switch (settings->status()) {
         case QSettings::NoError:
             emit add_log(LOG_DEBUG, "Conf: Success on read/write");
             break;

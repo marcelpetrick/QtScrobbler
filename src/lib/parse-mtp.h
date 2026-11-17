@@ -20,22 +20,23 @@
 #define PARSE_MTP_H
 
 #include <QtCore>
+
 #include "parse.h"
 
 #ifdef HAVE_WPD
-#include <windows.h>
 #include <PortableDevice.h>
 #include <PortableDeviceApi.h>
+#include <windows.h>
 #endif
 #ifdef HAVE_LIBMTP
 #include <libmtp.h>
+
 #include <functional>
 #endif
 
-class Parse_MTP : public Parse
-{
+class Parse_MTP : public Parse {
     Q_OBJECT
-public:
+   public:
     Parse_MTP();
 #ifdef HAVE_LIBMTP
     // The default backend calls libmtp. Tests can substitute device operations
@@ -61,26 +62,26 @@ public:
     virtual void clear();
     virtual SCROBBLE_METHOD get_method() { return SCROBBLE_MTP; }
 
-private:
+   private:
     int entries;
     int playcounts;
     int tracks;
 
 #ifdef HAVE_WPD
-    IPortableDeviceManager *pdm;
+    IPortableDeviceManager* pdm;
     QList<PWSTR> mtp_devices;
     void mtp_device_name(DWORD, LPCWSTR);
     bool is_device_mtp(DWORD, LPCWSTR);
     void mtp_do_storage(bool);
-    void mtp_recurse_storage(PCWSTR, IPortableDeviceContent *, bool);
-    void mtp_get_metadata(PCWSTR, IPortableDeviceContent *, bool);
+    void mtp_recurse_storage(PCWSTR, IPortableDeviceContent*, bool);
+    void mtp_get_metadata(PCWSTR, IPortableDeviceContent*, bool);
     int tz_offset;
 #endif
 #ifdef HAVE_LIBMTP
-    LIBMTP_mtpdevice_t *mtp_device_list;
+    LIBMTP_mtpdevice_t* mtp_device_list;
     Backend backend;
     QList<scrob_entry> pending_entries;
-    bool mtp_trackinfo(LIBMTP_mtpdevice_t *, LIBMTP_track_t *, bool);
+    bool mtp_trackinfo(LIBMTP_mtpdevice_t*, LIBMTP_track_t*, bool);
     bool mtp_iterate(bool);
 #endif
 };

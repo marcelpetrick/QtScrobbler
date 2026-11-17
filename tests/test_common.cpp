@@ -1,40 +1,35 @@
-#include "common.h"
-
 #include <QTemporaryDir>
 #include <QtTest>
 #include <limits>
 
-class CommonTest : public QObject
-{
+#include "common.h"
+
+class CommonTest : public QObject {
     Q_OBJECT
 
-    static bool touch(const QString &path)
-    {
+    static bool touch(const QString& path) {
         QFile file(path);
         return file.open(QIODevice::WriteOnly);
     }
 
-private slots:
+   private slots:
     void init() { QTest::failOnWarning(QRegularExpression(".*")); }
 
-    void orderingBoundaries_data()
-    {
+    void orderingBoundaries_data() {
         QTest::addColumn<int>("first");
         QTest::addColumn<int>("second");
         QTest::addColumn<bool>("expected");
-        QTest::newRow("minimum-before-maximum") << std::numeric_limits<int>::min()
-                                               << std::numeric_limits<int>::max() << true;
-        QTest::newRow("maximum-after-minimum") << std::numeric_limits<int>::max()
-                                              << std::numeric_limits<int>::min() << false;
+        QTest::newRow("minimum-before-maximum")
+            << std::numeric_limits<int>::min() << std::numeric_limits<int>::max() << true;
+        QTest::newRow("maximum-after-minimum")
+            << std::numeric_limits<int>::max() << std::numeric_limits<int>::min() << false;
         QTest::newRow("timeless-before-timed") << 0 << 1 << true;
         QTest::newRow("negative-before-timeless") << -1 << 0 << true;
         QTest::newRow("equal-timeless") << 0 << 0 << false;
-        QTest::newRow("equal-minimum") << std::numeric_limits<int>::min()
-                                      << std::numeric_limits<int>::min() << false;
+        QTest::newRow("equal-minimum") << std::numeric_limits<int>::min() << std::numeric_limits<int>::min() << false;
     }
 
-    void orderingBoundaries()
-    {
+    void orderingBoundaries() {
         QFETCH(int, first);
         QFETCH(int, second);
         QFETCH(bool, expected);
@@ -51,8 +46,7 @@ private slots:
         QCOMPARE(entry_less_than(left, right), expected);
     }
 
-    void chronologicalOrdering()
-    {
+    void chronologicalOrdering() {
         scrob_entry earlier{};
         scrob_entry later{};
         earlier.when = -1;
@@ -64,8 +58,7 @@ private slots:
         QVERIFY(!entry_less_than(earlier, later));
     }
 
-    void logDiscovery()
-    {
+    void logDiscovery() {
         QTemporaryDir directory;
         QCOMPARE(check_path(SCROBBLE_LOG, ""), CHECK_FAIL);
         QCOMPARE(check_path(SCROBBLE_LOG, directory.path()), CHECK_FAIL);
@@ -76,8 +69,7 @@ private slots:
         QCOMPARE(check_path(SCROBBLE_NONE, directory.path()), CHECK_FAIL);
     }
 
-    void ipodDiscovery()
-    {
+    void ipodDiscovery() {
         QTemporaryDir directory;
         const QString root = directory.filePath("iPod_Control/iTunes");
         QVERIFY(QDir().mkpath(root));
@@ -92,8 +84,7 @@ private slots:
         QCOMPARE(check_path(SCROBBLE_IPOD, directory.path()), CHECK_FAIL);
     }
 
-    void mtpDiscovery()
-    {
+    void mtpDiscovery() {
 #ifdef HAVE_MTP
         QCOMPARE(check_path(SCROBBLE_MTP, "device"), CHECK_MTP);
         QCOMPARE(check_path(SCROBBLE_MTP, ""), CHECK_FAIL);

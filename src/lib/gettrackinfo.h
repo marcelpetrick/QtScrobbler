@@ -19,50 +19,49 @@
 #ifndef GETTRACKINFO_H
 #define GETTRACKINFO_H
 
-#include <QObject>
-#include <QXmlStreamReader>
+#include <QElapsedTimer>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QElapsedTimer>
-#include <QThread>
+#include <QObject>
 #include <QPointer>
+#include <QThread>
+#include <QXmlStreamReader>
+
 #include "common.h"
 
-class GetTrackInfo : public QThread
-{
+class GetTrackInfo : public QThread {
     Q_OBJECT
-public:
-    explicit GetTrackInfo(QObject *parent = 0);
+   public:
+    explicit GetTrackInfo(QObject* parent = 0);
     // Injected managers retain external ownership and must share this object's affinity.
-    GetTrackInfo(QNetworkAccessManager *network_manager, const QUrl &endpoint, QObject *parent = 0);
+    GetTrackInfo(QNetworkAccessManager* network_manager, const QUrl& endpoint, QObject* parent = 0);
     ~GetTrackInfo();
 
-protected:
+   protected:
     void run();
 
-signals:
+   signals:
     void finished(int index, bool success, int time, int elapsed);
     void add_log(LOG_LEVEL, QString);
 
-public slots:
+   public slots:
     void get(int index, scrob_entry info, int wait);
     // Cancel active and delayed requests without emitting stale completion signals.
     void cancel_pending();
 
-private slots:
-    void get_finished(QNetworkReply *reply);
+   private slots:
+    void get_finished(QNetworkReply* reply);
 
-private:
-    struct RequestState
-    {
+   private:
+    struct RequestState {
         int index = 0;
         QElapsedTimer elapsed;
     };
     QPointer<QNetworkAccessManager> manager;
     QNetworkRequest request;
-    QHash<QNetworkReply *, RequestState> pending;
+    QHash<QNetworkReply*, RequestState> pending;
     bool destroying = false;
     quint64 generation = 0;
 };
 
-#endif // GETTRACKINFO_H
+#endif  // GETTRACKINFO_H

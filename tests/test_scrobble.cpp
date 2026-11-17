@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2026 Marcel Petrick
 
-#include "libscrobble.h"
-
 #include <QCoreApplication>
 #include <QPointer>
 #include <QProcess>
@@ -13,14 +11,15 @@
 #include <QtTest>
 #include <memory>
 
+#include "libscrobble.h"
+
 namespace {
 QStringList warnings;
 QMutex warningMutex;
 QtMessageHandler previousMessageHandler = nullptr;
 
-class LocalService : public QObject
-{
-public:
+class LocalService : public QObject {
+   public:
     QTcpServer server;
     QByteArray submissionReply = "OK\n";
     QByteArray handshakeReply;
@@ -29,44 +28,36 @@ public:
     QList<QByteArray> requests;
     QList<QPointer<QTcpSocket>> connections;
 
-    LocalService()
-    {
+    LocalService() {
         connect(&server, &QTcpServer::newConnection, this, [this] {
-            while (auto *socket = server.nextPendingConnection())
-            {
+            while (auto* socket = server.nextPendingConnection()) {
                 connections.append(socket);
                 connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
                 connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
                     QByteArray data = socket->property("request").toByteArray() + socket->readAll();
                     socket->setProperty("request", data);
-                    if (socket->property("handled").toBool())
-                        return;
+                    if (socket->property("handled").toBool()) return;
                     const int headerEnd = data.indexOf("\r\n\r\n");
-                    if (headerEnd < 0)
-                        return;
+                    if (headerEnd < 0) return;
                     int length = 0;
-                    for (const QByteArray &header : data.left(headerEnd).split('\n'))
-                    {
+                    for (const QByteArray& header : data.left(headerEnd).split('\n')) {
                         if (header.trimmed().toLower().startsWith("content-length:"))
                             length = header.mid(header.indexOf(':') + 1).trimmed().toInt();
                     }
-                    if (data.size() < headerEnd + 4 + length)
-                        return;
+                    if (data.size() < headerEnd + 4 + length) return;
                     socket->setProperty("handled", true);
                     requests.append(data);
                     const bool handshake = data.startsWith("GET ");
-                    if (handshake && holdHandshake)
-                        return;
+                    if (handshake && holdHandshake) return;
                     QByteArray body = submissionReply;
-                    if (handshake)
-                    {
+                    if (handshake) {
                         body = handshakeReply.isEmpty()
                                    ? "OK\nsession\n" + url().toUtf8() + "/now\n" + url().toUtf8() + "/submit\n"
                                    : handshakeReply;
                     }
                     QTimer::singleShot(handshake ? 0 : submissionDelay, socket, [socket, body] {
-                        socket->write("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(body.size())
-                                      + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(body.size()) +
+                                      "\r\nConnection: close\r\n\r\n" + body);
                         socket->disconnectFromHost();
                     });
                 });
@@ -77,8 +68,7 @@ public:
     bool listen() { return server.listen(QHostAddress::LocalHost); }
     QString url() const { return "http://127.0.0.1:" + QString::number(server.serverPort()); }
 
-    void configure(Scrobble &scrobble, int site = CONFIG_LASTFM) const
-    {
+    void configure(Scrobble& scrobble, int site = CONFIG_LASTFM) const {
         scrobble.conf->sites[site].enabled = true;
         scrobble.conf->sites[site].username = "fictional-user";
         scrobble.conf->sites[site].password_hash = "fictional-hash";
@@ -87,19 +77,15 @@ public:
     }
 };
 
-void captureMessages(QtMsgType type, const QMessageLogContext &context, const QString &message)
-{
-    if (type == QtWarningMsg || type == QtCriticalMsg)
-    {
+void captureMessages(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+    if (type == QtWarningMsg || type == QtCriticalMsg) {
         QMutexLocker locker(&warningMutex);
         warnings.append(message);
     }
-    if (previousMessageHandler)
-        previousMessageHandler(type, context, message);
+    if (previousMessageHandler) previousMessageHandler(type, context, message);
 }
 
-struct Track
-{
+struct Track {
     QString artist;
     QString title;
     int length;
@@ -107,14 +93,11 @@ struct Track
     QChar played = 'L';
 };
 
-bool writeTracks(const QString &directory, const QList<Track> &tracks)
-{
+bool writeTracks(const QString& directory, const QList<Track>& tracks) {
     QFile file(directory + "/.scrobbler.log");
-    if (!file.open(QIODevice::WriteOnly))
-        return false;
+    if (!file.open(QIODevice::WriteOnly)) return false;
     QByteArray contents("#AUDIOSCROBBLER/1.0\n#TZ/UTC\n#CLIENT/contracts\n");
-    for (const Track &track : tracks)
-    {
+    for (const Track& track : tracks) {
         contents += QString("%1\tAlbum\t%2\t1\t%3\t%4\t%5\n")
                         .arg(track.artist, track.title)
                         .arg(track.length)
@@ -122,29 +105,23 @@ bool writeTracks(const QString &directory, const QList<Track> &tracks)
                         .arg(track.timestamp)
                         .toUtf8();
     }
-    if (file.write(contents) != contents.size())
-        return false;
+    if (file.write(contents) != contents.size()) return false;
     file.close();
     return true;
 }
 
-bool loadTracks(Scrobble &scrobble, const QString &directory, const QList<Track> &tracks)
-{
-    if (!writeTracks(directory, tracks))
-        return false;
-    if (!scrobble.parse(SCROBBLE_LOG, directory))
-        return false;
+bool loadTracks(Scrobble& scrobble, const QString& directory, const QList<Track>& tracks) {
+    if (!writeTracks(directory, tracks)) return false;
+    if (!scrobble.parse(SCROBBLE_LOG, directory)) return false;
     return true;
 }
-} // namespace
+}  // namespace
 
-class ScrobbleTest : public QObject
-{
+class ScrobbleTest : public QObject {
     Q_OBJECT
 
-private slots:
-    void init()
-    {
+   private slots:
+    void init() {
         const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
         QVERIFY(!config.isEmpty());
         QVERIFY(QDir(config).removeRecursively());
@@ -153,8 +130,7 @@ private slots:
         previousMessageHandler = qInstallMessageHandler(captureMessages);
     }
 
-    void cleanup()
-    {
+    void cleanup() {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         qInstallMessageHandler(previousMessageHandler);
         QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join('\n')));
@@ -162,8 +138,7 @@ private slots:
         QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
     }
 
-    void initialStateAndTimezone()
-    {
+    void initialStateAndTimezone() {
         const auto before = QDateTime::currentSecsSinceEpoch();
         Scrobble scrobble;
         const auto after = QDateTime::currentSecsSinceEpoch();
@@ -196,8 +171,7 @@ private slots:
         QCOMPARE(scrobble.get_error_str(), scrobble.get_log(0).msg);
     }
 
-    void activeTimezone_data()
-    {
+    void activeTimezone_data() {
         QTest::addColumn<QByteArray>("zone");
         QTest::newRow("utc") << QByteArray("UTC");
         QTest::newRow("europe") << QByteArray("Europe/Berlin");
@@ -206,8 +180,7 @@ private slots:
         QTest::newRow("southern-hemisphere-dst") << QByteArray("Australia/Sydney");
     }
 
-    void activeTimezone()
-    {
+    void activeTimezone() {
         QFETCH(QByteArray, zone);
         QProcess child;
         auto environment = QProcessEnvironment::systemEnvironment();
@@ -221,8 +194,7 @@ private slots:
         QCOMPARE(child.readAllStandardError(), QByteArray());
     }
 
-    void emptySubmission()
-    {
+    void emptySubmission() {
         Scrobble scrobble;
         QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
         QVERIFY(!scrobble.submit());
@@ -232,8 +204,7 @@ private slots:
         QVERIFY(scrobble.submissions.isEmpty());
     }
 
-    void parseSortEditRemoveAndRecalculate()
-    {
+    void parseSortEditRemoveAndRecalculate() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QSignalSpy parsed(&scrobble, &Scrobble::parsing_opened);
@@ -277,8 +248,7 @@ private slots:
         QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void parseErrorRecovery()
-    {
+    void parseErrorRecovery() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QSignalSpy parsed(&scrobble, &Scrobble::parsing_opened);
@@ -301,12 +271,11 @@ private slots:
         QCOMPARE(parsed.last().at(0).toBool(), false);
         QVERIFY(!scrobble.get_parser_busy());
         scrobble.clear_method();
-        scrobble.parse_open(directory.path(), 0); // No live parser: no event or crash.
+        scrobble.parse_open(directory.path(), 0);  // No live parser: no event or crash.
         QCOMPARE(parsed.count(), 3);
     }
 
-    void clearFailureRetainsTracks()
-    {
+    void clearFailureRetainsTracks() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Retain", 180, 1700000000}}));
@@ -320,8 +289,7 @@ private slots:
         QVERIFY(scrobble.get_error_str().startsWith("Failed to remove log file"));
     }
 
-    void deletingAllTracksAllowsNewImport()
-    {
+    void deletingAllTracksAllowsNewImport() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "First", 180, 1700000000}}));
@@ -334,8 +302,7 @@ private slots:
         QCOMPARE(scrobble.get_track(0).title, "Second");
     }
 
-    void reopenLiveParserReplacesTracks()
-    {
+    void reopenLiveParserReplacesTracks() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "First", 180, 1700000000}}));
@@ -348,13 +315,13 @@ private slots:
         QCOMPARE(scrobble.get_track(0).title, "Second");
     }
 
-    void disabledSitesRetainUnsentTracks()
-    {
+    void disabledSitesRetainUnsentTracks() {
         Scrobble scrobble;
         QTemporaryDir directory;
         const int recent = static_cast<int>(scrobble.get_gmt()) - 60;
         QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Artist", "Keep", 180, recent}, {"Artist", "Short", 29, recent},
+                           {{"Artist", "Keep", 180, recent},
+                            {"Artist", "Short", 29, recent},
                             {"Artist", "Skipped", 240, recent, 'S'}}));
         QCOMPARE(scrobble.get_track(1).played, QChar('S'));
         auto keep = scrobble.get_track(0);
@@ -373,8 +340,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void tooOldSubmission()
-    {
+    void tooOldSubmission() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Ancient", 180, 1}}));
@@ -387,8 +353,7 @@ private slots:
         QVERIFY(scrobble.get_parser_busy());
     }
 
-    void allFilteredTracksFailImmediately()
-    {
+    void allFilteredTracksFailImmediately() {
         LocalService service;
         QVERIFY(service.listen());
         Scrobble scrobble;
@@ -407,22 +372,20 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void incompleteSiteDoesNotSubmit_data()
-    {
+    void incompleteSiteDoesNotSubmit_data() {
         QTest::addColumn<QString>("field");
-        for (const QString &field : {QString("enabled"), QString("username"), QString("password"),
-                                     QString("host"), QString("name")})
+        for (const QString& field :
+             {QString("enabled"), QString("username"), QString("password"), QString("host"), QString("name")})
             QTest::newRow(qPrintable(field)) << field;
     }
 
-    void incompleteSiteDoesNotSubmit()
-    {
+    void incompleteSiteDoesNotSubmit() {
         QFETCH(QString, field);
         LocalService service;
         QVERIFY(service.listen());
         Scrobble scrobble;
         service.configure(scrobble);
-        auto &site = scrobble.conf->sites[CONFIG_LASTFM];
+        auto& site = scrobble.conf->sites[CONFIG_LASTFM];
         if (field == "enabled")
             site.enabled = false;
         else if (field == "username")
@@ -446,8 +409,7 @@ private slots:
         QCOMPARE(scrobble.get_error_str(), "No sites were configured and/or enabled. Unable to submit");
     }
 
-    void metadataFollowsTrackWhenParsingSortsRows()
-    {
+    void metadataFollowsTrackWhenParsingSortsRows() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
@@ -456,9 +418,9 @@ private slots:
         Scrobble scrobble;
         QTemporaryDir directory;
         QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
-        QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Later artist", "Missing later", 0, 1700000100},
-                            {"Earlier artist", "Known earlier", 180, 1700000000}}));
+        QVERIFY(loadTracks(
+            scrobble, directory.path(),
+            {{"Later artist", "Missing later", 0, 1700000100}, {"Earlier artist", "Known earlier", 180, 1700000000}}));
         QCOMPARE(scrobble.get_track(0).title, "Known earlier");
         QCOMPARE(scrobble.get_track(1).title, "Missing later");
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
@@ -470,8 +432,7 @@ private slots:
         QCOMPARE(cache.get_track_length("Earlier artist", "Known earlier"), -1);
     }
 
-    void removingTrackRestartsPendingMetadata()
-    {
+    void removingTrackRestartsPendingMetadata() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionDelay = 50;
@@ -482,8 +443,7 @@ private slots:
         QTemporaryDir directory;
         QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
         QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Known artist", "Remove", 180, 1700000000},
-                            {"Missing artist", "Keep", 0, 1700000100}}));
+                           {{"Known artist", "Remove", 180, 1700000000}, {"Missing artist", "Keep", 0, 1700000100}}));
         QTRY_COMPARE_WITH_TIMEOUT(service.requests.size(), 1, 1000);
         scrobble.remove_track(0);
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
@@ -497,8 +457,7 @@ private slots:
         QCOMPARE(cache.get_track_length("Known artist", "Remove"), -1);
     }
 
-    void editingTrackIdentityRestartsPendingMetadata()
-    {
+    void editingTrackIdentityRestartsPendingMetadata() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionDelay = 50;
@@ -525,15 +484,13 @@ private slots:
         QCOMPARE(cache.get_track_length("Artist", "Old title"), -1);
     }
 
-    void cancellingFromMetadataSignalsIsSafe_data()
-    {
+    void cancellingFromMetadataSignalsIsSafe_data() {
         QTest::addColumn<bool>("onStart");
         QTest::newRow("cancel-start") << true;
         QTest::newRow("cancel-progress") << false;
     }
 
-    void cancellingFromMetadataSignalsIsSafe()
-    {
+    void cancellingFromMetadataSignalsIsSafe() {
         QFETCH(bool, onStart);
         LocalService service;
         QVERIFY(service.listen());
@@ -560,8 +517,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void submissionWaitsForMetadata()
-    {
+    void submissionWaitsForMetadata() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionDelay = 50;
@@ -584,8 +540,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void missingDurationPrecedesTimelessRecalculation()
-    {
+    void missingDurationPrecedesTimelessRecalculation() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
@@ -595,8 +550,7 @@ private slots:
         QTemporaryDir directory;
         QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
         const int before = scrobble.get_gmt();
-        QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Artist", "First", 0, 0}, {"Artist", "Second", 180, 0}}));
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "First", 0, 0}, {"Artist", "Second", 180, 0}}));
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
         const int after = scrobble.get_gmt();
         QCOMPARE(scrobble.get_track(0).length, 235);
@@ -605,8 +559,7 @@ private slots:
         QVERIFY(scrobble.get_track(1).when + 180 <= after);
     }
 
-    void cachedMissingDuration()
-    {
+    void cachedMissingDuration() {
         {
             DBCache cache;
             QVERIFY(cache.init());
@@ -620,15 +573,13 @@ private slots:
         QCOMPARE(scrobble.get_track(0).length, 235);
     }
 
-    void missingDurationsUseLoopbackProxy_data()
-    {
+    void missingDurationsUseLoopbackProxy_data() {
         QTest::addColumn<int>("delay");
         QTest::newRow("fast-response-needs-rate-delay") << 0;
         QTest::newRow("slow-response-needs-no-extra-delay") << 220;
     }
 
-    void missingDurationsUseLoopbackProxy()
-    {
+    void missingDurationsUseLoopbackProxy() {
         QFETCH(int, delay);
         LocalService service;
         QVERIFY(service.listen());
@@ -661,8 +612,7 @@ private slots:
         QCOMPARE(cache.get_track_length("Artist", "Missing two"), 235);
     }
 
-    void failedDurationLookupLeavesTrackUntouched()
-    {
+    void failedDurationLookupLeavesTrackUntouched() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionReply = "<lfm status=\"failed\"><error code=\"6\">Not found</error></lfm>";
@@ -680,8 +630,7 @@ private slots:
         QCOMPARE(cache.get_track_length("Artist", "Unknown"), -1);
     }
 
-    void cancelMetadataBeforeNewImport()
-    {
+    void cancelMetadataBeforeNewImport() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionDelay = 1000;
@@ -703,8 +652,7 @@ private slots:
         QCOMPARE(service.requests.size(), 1);
     }
 
-    void allTimelessTracks()
-    {
+    void allTimelessTracks() {
         Scrobble scrobble;
         QTemporaryDir directory;
         const int before = static_cast<int>(scrobble.get_gmt());
@@ -717,20 +665,19 @@ private slots:
         QVERIFY(last.when + last.length <= after);
     }
 
-    void mixedTimestampsPreserveKnownTime()
-    {
+    void mixedTimestampsPreserveKnownTime() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Artist", "Missing one", 60, 0}, {"Artist", "Missing two", 120, 0},
+                           {{"Artist", "Missing one", 60, 0},
+                            {"Artist", "Missing two", 120, 0},
                             {"Artist", "Known", 180, 1700000000}}));
         QCOMPARE(scrobble.get_track(2).when, 1700000000);
         QCOMPARE(scrobble.get_track(1).when, 1699999880);
         QCOMPARE(scrobble.get_track(0).when, 1699999820);
     }
 
-    void cancelWithoutParser()
-    {
+    void cancelWithoutParser() {
         Scrobble scrobble;
         QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
         scrobble.cancel_submission();
@@ -739,8 +686,7 @@ private slots:
         QVERIFY(!scrobble.get_parser_busy());
     }
 
-    void cancelWithoutSitesRetainsTracks()
-    {
+    void cancelWithoutSitesRetainsTracks() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Keep", 180, 1700000000}}));
@@ -751,13 +697,12 @@ private slots:
         QCOMPARE(scrobble.get_track(0).title, "Keep");
         QVERIFY(!scrobble.get_parser_busy());
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
-        scrobble.cancel_submission(); // Repeated cancellation is harmless.
+        scrobble.cancel_submission();  // Repeated cancellation is harmless.
         QCOMPARE(finished.count(), 2);
         QCOMPARE(scrobble.get_num_tracks(), 1);
     }
 
-    void successfulSubmissionClearsSource()
-    {
+    void successfulSubmissionClearsSource() {
         LocalService service;
         QVERIFY(service.listen());
         Scrobble scrobble;
@@ -780,8 +725,7 @@ private slots:
         QVERIFY(scrobble.submissions.isEmpty());
     }
 
-    void failedSubmissionRetainsSource()
-    {
+    void failedSubmissionRetainsSource() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionReply = "FAILED test failure\n";
@@ -801,14 +745,13 @@ private slots:
         QVERIFY(scrobble.submissions.isEmpty());
     }
 
-    void mixedSiteResultsReportFailure()
-    {
+    void mixedSiteResultsReportFailure() {
         LocalService failing;
         LocalService successful;
         QVERIFY(failing.listen());
         QVERIFY(successful.listen());
         failing.submissionReply = "FAILED test failure\n";
-        successful.submissionDelay = 50; // Controlled completion order, not a test-side sleep.
+        successful.submissionDelay = 50;  // Controlled completion order, not a test-side sleep.
         Scrobble scrobble;
         failing.configure(scrobble, CONFIG_LASTFM);
         successful.configure(scrobble, CONFIG_LIBREFM);
@@ -826,8 +769,7 @@ private slots:
         QVERIFY(scrobble.submissions.isEmpty());
     }
 
-    void handshakeFailureTerminatesWithoutGui()
-    {
+    void handshakeFailureTerminatesWithoutGui() {
         LocalService service;
         QVERIFY(service.listen());
         service.handshakeReply = "BADAUTH\n";
@@ -847,8 +789,7 @@ private slots:
         QVERIFY(scrobble.submissions.isEmpty());
     }
 
-    void cancellationDuringHandshakeIsRepeatable()
-    {
+    void cancellationDuringHandshakeIsRepeatable() {
         LocalService service;
         QVERIFY(service.listen());
         service.holdHandshake = true;
@@ -871,8 +812,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void destructionDuringSubmissionClosesOwnedRequests()
-    {
+    void destructionDuringSubmissionClosesOwnedRequests() {
         LocalService service;
         QVERIFY(service.listen());
         service.holdHandshake = true;
@@ -888,28 +828,24 @@ private slots:
         QPointer<Submit> owned = scrobble->submissions.value(CONFIG_LASTFM);
         QVERIFY(owned);
         QList<QPointer<QNetworkAccessManager>> managers;
-        for (auto *manager : owned->findChildren<QNetworkAccessManager *>())
-            managers.append(manager);
+        for (auto* manager : owned->findChildren<QNetworkAccessManager*>()) managers.append(manager);
         QCOMPARE(managers.size(), 2);
         scrobble.reset();
         QVERIFY(owned.isNull());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        for (const auto &manager : managers)
-            QVERIFY(manager.isNull());
+        for (const auto& manager : managers) QVERIFY(manager.isNull());
         QTRY_VERIFY_WITH_TIMEOUT(service.connections.first().isNull(), 1000);
         QCOMPARE(completed, 0);
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void metadataEditsRestartOnlyWhenRequired_data()
-    {
+    void metadataEditsRestartOnlyWhenRequired_data() {
         QTest::addColumn<QString>("field");
-        for (const QString &field : {QString("artist"), QString("title"), QString("length"), QString("album")})
+        for (const QString& field : {QString("artist"), QString("title"), QString("length"), QString("album")})
             QTest::newRow(qPrintable(field)) << field;
     }
 
-    void metadataEditsRestartOnlyWhenRequired()
-    {
+    void metadataEditsRestartOnlyWhenRequired() {
         QFETCH(QString, field);
         LocalService service;
         QVERIFY(service.listen());
@@ -945,8 +881,7 @@ private slots:
         QCOMPARE(cache.get_track_length(result.artist, result.title), field == "length" ? -1 : result.length);
     }
 
-    void removingLastPendingTrackCompletesWithoutWritingCache()
-    {
+    void removingLastPendingTrackCompletesWithoutWritingCache() {
         LocalService service;
         QVERIFY(service.listen());
         service.submissionDelay = 50;
@@ -970,8 +905,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void negativeAndEditedShortDurationsAreFilteredSafely()
-    {
+    void negativeAndEditedShortDurationsAreFilteredSafely() {
         Scrobble scrobble;
         QTemporaryDir directory;
         const int recent = scrobble.get_gmt() - 60;
@@ -990,10 +924,9 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void unavailableCacheStillAllowsMetadataLookup()
-    {
+    void unavailableCacheStillAllowsMetadataLookup() {
         const QString database = qEnvironmentVariable("XDG_CONFIG_HOME") + "/qtscrob/qtscrob.db";
-        QVERIFY(QDir().mkpath(database)); // A directory cannot be opened as a SQLite database file.
+        QVERIFY(QDir().mkpath(database));  // A directory cannot be opened as a SQLite database file.
         LocalService service;
         QVERIFY(service.listen());
         service.submissionReply = "<lfm status=\"ok\"><track><duration>235000</duration></track></lfm>";
@@ -1010,8 +943,7 @@ private slots:
         QVERIFY(QFileInfo(database).isDir());
     }
 
-    void synchronousCancellationListenerCompletesOnlyOnce()
-    {
+    void synchronousCancellationListenerCompletesOnlyOnce() {
         LocalService service;
         QVERIFY(service.listen());
         service.handshakeReply = "BADAUTH\n";
@@ -1030,8 +962,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void synchronousCancellationListenerCanDestroyController()
-    {
+    void synchronousCancellationListenerCanDestroyController() {
         LocalService service;
         QVERIFY(service.listen());
         service.handshakeReply = "BADAUTH\n";
@@ -1043,19 +974,17 @@ private slots:
                            {{"Artist", "Retain", 180, static_cast<int>(scrobble->get_gmt()) - 60}}));
         QVERIFY(scrobble->submit());
         QList<QPointer<QNetworkAccessManager>> managers;
-        for (auto *manager : scrobble->submissions.value(CONFIG_LASTFM)->findChildren<QNetworkAccessManager *>())
+        for (auto* manager : scrobble->submissions.value(CONFIG_LASTFM)->findChildren<QNetworkAccessManager*>())
             managers.append(manager);
         QCOMPARE(managers.size(), 2);
         QTRY_VERIFY_WITH_TIMEOUT(scrobble.isNull(), 1000);
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-        for (const auto &manager : managers)
-            QVERIFY(manager.isNull());
+        for (const auto& manager : managers) QVERIFY(manager.isNull());
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
         QCOMPARE(service.requests.size(), 1);
     }
 
-    void successfulSubmissionAfterImportFailure()
-    {
+    void successfulSubmissionAfterImportFailure() {
         LocalService service;
         QVERIFY(service.listen());
         Scrobble scrobble;
@@ -1073,8 +1002,7 @@ private slots:
         QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void allSitesFailWithoutDeletingTrackOrCrashing()
-    {
+    void allSitesFailWithoutDeletingTrackOrCrashing() {
         LocalService first;
         LocalService second;
         QVERIFY(first.listen());
@@ -1099,8 +1027,7 @@ private slots:
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void invalidMethodSentinelDoesNotStartParser()
-    {
+    void invalidMethodSentinelDoesNotStartParser() {
         Scrobble scrobble;
         QSignalSpy parsed(&scrobble, &Scrobble::parsing_opened);
         QVERIFY(!scrobble.parse(SCROBBLE_NUM_METHODS, QString()));
@@ -1109,8 +1036,7 @@ private slots:
         QCOMPARE(scrobble.get_error_str(), "Error - asked to use an unknown Parser!");
     }
 
-    void proxyConfigurationAndReset()
-    {
+    void proxyConfigurationAndReset() {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(),
@@ -1119,7 +1045,7 @@ private slots:
         scrobble.conf->proxy_port = 3128;
         scrobble.conf->proxy_user = "user";
         scrobble.conf->proxy_pass = "password";
-        QVERIFY(!scrobble.submit()); // No sites enabled, so no request is sent to this proxy.
+        QVERIFY(!scrobble.submit());  // No sites enabled, so no request is sent to this proxy.
         QNetworkProxy proxy = QNetworkProxy::applicationProxy();
         QCOMPARE(proxy.type(), QNetworkProxy::HttpProxy);
         QCOMPARE(proxy.hostName(), "proxy.invalid");
@@ -1132,28 +1058,25 @@ private slots:
     }
 };
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     QTemporaryDir home;
-    if (!home.isValid())
-        return 1;
+    if (!home.isValid()) return 1;
     qputenv("HOME", home.path().toUtf8());
     qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
     qputenv("XDG_CACHE_HOME", home.path().toUtf8());
     const QByteArray zone = qgetenv("QTSCROBBLER_TEST_TIMEZONE");
     qputenv("TZ", zone.isEmpty() ? QByteArray("UTC") : zone);
     QCoreApplication application(argc, argv);
-    if (argc == 2 && QByteArray(argv[1]) == "--timezone-probe")
-    {
+    if (argc == 2 && QByteArray(argv[1]) == "--timezone-probe") {
         Scrobble scrobble;
         const auto now = QDateTime::currentDateTime();
         QTextStream output(stdout);
-        output << "Observed offset " << scrobble.get_gmt_offset() << ", DST " << scrobble.get_dst()
-               << ", zone " << scrobble.get_zonename() << "; expected " << now.offsetFromUtc() << ", "
-               << now.isDaylightTime() << ", " << now.timeZoneAbbreviation() << Qt::endl;
-        const bool correct = scrobble.get_gmt_offset() == now.offsetFromUtc()
-                             && scrobble.get_dst() == static_cast<int>(now.isDaylightTime())
-                             && scrobble.get_zonename() == now.timeZoneAbbreviation();
+        output << "Observed offset " << scrobble.get_gmt_offset() << ", DST " << scrobble.get_dst() << ", zone "
+               << scrobble.get_zonename() << "; expected " << now.offsetFromUtc() << ", " << now.isDaylightTime()
+               << ", " << now.timeZoneAbbreviation() << Qt::endl;
+        const bool correct = scrobble.get_gmt_offset() == now.offsetFromUtc() &&
+                             scrobble.get_dst() == static_cast<int>(now.isDaylightTime()) &&
+                             scrobble.get_zonename() == now.timeZoneAbbreviation();
         return correct ? 0 : 1;
     }
     ScrobbleTest tests;

@@ -20,35 +20,35 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#include "ui_settingsWin.h"
 #include <QApplication>
+
+#include "ui_settingsWin.h"
 
 class QTScrob;
 
-class Site_UI : public QWidget
-{
-	Q_OBJECT
-public:
-	Site_UI(QWidget *parent = NULL);
-	QFormLayout *layout;
-	QCheckBox *enabled;
-	QLineEdit *host;
-	QLineEdit *name;
-	QLineEdit *username;
-	QLineEdit *password;
+class Site_UI : public QWidget {
+    Q_OBJECT
+   public:
+    Site_UI(QWidget* parent = NULL);
+    QFormLayout* layout;
+    QCheckBox* enabled;
+    QLineEdit* host;
+    QLineEdit* name;
+    QLineEdit* username;
+    QLineEdit* password;
 };
 
 class Settings : public QDialog, private Ui::settingsWin {
-		Q_OBJECT
-	private:
-		QTScrob *qtscrob;
-		QList<Site_UI *> site_tabs;
+    Q_OBJECT
+   private:
+    QTScrob* qtscrob;
+    QList<Site_UI*> site_tabs;
 
-	private slots:
-		void save();
+   private slots:
+    void save();
 
-	public:
-		Settings(QTScrob *parent = 0);
+   public:
+    Settings(QTScrob* parent = 0);
 };
 
 #endif

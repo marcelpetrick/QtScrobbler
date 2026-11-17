@@ -17,11 +17,11 @@
  ***************************************************************************/
 
 #include "progress.h"
+
 #include "qtscrob.h"
 #include "translation_labels.h"
 
-Progress_UI::Progress_UI(QWidget *parent): QWidget(parent)
-{
+Progress_UI::Progress_UI(QWidget* parent) : QWidget(parent) {
     layout = new QFormLayout(this);
     progress = new QProgressBar(this);
     name = new QLabel(this);
@@ -30,7 +30,7 @@ Progress_UI::Progress_UI(QWidget *parent): QWidget(parent)
     layout->addRow(name, progress);
 }
 
-Progress::Progress(QTScrob *parent) : QDialog( parent ) {
+Progress::Progress(QTScrob* parent) : QDialog(parent) {
     this->setWindowTitle(tr("Submission Progress"));
 
     qtscrob = parent;
@@ -39,12 +39,11 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
 
     connect(btn_cancel, &QPushButton::clicked, this, &Progress::cancel);
 
-    QHashIterator<int, Submit *> i(qtscrob->scrob->submissions);
-    while (i.hasNext())
-    {
+    QHashIterator<int, Submit*> i(qtscrob->scrob->submissions);
+    while (i.hasNext()) {
         i.next();
         int index = i.value()->index;
-        Progress_UI *prog = new Progress_UI(this);
+        Progress_UI* prog = new Progress_UI(this);
         prog->name->setText(site_display_name(index));
         layout->addWidget(prog);
         layout->setAlignment(prog, Qt::AlignRight);
@@ -58,23 +57,16 @@ Progress::Progress(QTScrob *parent) : QDialog( parent ) {
     setLayout(layout);
 }
 
-Progress::~Progress()
-{
-    disconnect(btn_cancel, &QPushButton::clicked, this, &Progress::cancel);
-}
+Progress::~Progress() { disconnect(btn_cancel, &QPushButton::clicked, this, &Progress::cancel); }
 
-void Progress::cancel(void)
-{
+void Progress::cancel(void) {
     this->hide();
-    if (!qtscrob->scrob->submissions.isEmpty())
-        qtscrob->scrob->cancel_submission();
+    if (!qtscrob->scrob->submissions.isEmpty()) qtscrob->scrob->cancel_submission();
 }
 
-void Progress::update_progress(int index, int batch_current, int batch_total)
-{
-    Progress_UI *tmp = sites.value(index);
-    if (tmp == nullptr)
-        return;
+void Progress::update_progress(int index, int batch_current, int batch_total) {
+    Progress_UI* tmp = sites.value(index);
+    if (tmp == nullptr) return;
 
     tmp->progress->setMaximum(batch_total);
     tmp->progress->setValue(batch_current);

@@ -20,20 +20,20 @@
 #ifndef QTSCROB_H
 #define QTSCROB_H
 
-#include "libscrobble.h"
-#include "common.h"
-#include "missingtimeprogress.h"
-
 #include <QApplication>
-#include <QMainWindow>
-#include <QMessageBox>
 #include <QByteArray>
-#include <QtDebug>
-#include <QSettings>
 #include <QDateTimeEdit>
 #include <QLabel>
+#include <QMainWindow>
 #include <QMenuBar>
+#include <QMessageBox>
+#include <QSettings>
 #include <QStatusBar>
+#include <QtDebug>
+
+#include "common.h"
+#include "libscrobble.h"
+#include "missingtimeprogress.h"
 
 class Settings;
 class About;
@@ -55,109 +55,109 @@ class QDateTimeEdit;
 class QTScrob : public QMainWindow {
     Q_OBJECT
 
-	protected:
-		void closeEvent(QCloseEvent *event);
-        bool eventFilter(QObject *obj, QEvent *event);
+   protected:
+    void closeEvent(QCloseEvent* event);
+    bool eventFilter(QObject* obj, QEvent* event);
 
-	private:
-		Settings *winSettings = nullptr;
-		About *winAbout = nullptr;
-		Help *winHelp = nullptr;
-		Progress *winProgress = nullptr;
-		Console *winConsole = nullptr;
-		QAction *actOpen;
-		QAction *actOpeniTunes;
-		QAction *actExit;
-		QAction *actHelp;
-		QAction *actAbout;
-		QAction *actAboutQt;
-		QAction *actSettings;
-		QAction *actConsole;
-		QWidget *centralWidget;
-		QTableWidget *logTable;
-		QPushButton *btnOpen;
-		QPushButton *btnOpeniTunes;
-		QPushButton *btnDelete;
-		QPushButton *btnSubmit;
-		QMenuBar *menuBar;
-		QMenu *menuHelp;
-		QMenu *menuGlobal;
-		QStatusBar *statusbar;
-		QLabel *lblStatus;
-		QLabel *lblDTformat;
-		QDateTimeEdit *DTedit;
-		QPushButton *btnRecalcDT;
+   private:
+    Settings* winSettings = nullptr;
+    About* winAbout = nullptr;
+    Help* winHelp = nullptr;
+    Progress* winProgress = nullptr;
+    Console* winConsole = nullptr;
+    QAction* actOpen;
+    QAction* actOpeniTunes;
+    QAction* actExit;
+    QAction* actHelp;
+    QAction* actAbout;
+    QAction* actAboutQt;
+    QAction* actSettings;
+    QAction* actConsole;
+    QWidget* centralWidget;
+    QTableWidget* logTable;
+    QPushButton* btnOpen;
+    QPushButton* btnOpeniTunes;
+    QPushButton* btnDelete;
+    QPushButton* btnSubmit;
+    QMenuBar* menuBar;
+    QMenu* menuHelp;
+    QMenu* menuGlobal;
+    QStatusBar* statusbar;
+    QLabel* lblStatus;
+    QLabel* lblDTformat;
+    QDateTimeEdit* DTedit;
+    QPushButton* btnRecalcDT;
 #ifdef HAVE_MTP
-		QAction *actOpenMTP;
-		QPushButton *btnOpenMTP;
+    QAction* actOpenMTP;
+    QPushButton* btnOpenMTP;
 #endif
 
-		QStringList tableLabels;
-		int	items;
-		time_t recalc_timestamp;
-		QDateTime lastDate;
-		QString last_mountpoint;
+    QStringList tableLabels;
+    int items;
+    time_t recalc_timestamp;
+    QDateTime lastDate;
+    QString last_mountpoint;
 
-		void setupWidgets();
-		void DT_labels();
-		void connectSlots();
-		void set_open_buttons();
+    void setupWidgets();
+    void DT_labels();
+    void connectSlots();
+    void set_open_buttons();
 
-		//Play Counts
-		quint32 entrylen, playcount, dateplayed, bookmark;
-		qint32 songs;
-		bool passchanged;
-		bool display_utc;
-		QString dt_format(time_t);
+    // Play Counts
+    quint32 entrylen, playcount, dateplayed, bookmark;
+    qint32 songs;
+    bool passchanged;
+    bool display_utc;
+    QString dt_format(time_t);
 
-        MissingTimeProgress *progress_missing = nullptr;
+    MissingTimeProgress* progress_missing = nullptr;
 
-    signals:
-        void update_missing_times_progress(int remaining);
+   signals:
+    void update_missing_times_progress(int remaining);
 
-	public slots:
-		void setupWindow();
-		void readWindow();
-		void saveWindow();
-		void help();
-		void about();
-		void aboutQt();
-		void open(SCROBBLE_METHOD);
-		void open_log();
-		void open_ipod();
-		void settings_close();
+   public slots:
+    void setupWindow();
+    void readWindow();
+    void saveWindow();
+    void help();
+    void about();
+    void aboutQt();
+    void open(SCROBBLE_METHOD);
+    void open_log();
+    void open_ipod();
+    void settings_close();
 #ifdef HAVE_MTP
-		void open_mtp();
+    void open_mtp();
 #endif
-		void parse(SCROBBLE_METHOD, QString);
-		void parsed(bool);
-		void console();
-		void deleteRow();
-		void changeRow(int, int);
-		void scrobble();
-		void settings();
-		void recalcDT();
-		void updaterecalcDT(QDateTime);
-		void loadtable();
-		void scrobbled(bool);
+    void parse(SCROBBLE_METHOD, QString);
+    void parsed(bool);
+    void console();
+    void deleteRow();
+    void changeRow(int, int);
+    void scrobble();
+    void settings();
+    void recalcDT();
+    void updaterecalcDT(QDateTime);
+    void loadtable();
+    void scrobbled(bool);
 
-        void missing_times_start(int total);
-        void missing_times_progress(int remaining);
-        void missing_times_finished();
+    void missing_times_start(int total);
+    void missing_times_progress(int remaining);
+    void missing_times_finished();
 
-	public:
-		Scrobble *scrob;
-		QFile file;
+   public:
+    Scrobble* scrob;
+    QFile file;
 
-		/**
-		 * Default Constructor
-		 */
-		QTScrob(QWidget *parent = 0);
+    /**
+     * Default Constructor
+     */
+    QTScrob(QWidget* parent = 0);
 
-		/**
-		 * Default Destructor
-		 */
-		~QTScrob();
+    /**
+     * Default Destructor
+     */
+    ~QTScrob();
 };
 
 #endif

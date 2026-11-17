@@ -1,92 +1,79 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include "qtscrob.h"
-#include "settings.h"
-#include "about.h"
-#include "help.h"
-#include "console.h"
-#include "progress.h"
-#include "http_fixture.h"
-
-#include <QApplication>
 #include <QAction>
+#include <QApplication>
 #include <QCheckBox>
-#include <QComboBox>
-#include <QGroupBox>
-#include <QTabWidget>
-#include <QLineEdit>
-#include <QProgressBar>
-#include <QProcess>
-#include <QFileDialog>
-#include <QTextEdit>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDialog>
+#include <QFileDialog>
+#include <QGroupBox>
+#include <QLineEdit>
+#include <QProcess>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QSqlDatabase>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QTextEdit>
 #include <QtTest>
+
+#include "about.h"
+#include "console.h"
+#include "help.h"
+#include "http_fixture.h"
+#include "progress.h"
+#include "qtscrob.h"
+#include "settings.h"
 
 namespace {
 QStringList guiWarnings;
 QtMessageHandler previousGuiHandler = nullptr;
 
-void captureGuiMessages(QtMsgType type, const QMessageLogContext &context, const QString &message)
-{
+void captureGuiMessages(QtMsgType type, const QMessageLogContext& context, const QString& message) {
     // The offscreen platform cannot negotiate native window size hints. This exact
     // platform diagnostic is the only warning allowance in the headless suite.
-    const bool platformAllowance = QGuiApplication::platformName() == "offscreen"
-        && message == "This plugin does not support propagateSizeHints()";
-    if ((type == QtWarningMsg || type == QtCriticalMsg) && !platformAllowance)
-        guiWarnings.append(message);
-    if (previousGuiHandler)
-        previousGuiHandler(type, context, message);
+    const bool platformAllowance = QGuiApplication::platformName() == "offscreen" &&
+                                   message == "This plugin does not support propagateSizeHints()";
+    if ((type == QtWarningMsg || type == QtCriticalMsg) && !platformAllowance) guiWarnings.append(message);
+    if (previousGuiHandler) previousGuiHandler(type, context, message);
 }
-}
+}  // namespace
 
-class GuiTest : public QObject
-{
+class GuiTest : public QObject {
     Q_OBJECT
-    static QPushButton *button(QWidget &widget, const QString &text)
-    {
-        for (auto *candidate : widget.findChildren<QPushButton *>())
-            if (candidate->text() == text)
-                return candidate;
+    static QPushButton* button(QWidget& widget, const QString& text) {
+        for (auto* candidate : widget.findChildren<QPushButton*>())
+            if (candidate->text() == text) return candidate;
         return nullptr;
     }
 
-    static void answer(QMessageBox::StandardButton answer)
-    {
+    static void answer(QMessageBox::StandardButton answer) {
         QTimer::singleShot(0, qApp, [answer] {
-            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            if (box)
-                box->button(answer)->click();
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            if (box) box->button(answer)->click();
         });
     }
 
-    static QList<Site_UI *> siteWidgets(Settings &settings)
-    {
-        QList<Site_UI *> sites;
-        auto *tabs = settings.findChild<QTabWidget *>("tab_widget_sites");
-        for (int i = 0; i < tabs->count(); ++i)
-            sites.append(qobject_cast<Site_UI *>(tabs->widget(i)));
+    static QList<Site_UI*> siteWidgets(Settings& settings) {
+        QList<Site_UI*> sites;
+        auto* tabs = settings.findChild<QTabWidget*>("tab_widget_sites");
+        for (int i = 0; i < tabs->count(); ++i) sites.append(qobject_cast<Site_UI*>(tabs->widget(i)));
         return sites;
     }
 
-    static bool fixture(QTemporaryDir &directory)
-    {
+    static bool fixture(QTemporaryDir& directory) {
         return directory.isValid() && QFile::copy(EXAMPLE_LOG, directory.filePath(".scrobbler.log"));
     }
 
-private slots:
-    void init()
-    {
+   private slots:
+    void init() {
         guiWarnings.clear();
         previousGuiHandler = qInstallMessageHandler(captureGuiMessages);
     }
 
-    void cleanup()
-    {
+    void cleanup() {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         qInstallMessageHandler(previousGuiHandler);
         QVERIFY2(guiWarnings.isEmpty(), qPrintable(guiWarnings.join('\n')));
@@ -94,8 +81,7 @@ private slots:
         QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
     }
 
-    void processOptions_data()
-    {
+    void processOptions_data() {
         QTest::addColumn<QStringList>("arguments");
         QTest::addColumn<int>("expectedExit");
         QTest::addColumn<QByteArray>("expectedError");
@@ -109,16 +95,16 @@ private slots:
                 << QStringList{"--verbose=" + value, "--help"} << 2
                 << QByteArray("Verbosity must be an integer between 0 and 3\n");
         for (const QString option : {"--unknown", "--config", "--verbose"})
-            QTest::newRow(qPrintable(option)) << QStringList{option} << 2
+            QTest::newRow(qPrintable(option))
+                << QStringList{option} << 2
                 << QByteArray("Invalid option or missing argument: ") + option.toUtf8() + '\n';
         QTest::newRow("empty-config") << QStringList{"--config=", "--help"} << 2
-            << QByteArray("Configuration path must not be empty\n");
+                                      << QByteArray("Configuration path must not be empty\n");
         QTest::newRow("positional") << QStringList{"extra", "words"} << 2
-            << QByteArray("Unknown option argument: extra words\n");
+                                    << QByteArray("Unknown option argument: extra words\n");
     }
 
-    void processOptions()
-    {
+    void processOptions() {
         QFETCH(QStringList, arguments);
         QFETCH(int, expectedExit);
         QFETCH(QByteArray, expectedError);
@@ -151,8 +137,7 @@ private slots:
         }
     }
 
-    void chooserCancelAcceptAndErrors()
-    {
+    void chooserCancelAcceptAndErrors() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
@@ -161,33 +146,32 @@ private slots:
         window.scrob->conf->mru.clear();
         bool sawChooser = false;
         QTimer::singleShot(0, &window, [&] {
-            auto *chooser = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
             sawChooser = chooser != nullptr;
-            if (chooser)
-                chooser->reject();
+            if (chooser) chooser->reject();
         });
         window.open_log();
         QVERIFY(sawChooser);
         QCOMPARE(window.scrob->get_num_tracks(), 0);
-        QVERIFY(window.findChildren<QFileDialog *>().isEmpty());
+        QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
         window.scrob->conf->mru = {directory.path()};
         QTimer::singleShot(0, &window, [&] {
-            auto *chooser = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
             if (chooser) {
                 chooser->setDirectory(directory.path());
-                static_cast<QDialog *>(chooser)->accept();
+                static_cast<QDialog*>(chooser)->accept();
             }
         });
         window.open_log();
         QCOMPARE(window.scrob->get_num_tracks(), 3);
-        QVERIFY(window.findChildren<QFileDialog *>().isEmpty());
+        QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
         window.scrob->cancel_submission();
         answer(QMessageBox::Ok);
         QCoreApplication::processEvents();
         QTemporaryDir missing;
         QString errorText;
         QTimer::singleShot(0, &window, [&] {
-            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
             if (box) {
                 errorText = box->text();
                 box->button(QMessageBox::Ok)->click();
@@ -200,27 +184,24 @@ private slots:
         window.scrob->conf->auto_open = false;
         sawChooser = false;
         QTimer::singleShot(0, &window, [&] {
-            auto *chooser = qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
             sawChooser = chooser != nullptr;
-            if (chooser)
-                chooser->reject();
+            if (chooser) chooser->reject();
         });
         window.open_ipod();
         QVERIFY(sawChooser);
-        QVERIFY(window.findChildren<QFileDialog *>().isEmpty());
+        QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
     }
 
-    void emptySubmissionAboutQtAndWindowState()
-    {
+    void emptySubmissionAboutQtAndWindowState() {
         QTScrob window;
         window.setupWindow();
         answer(QMessageBox::Ok);
         window.scrobble();
         QVERIFY(window.scrob->submissions.isEmpty());
         QTimer::singleShot(0, &window, [] {
-            auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-            if (box)
-                box->accept();
+            auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+            if (box) box->accept();
         });
         window.aboutQt();
         window.resize(680, 460);
@@ -235,48 +216,46 @@ private slots:
         maximized.setupWindow();
         QVERIFY(maximized.isMaximized());
         window.scrob->conf->save_custom("window", {{"maximized", false}});
-        window.settings(); // Destructor closes an open settings dialog safely.
+        window.settings();  // Destructor closes an open settings dialog safely.
     }
 
-    void settingsPositiveTimezoneAndRecalculation()
-    {
+    void settingsPositiveTimezoneAndRecalculation() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
         window.setupWindow();
         window.parse(SCROBBLE_LOG, directory.path());
         window.settings();
-        auto *settings = window.findChild<Settings *>();
+        auto* settings = window.findChild<Settings*>();
         QVERIFY(settings);
-        settings->findChild<QCheckBox *>("chkDisplayUTC")->setChecked(false);
-        settings->findChild<QGroupBox *>("grpManual")->setChecked(true);
-        settings->findChild<QComboBox *>("cmb_tz_hour")->setCurrentIndex(17);
-        settings->findChild<QComboBox *>("cmb_tz_min")->setCurrentIndex(3);
-        settings->findChild<QPushButton *>("btnOK")->click();
+        settings->findChild<QCheckBox*>("chkDisplayUTC")->setChecked(false);
+        settings->findChild<QGroupBox*>("grpManual")->setChecked(true);
+        settings->findChild<QComboBox*>("cmb_tz_hour")->setCurrentIndex(17);
+        settings->findChild<QComboBox*>("cmb_tz_min")->setCurrentIndex(3);
+        settings->findChild<QPushButton*>("btnOK")->click();
         QCOMPARE(window.scrob->conf->utc_offset, 20700);
-        auto *edit = window.findChild<QDateTimeEdit *>();
+        auto* edit = window.findChild<QDateTimeEdit*>();
         edit->setDateTime(QDateTime(QDate(2026, 11, 17), QTime(12, 0)));
         window.recalcDT();
         const auto last = window.scrob->get_track(2);
         QCOMPARE(last.when + last.length, 1794916800 - 20700);
-        auto *table = window.findChild<QTableWidget *>();
+        auto* table = window.findChild<QTableWidget*>();
         QTest::keyClick(table, Qt::Key_Right);
         QCOMPARE(window.scrob->get_num_tracks(), 3);
     }
 
-    void isolatedClipboardAndProgressBoundaries()
-    {
+    void isolatedClipboardAndProgressBoundaries() {
         if (QGuiApplication::platformName() != "offscreen")
             QSKIP("Clipboard mutation runs only on the isolated offscreen clipboard");
         QTScrob window;
         window.setupWindow();
         window.console();
-        auto *console = window.findChild<Console *>();
+        auto* console = window.findChild<Console*>();
         QVERIFY(console);
-        auto *copy = button(*console, "Copy to clipboard");
-        auto *text = console->findChild<QTextEdit *>();
+        auto* copy = button(*console, "Copy to clipboard");
+        auto* text = console->findChild<QTextEdit*>();
         QVERIFY(copy && text);
-        console->findChild<QComboBox *>()->setCurrentIndex(LOG_TRACE);
+        console->findChild<QComboBox*>()->setCurrentIndex(LOG_TRACE);
         copy->click();
         QCOMPARE(QApplication::clipboard()->text(), text->toPlainText());
         const QString copied = QApplication::clipboard()->text();
@@ -288,12 +267,11 @@ private slots:
         QSignalSpy finished(window.scrob, &Scrobble::submission_finished);
         empty.cancel();
         QCOMPARE(finished.count(), 0);
-        empty.update_progress(-1, 1, 2); // Unknown site does not dereference a missing widget.
-        QVERIFY(empty.findChildren<QProgressBar *>().isEmpty());
+        empty.update_progress(-1, 1, 2);  // Unknown site does not dereference a missing widget.
+        QVERIFY(empty.findChildren<QProgressBar*>().isEmpty());
     }
 
-    void settingsDaylightTimezoneProbe()
-    {
+    void settingsDaylightTimezoneProbe() {
         QTemporaryDir home;
         QProcess child;
         auto environment = QProcessEnvironment::systemEnvironment();
@@ -310,21 +288,19 @@ private slots:
         QVERIFY2(child.exitCode() == 0, child.readAllStandardOutput().constData());
     }
 
-    void constructionBeforeSetupIsSafe()
-    {
+    void constructionBeforeSetupIsSafe() {
         QTScrob window;
         QCOMPARE(window.scrob->get_num_tracks(), 0);
     }
 
-    void editAllFieldsAndRejectInvalidValues()
-    {
+    void editAllFieldsAndRejectInvalidValues() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
         window.scrob->conf->display_utc = true;
         window.setupWindow();
         window.parse(SCROBBLE_LOG, directory.path());
-        auto *table = window.findChild<QTableWidget *>();
+        auto* table = window.findChild<QTableWidget*>();
         QVERIFY(table);
         table->item(0, 0)->setText("Élan");
         QCOMPARE(window.scrob->get_track(0).artist, "Élan");
@@ -368,16 +344,15 @@ private slots:
         QCOMPARE(window.scrob->get_track(0).when, 1794913200);
     }
 
-    void deleteSelectionAndReimport()
-    {
+    void deleteSelectionAndReimport() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
         window.scrob->conf->auto_open = true;
         window.setupWindow();
         window.show();
-        auto *table = window.findChild<QTableWidget *>();
-        auto *open = button(window, "Open .scrobbler.log");
+        auto* table = window.findChild<QTableWidget*>();
+        auto* open = button(window, "Open .scrobbler.log");
         QVERIFY(open);
         QVERIFY(open->isEnabled());
         window.parse(SCROBBLE_LOG, directory.path());
@@ -423,18 +398,17 @@ private slots:
         QVERIFY(open->isEnabled());
     }
 
-    void recalculateFromDisplayedTime()
-    {
+    void recalculateFromDisplayedTime() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
         window.scrob->conf->display_utc = true;
         window.setupWindow();
         window.parse(SCROBBLE_LOG, directory.path());
-        auto *edit = window.findChild<QDateTimeEdit *>();
+        auto* edit = window.findChild<QDateTimeEdit*>();
         QVERIFY(edit);
         edit->setDateTime(QDateTime(QDate(2026, 11, 17), QTime(12, 0)));
-        auto *recalc = button(window, "Recalc Date/Time");
+        auto* recalc = button(window, "Recalc Date/Time");
         QVERIFY(recalc);
         recalc->click();
         const auto last = window.scrob->get_track(2);
@@ -442,12 +416,11 @@ private slots:
         QCOMPARE(window.scrob->get_track(1).when + window.scrob->get_track(1).length, last.when);
     }
 
-    void settingsSaveCancelAndReopen()
-    {
+    void settingsSaveCancelAndReopen() {
         QTScrob window;
         window.setupWindow();
         window.settings();
-        auto *settings = window.findChild<Settings *>();
+        auto* settings = window.findChild<Settings*>();
         QVERIFY(settings);
         auto sites = siteWidgets(*settings);
         QCOMPARE(sites.size(), CONFIG_NUM_SITES);
@@ -459,66 +432,66 @@ private slots:
         sites[CONFIG_CUSTOM]->username->setText("fictional-user");
         sites[CONFIG_CUSTOM]->password->setText("fictional-secret");
         sites[CONFIG_CUSTOM]->password->setModified(true);
-        settings->findChild<QCheckBox *>("chkDisplayUTC")->setChecked(true);
-        settings->findChild<QLineEdit *>("edtProxyHost")->setText("127.0.0.1");
-        settings->findChild<QLineEdit *>("edtProxyPort")->setText("3128");
-        settings->findChild<QGroupBox *>("grpManual")->setChecked(true);
-        settings->findChild<QComboBox *>("cmb_tz_hour")->setCurrentIndex(7);
-        settings->findChild<QComboBox *>("cmb_tz_min")->setCurrentIndex(2);
-        settings->findChild<QPushButton *>("btnOK")->click();
-        QVERIFY(!window.findChild<Settings *>());
-        const auto &site = window.scrob->conf->sites[CONFIG_CUSTOM];
+        settings->findChild<QCheckBox*>("chkDisplayUTC")->setChecked(true);
+        settings->findChild<QLineEdit*>("edtProxyHost")->setText("127.0.0.1");
+        settings->findChild<QLineEdit*>("edtProxyPort")->setText("3128");
+        settings->findChild<QGroupBox*>("grpManual")->setChecked(true);
+        settings->findChild<QComboBox*>("cmb_tz_hour")->setCurrentIndex(7);
+        settings->findChild<QComboBox*>("cmb_tz_min")->setCurrentIndex(2);
+        settings->findChild<QPushButton*>("btnOK")->click();
+        QVERIFY(!window.findChild<Settings*>());
+        const auto& site = window.scrob->conf->sites[CONFIG_CUSTOM];
         QCOMPARE(site.handshake_host, "127.0.0.1:12345");
         QCOMPARE(site.conf_name, "Local fixture");
-        QCOMPARE(site.password_hash, QString::fromLatin1(QCryptographicHash::hash("fictional-secret", QCryptographicHash::Md5).toHex()));
+        QCOMPARE(site.password_hash,
+                 QString::fromLatin1(QCryptographicHash::hash("fictional-secret", QCryptographicHash::Md5).toHex()));
         QCOMPARE(window.scrob->conf->utc_offset, -19800);
         QCOMPARE(window.scrob->conf->proxy_port, 3128);
         QVERIFY(window.scrob->conf->display_utc);
         window.settings();
-        settings = window.findChild<Settings *>();
+        settings = window.findChild<Settings*>();
         QVERIFY(settings);
         sites = siteWidgets(*settings);
         QCOMPARE(sites[CONFIG_CUSTOM]->password->text(), "********");
         QCOMPARE(sites[CONFIG_CUSTOM]->password->echoMode(), QLineEdit::Password);
         sites[CONFIG_CUSTOM]->username->setText("discarded-change");
-        settings->findChild<QPushButton *>("btnCancel")->click();
+        settings->findChild<QPushButton*>("btnCancel")->click();
         QCOMPARE(window.scrob->conf->sites[CONFIG_CUSTOM].username, "fictional-user");
         window.settings();
-        settings = window.findChild<Settings *>();
+        settings = window.findChild<Settings*>();
         sites = siteWidgets(*settings);
         QCOMPARE(sites[CONFIG_CUSTOM]->username->text(), "fictional-user");
-        settings->findChild<QPushButton *>("btnOK")->click();
+        settings->findChild<QPushButton*>("btnOK")->click();
         QCOMPARE(window.scrob->conf->sites[CONFIG_CUSTOM].password_hash,
                  QString::fromLatin1(QCryptographicHash::hash("fictional-secret", QCryptographicHash::Md5).toHex()));
-        window.settings_close(); // Repeated close notifications are harmless.
+        window.settings_close();  // Repeated close notifications are harmless.
     }
 
-    void auxiliaryWindowsAndMissingProgress()
-    {
+    void auxiliaryWindowsAndMissingProgress() {
         QTScrob window;
         window.setupWindow();
         window.help();
-        auto *help = window.findChild<Help *>();
+        auto* help = window.findChild<Help*>();
         QVERIFY(help);
-        auto *helpText = help->findChild<QTextEdit *>();
+        auto* helpText = help->findChild<QTextEdit*>();
         QVERIFY(helpText && helpText->isReadOnly());
         QVERIFY(!helpText->toPlainText().isEmpty());
         help->close();
         window.help();
-        QCOMPARE(window.findChildren<Help *>().size(), 1);
+        QCOMPARE(window.findChildren<Help*>().size(), 1);
         QVERIFY(help->isVisible());
         window.about();
-        auto *about = window.findChild<About *>();
+        auto* about = window.findChild<About*>();
         QVERIFY(about);
-        QCOMPARE(about->findChild<QLabel *>("lblVersion")->text(), QString("QTScrobbler v%1").arg(CLIENT_VERSION));
+        QCOMPARE(about->findChild<QLabel*>("lblVersion")->text(), QString("QTScrobbler v%1").arg(CLIENT_VERSION));
         about->close();
         window.about();
-        QCOMPARE(window.findChildren<About *>().size(), 1);
+        QCOMPARE(window.findChildren<About*>().size(), 1);
         window.console();
-        auto *console = window.findChild<Console *>();
+        auto* console = window.findChild<Console*>();
         QVERIFY(console);
-        auto *level = console->findChild<QComboBox *>();
-        auto *output = console->findChild<QTextEdit *>();
+        auto* level = console->findChild<QComboBox*>();
+        auto* output = console->findChild<QTextEdit*>();
         QVERIFY(level && output);
         level->setCurrentIndex(LOG_TRACE);
         QVERIFY(output->toPlainText().contains("Detected Timezone"));
@@ -530,52 +503,49 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(output->toPlainText().isEmpty(), 1000);
         console->close();
         window.console();
-        QCOMPARE(window.findChildren<Console *>().size(), 1);
+        QCOMPARE(window.findChildren<Console*>().size(), 1);
         window.missing_times_start(4);
-        auto *missing = window.findChild<MissingTimeProgress *>();
+        auto* missing = window.findChild<MissingTimeProgress*>();
         QVERIFY(missing);
-        auto *progress = missing->findChild<QProgressBar *>();
+        auto* progress = missing->findChild<QProgressBar*>();
         QVERIFY(progress);
         QCOMPARE(progress->maximum(), 4);
         window.missing_times_progress(2);
         QCOMPARE(progress->value(), 2);
         window.missing_times_finished();
-        QVERIFY(!window.findChild<MissingTimeProgress *>());
-        window.missing_times_finished(); // A late completion cannot reuse a deleted dialog.
+        QVERIFY(!window.findChild<MissingTimeProgress*>());
+        window.missing_times_finished();  // A late completion cannot reuse a deleted dialog.
         window.missing_times_start(2);
         window.missing_times_start(2);
-        QCOMPARE(window.findChildren<MissingTimeProgress *>().size(), 1);
+        QCOMPARE(window.findChildren<MissingTimeProgress*>().size(), 1);
         window.missing_times_progress(1);
         window.missing_times_finished();
-        QVERIFY(!window.findChild<MissingTimeProgress *>());
+        QVERIFY(!window.findChild<MissingTimeProgress*>());
     }
 
-    void submissionProgress_data()
-    {
+    void submissionProgress_data() {
         QTest::addColumn<QString>("outcome");
         QTest::newRow("success") << "success";
         QTest::newRow("failure") << "failure";
         QTest::newRow("cancel") << "cancel";
     }
 
-    void submissionProgress()
-    {
+    void submissionProgress() {
         QFETCH(QString, outcome);
         HttpFixture server;
         QVERIFY(server.isListening());
-        server.respond = [&](const HttpFixture::Request &request) -> HttpFixture::Response {
-            if (outcome == "cancel")
-                return {{}, 200, true};
+        server.respond = [&](const HttpFixture::Request& request) -> HttpFixture::Response {
+            if (outcome == "cancel") return {{}, 200, true};
             return {request.method == "GET" ? server.handshake()
-                        : outcome == "failure" ? QByteArray("FAILED fixture\n") : QByteArray("OK\n")};
+                    : outcome == "failure"  ? QByteArray("FAILED fixture\n")
+                                            : QByteArray("OK\n")};
         };
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
         window.setupWindow();
-        for (auto &site : window.scrob->conf->sites)
-            site.enabled = false;
-        auto &site = window.scrob->conf->sites[CONFIG_CUSTOM];
+        for (auto& site : window.scrob->conf->sites) site.enabled = false;
+        auto& site = window.scrob->conf->sites[CONFIG_CUSTOM];
         site.enabled = true;
         site.conf_name = "Local fixture";
         site.username = "fictional-user";
@@ -583,13 +553,13 @@ private slots:
         site.handshake_host = server.host();
         window.scrob->conf->proxy_host.clear();
         window.parse(SCROBBLE_LOG, directory.path());
-        auto *submit = button(window, "Submit");
+        auto* submit = button(window, "Submit");
         QVERIFY(submit);
         QSignalSpy finished(window.scrob, &Scrobble::submission_finished);
         QTimer dismissError;
         if (outcome != "success") {
             connect(&dismissError, &QTimer::timeout, &window, [&] {
-                auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
                 if (box) {
                     box->button(QMessageBox::Ok)->click();
                     dismissError.stop();
@@ -598,19 +568,19 @@ private slots:
             dismissError.start(1);
         }
         submit->click();
-        auto *progress = window.findChild<Progress *>();
+        auto* progress = window.findChild<Progress*>();
         QVERIFY(progress);
         QVERIFY(progress->isVisible());
         QVERIFY(!submit->isEnabled());
         QTRY_VERIFY_WITH_TIMEOUT(!server.requests.isEmpty(), 2000);
         if (outcome == "cancel") {
-            auto *cancel = button(*progress, "Cancel");
+            auto* cancel = button(*progress, "Cancel");
             QVERIFY(cancel);
             cancel->click();
         }
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
         QCOMPARE(finished.first().at(0).toBool(), outcome == "success");
-        QTRY_VERIFY_WITH_TIMEOUT(!window.findChild<Progress *>(), 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(!window.findChild<Progress*>(), 2000);
         QVERIFY(submit->isEnabled());
         QVERIFY(button(window, "Open .scrobbler.log")->isEnabled());
         QCOMPARE(QFile::exists(directory.filePath(".scrobbler.log")), outcome != "success");
@@ -618,8 +588,7 @@ private slots:
         QVERIFY(window.scrob->submissions.isEmpty());
     }
 
-    void importEditAndClose()
-    {
+    void importEditAndClose() {
         QCOMPARE(QString::fromLatin1(qVersion()), QString::fromLatin1(QT_VERSION_STR));
         QVERIFY(QSqlDatabase::isDriverAvailable("QSQLITE"));
         QTemporaryDir directory;
@@ -629,7 +598,7 @@ private slots:
         window.scrob->conf->display_utc = true;
         window.setupWindow();
         window.show();
-        auto *table = window.findChild<QTableWidget *>();
+        auto* table = window.findChild<QTableWidget*>();
         QVERIFY(table);
         QCOMPARE(table->rowCount(), 0);
         QCOMPARE(table->columnCount(), 7);
@@ -662,13 +631,13 @@ private slots:
         QCOMPARE(window.scrob->get_track(0).album, "Edited Album");
 
         window.settings();
-        auto *settings = window.findChild<QDialog *>();
+        auto* settings = window.findChild<QDialog*>();
         QVERIFY(settings);
         QVERIFY(settings->isVisible());
         window.settings_close();
-        QVERIFY(window.findChild<QDialog *>() == nullptr);
+        QVERIFY(window.findChild<QDialog*>() == nullptr);
         window.settings();
-        QVERIFY(window.findChild<QDialog *>() != nullptr);
+        QVERIFY(window.findChild<QDialog*>() != nullptr);
         window.settings_close();
 
         QSignalSpy cleared(window.scrob, &Scrobble::parsing_cleared);
@@ -683,11 +652,9 @@ private slots:
     }
 };
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     QTemporaryDir home;
-    if (!home.isValid())
-        return 1;
+    if (!home.isValid()) return 1;
     qputenv("HOME", home.path().toUtf8());
     qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
     qputenv("XDG_CACHE_HOME", home.path().toUtf8());
@@ -697,8 +664,8 @@ int main(int argc, char **argv)
         QTScrob window;
         window.setupWindow();
         window.settings();
-        auto *settings = window.findChild<Settings *>();
-        auto *label = settings->findChild<QLabel *>("lblTZInfo");
+        auto* settings = window.findChild<Settings*>();
+        auto* label = settings->findChild<QLabel*>("lblTZInfo");
         const bool daylight = QDateTime::currentDateTime().isDaylightTime();
         return label && label->text().contains(daylight ? "Yes" : "No") ? 0 : 1;
     }

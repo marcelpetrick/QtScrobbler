@@ -19,19 +19,19 @@
 #ifndef ABOUT_H
 #define ABOUT_H
 
-#include "ui_aboutWin.h"
 #include <QApplication>
+
+#include "ui_aboutWin.h"
 
 class QTScrob;
 
 class About : public QDialog, private Ui::aboutWin {
-		Q_OBJECT
-	private:
-		QTScrob *qtscrob;
+    Q_OBJECT
+   private:
+    QTScrob* qtscrob;
 
-	public:
-		About(QTScrob *parent = 0);
-
+   public:
+    About(QTScrob* parent = 0);
 };
 
 #endif

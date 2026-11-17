@@ -16,11 +16,11 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.         *
  ***************************************************************************/
 
-#include "qtscrob.h"
 #include "missingtimeprogress.h"
 
-MissingTimeProgress::MissingTimeProgress(int count, QWidget *parent) : QDialog( parent )
-{
+#include "qtscrob.h"
+
+MissingTimeProgress::MissingTimeProgress(int count, QWidget* parent) : QDialog(parent) {
     progress = new QProgressBar(this);
     lblprogress = new QLabel(this);
     progress->setMinimumWidth(200);
@@ -43,11 +43,6 @@ MissingTimeProgress::MissingTimeProgress(int count, QWidget *parent) : QDialog( 
     setFixedSize(sizeHint());
 }
 
-MissingTimeProgress::~MissingTimeProgress()
-{
-}
+MissingTimeProgress::~MissingTimeProgress() {}
 
-void MissingTimeProgress::update_progress(int remaining)
-{
-    progress->setValue(progress->maximum() - remaining);
-}
+void MissingTimeProgress::update_progress(int remaining) { progress->setValue(progress->maximum() - remaining); }

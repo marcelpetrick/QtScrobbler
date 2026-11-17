@@ -19,39 +19,38 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include <QTimer>
 #include <QApplication>
-#include <QDialog>
-#include <QTextEdit>
 #include <QComboBox>
+#include <QDialog>
 #include <QLabel>
+#include <QTextEdit>
+#include <QTimer>
 
 class QTScrob;
 class QTimer;
 
-class Console : public QDialog
-{
-	Q_OBJECT
-private:
-	QTScrob *qtscrob;
-	QTextEdit *edtConsole;
-	QTimer *timerConsole;
-	QComboBox *comboLevel;
-	QLabel *lblCombo;
-	QPushButton *btncopy;
-	int log_pos;
-	int current_level;
-	void read_all_logs();
-	void read_logs(int, int);
+class Console : public QDialog {
+    Q_OBJECT
+   private:
+    QTScrob* qtscrob;
+    QTextEdit* edtConsole;
+    QTimer* timerConsole;
+    QComboBox* comboLevel;
+    QLabel* lblCombo;
+    QPushButton* btncopy;
+    int log_pos;
+    int current_level;
+    void read_all_logs();
+    void read_logs(int, int);
 
-private slots:
-	void update();
-	void set_spin_level(int);
-	void copy();
+   private slots:
+    void update();
+    void set_spin_level(int);
+    void copy();
 
-public:
-	Console(QTScrob *parent = 0);
-	~Console();
+   public:
+    Console(QTScrob* parent = 0);
+    ~Console();
 };
 
 #endif

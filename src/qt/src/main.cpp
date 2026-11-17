@@ -17,6 +17,7 @@
  ***************************************************************************/
 
 #include <QApplication>
+
 #include "qtscrob.h"
 
 #ifdef _MSC_VER
@@ -25,8 +26,7 @@
 #include <getopt.h>
 #endif
 
-void printusage()
-{
+void printusage() {
     QTextStream out(stdout);
     out << "QTScrob (v" << CLIENT_VERSION << ")" << Qt::endl;
     out << Qt::endl;
@@ -37,8 +37,7 @@ void printusage()
     out << Qt::endl;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
     int do_help = 0;
     LOG_LEVEL verbosity = LOG_DEFAULT;
     QString config_path = "";
@@ -51,32 +50,24 @@ int main(int argc, char **argv)
     app.setApplicationName("QTScrobbler");
 
     QTranslator translator;
-    if (translator.load(":/language"))
-        app.installTranslator(&translator);
+    if (translator.load(":/language")) app.installTranslator(&translator);
 
     QTextStream error(stderr);
     opterr = 0;
 
-    while (1)
-    {
-        const struct option long_options[] =
-        {
-            {"help",    no_argument,       nullptr,    'h'},
-            {"config",  required_argument, 0,        'c'},
-            {"verbose", required_argument, 0,        'v'},
-            {0, 0, 0, 0}
-        };
+    while (1) {
+        const struct option long_options[] = {{"help", no_argument, nullptr, 'h'},
+                                              {"config", required_argument, 0, 'c'},
+                                              {"verbose", required_argument, 0, 'v'},
+                                              {0, 0, 0, 0}};
 
         int option_index = 0;
 
-        int c = getopt_long(argc, argv, "c:hv:",
-                        long_options, &option_index);
+        int c = getopt_long(argc, argv, "c:hv:", long_options, &option_index);
 
-        if (c == -1)
-            break;
+        if (c == -1) break;
 
-        switch (c)
-        {
+        switch (c) {
             case 'c':
                 config_path = QString::fromLocal8Bit(optarg);
                 if (config_path.isEmpty()) {
@@ -87,8 +78,7 @@ int main(int argc, char **argv)
             case 'h':
                 do_help = 1;
                 break;
-            case 'v':
-            {
+            case 'v': {
                 bool valid = false;
                 const int level = QString::fromLocal8Bit(optarg).toInt(&valid);
                 if (!valid || level < LOG_ERROR || level >= LOG_NUM_LEVELS) {
@@ -99,30 +89,25 @@ int main(int argc, char **argv)
                 break;
             }
             default:
-                error << "Invalid option or missing argument: " << QString::fromLocal8Bit(argv[optind - 1])
-                      << Qt::endl;
+                error << "Invalid option or missing argument: " << QString::fromLocal8Bit(argv[optind - 1]) << Qt::endl;
                 return 2;
         }
     }
 
-    if (optind < argc)
-    {
+    if (optind < argc) {
         error << "Unknown option argument:";
-        while (optind < argc)
-            error << " " << QString::fromLocal8Bit(argv[optind++]);
+        while (optind < argc) error << " " << QString::fromLocal8Bit(argv[optind++]);
         error << Qt::endl;
         return 2;
     }
 
-    if (do_help)
-    {
+    if (do_help) {
         printusage();
         return 0;
     }
 
     QTScrob mainWin;
-    if (!config_path.isEmpty())
-        mainWin.scrob->conf->set_custom_location(config_path);
+    if (!config_path.isEmpty()) mainWin.scrob->conf->set_custom_location(config_path);
 
     mainWin.scrob->set_log_level(verbosity);
 

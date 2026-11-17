@@ -25,11 +25,10 @@
 #include "common.h"
 #include "libscrobble.h"
 
-class app : public QCoreApplication
-{
+class app : public QCoreApplication {
     Q_OBJECT
-private:
-    Scrobble *scrob;
+   private:
+    Scrobble* scrob;
     void print_usage();
 
     QString config_path;
@@ -50,15 +49,15 @@ private:
 
     SCROBBLE_METHOD method;
 
-public:
+   public:
     app(int&, char**);
     ~app() override;
     bool parse_cmd(int argc, char** argv);
-    
-public slots:
+
+   public slots:
     void parsed(bool);
     void scrobbled(bool);
     void run();
 };
 
-#endif // APP_H
+#endif  // APP_H

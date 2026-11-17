@@ -20,19 +20,19 @@
 #define PARSE_LOG_H
 
 #include <QtCore>
+
 #include "parse.h"
 
-class Parse_Log : public Parse
-{
+class Parse_Log : public Parse {
     Q_OBJECT
-public:
+   public:
     Parse_Log();
     ~Parse_Log();
     virtual void open(QString, int);
     virtual void clear();
     virtual SCROBBLE_METHOD get_method() { return SCROBBLE_LOG; }
 
-private:
+   private:
     QString file_path;
 };
 

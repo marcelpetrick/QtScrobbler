@@ -23,29 +23,28 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <functional>
+
 #include "common.h"
 
-
 #define DB_CURRENT_SCHEMA 1
-#define MAX_TRACK_LENGTH_AGE 15778800 // 6 months in seconds
+#define MAX_TRACK_LENGTH_AGE 15778800  // 6 months in seconds
 
-class DBCache : public QObject
-{
+class DBCache : public QObject {
     Q_OBJECT
-public:
-    explicit DBCache(QObject *parent = 0);
-    DBCache(const QString &directory, std::function<qint64()> clock, QObject *parent = nullptr);
+   public:
+    explicit DBCache(QObject* parent = 0);
+    DBCache(const QString& directory, std::function<qint64()> clock, QObject* parent = nullptr);
     ~DBCache();
     bool init();
     int get_track_length(QString artist, QString title);
     void set_track_length(QString artist, QString title, int length);
 
-signals:
+   signals:
     void add_log(LOG_LEVEL, QString);
 
-public slots:
+   public slots:
 
-private:
+   private:
     QSqlDatabase db;
     QSqlQuery query;
     QString path;
@@ -54,4 +53,4 @@ private:
     bool create();
 };
 
-#endif // DBCACHE_H
+#endif  // DBCACHE_H

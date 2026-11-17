@@ -20,40 +20,39 @@
 #define PROGRESS_H
 
 #include <QApplication>
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QPushButton>
-#include <QFormLayout>
-#include <QProgressBar>
-#include <QLabel>
 #include <QDialog>
+#include <QFormLayout>
+#include <QLabel>
+#include <QProgressBar>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QWidget>
 
 class QTScrob;
 
-class Progress_UI : public QWidget
-{
+class Progress_UI : public QWidget {
     Q_OBJECT
-public:
-    Progress_UI(QWidget *parent = NULL);
-    QFormLayout *layout;
-    QProgressBar *progress;
-    QLabel *name;
+   public:
+    Progress_UI(QWidget* parent = NULL);
+    QFormLayout* layout;
+    QProgressBar* progress;
+    QLabel* name;
 };
 
 class Progress : public QDialog {
     Q_OBJECT
-private:
-    QTScrob *qtscrob;
-    QVBoxLayout *layout;
-    QPushButton *btn_cancel;
-    QHash<int, Progress_UI *> sites;
+   private:
+    QTScrob* qtscrob;
+    QVBoxLayout* layout;
+    QPushButton* btn_cancel;
+    QHash<int, Progress_UI*> sites;
 
-public slots:
+   public slots:
     void cancel();
     void update_progress(int, int, int);
 
-public:
-    Progress(QTScrob *parent = 0);
+   public:
+    Progress(QTScrob* parent = 0);
     ~Progress();
 };
 

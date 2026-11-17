@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include "submit.h"
-#include "http_fixture.h"
-
 #include <QCryptographicHash>
-#include <QProcess>
 #include <QNetworkProxy>
+#include <QProcess>
 #include <QSignalSpy>
 #include <QUrlQuery>
 #include <QtTest>
 
-class SubmitTest : public QObject
-{
+#include "http_fixture.h"
+#include "submit.h"
+
+class SubmitTest : public QObject {
     Q_OBJECT
 
-    static QList<scrob_entry> tracks(int count)
-    {
+    static QList<scrob_entry> tracks(int count) {
         QList<scrob_entry> entries;
         for (int i = 0; i < count; ++i) {
             scrob_entry entry{};
@@ -31,32 +29,25 @@ class SubmitTest : public QObject
         return entries;
     }
 
-    static Submit::submit_context context(HttpFixture &server, QList<scrob_entry> &entries, QMutex &mutex)
-    {
+    static Submit::submit_context context(HttpFixture& server, QList<scrob_entry>& entries, QMutex& mutex) {
         return {"Test", "user & name +/é", "fictional-hash", server.host(), &entries, true, 0, &mutex};
     }
 
-private slots:
+   private slots:
     void init() { QTest::failOnWarning(QRegularExpression(".*")); }
 
-    void initTestCase()
-    {
-        QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
-    }
+    void initTestCase() { QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy); }
 
-    void batching_data()
-    {
+    void batching_data() {
         QTest::addColumn<int>("count");
-        for (int count : {1, 49, 50, 51, 100, 101})
-            QTest::newRow(qPrintable(QString::number(count))) << count;
+        for (int count : {1, 49, 50, 51, 100, 101}) QTest::newRow(qPrintable(QString::number(count))) << count;
     }
 
-    void batching()
-    {
+    void batching() {
         QFETCH(int, count);
         HttpFixture server;
         QVERIFY(server.isListening());
-        server.respond = [&](const HttpFixture::Request &request) {
+        server.respond = [&](const HttpFixture::Request& request) {
             return HttpFixture::Response{request.method == "GET" ? server.handshake() : QByteArray("OK\n")};
         };
         auto entries = tracks(count);
@@ -83,7 +74,7 @@ private slots:
             QUrlQuery form(QString::fromLatin1(request.body));
             const int inBatch = qMin(50, count - batch * 50);
             for (int row = 0; row < inBatch; ++row) {
-                const auto &entry = entries[batch * 50 + row];
+                const auto& entry = entries[batch * 50 + row];
                 const auto key = QString("[%1]").arg(row);
                 QCOMPARE(form.queryItemValue("a" + key, QUrl::FullyDecoded), entry.artist);
                 QCOMPARE(form.queryItemValue("t" + key, QUrl::FullyDecoded), entry.title);
@@ -93,11 +84,11 @@ private slots:
             }
             QVERIFY(!form.hasQueryItem(QString("t[%1]").arg(inBatch)));
         }
-        for (const auto &entry : entries) {
+        for (const auto& entry : entries) {
             QCOMPARE(entry.sent[0], SENT_SUCCESS);
             QCOMPARE(entry.sent[1], SENT_UNSENT);
         }
-        const auto &handshake = server.requests.first();
+        const auto& handshake = server.requests.first();
         QCOMPARE(handshake.method, "GET");
         QCOMPARE(handshake.headers.value("user-agent"), QByteArray(CLIENT_USERAGENT));
         QUrlQuery query(QUrl::fromEncoded(handshake.target));
@@ -110,7 +101,7 @@ private slots:
         QVERIFY(qAbs(timestamp.toLongLong() - QDateTime::currentSecsSinceEpoch()) < 5);
         QCOMPARE(query.queryItemValue("a").toLatin1(),
                  QCryptographicHash::hash("fictional-hash" + timestamp, QCryptographicHash::Md5).toHex());
-        const auto &post = server.requests[1];
+        const auto& post = server.requests[1];
         QCOMPARE(post.method, "POST");
         QCOMPARE(post.target, "/submit");
         QCOMPARE(post.headers.value("content-type"), "application/x-www-form-urlencoded");
@@ -132,8 +123,7 @@ private slots:
         }
     }
 
-    void handshakeFailure_data()
-    {
+    void handshakeFailure_data() {
         QTest::addColumn<QByteArray>("response");
         QTest::addColumn<QString>("message");
         QTest::newRow("banned") << QByteArray("BANNED\n") << "client software banned";
@@ -143,20 +133,23 @@ private slots:
         QTest::newRow("unknown") << QByteArray("UNKNOWN\n") << "Unknown handshake response";
         QTest::newRow("empty") << QByteArray() << "Bad handshake response";
         QTest::newRow("truncated") << QByteArray("OK\n") << "Bad handshake response";
-        QTest::newRow("invalid-url") << QByteArray("OK\nsession\nnow\nfile:///tmp/not-http\n") << "Bad handshake response";
-        QTest::newRow("malformed-endpoint") << QByteArray("OK\nsession\nhttp://now\nhttp://[invalid]/submit\n") << "Bad handshake response";
-        QTest::newRow("endpoint-without-host") << QByteArray("OK\nsession\nhttp://now\nhttp:/submit\n") << "Bad handshake response";
-        QTest::newRow("unsupported-protocol") << QByteArray("OK\nsession\nhttp://now\nftp://127.0.0.1/submit\n") << "Bad handshake response";
+        QTest::newRow("invalid-url") << QByteArray("OK\nsession\nnow\nfile:///tmp/not-http\n")
+                                     << "Bad handshake response";
+        QTest::newRow("malformed-endpoint")
+            << QByteArray("OK\nsession\nhttp://now\nhttp://[invalid]/submit\n") << "Bad handshake response";
+        QTest::newRow("endpoint-without-host")
+            << QByteArray("OK\nsession\nhttp://now\nhttp:/submit\n") << "Bad handshake response";
+        QTest::newRow("unsupported-protocol")
+            << QByteArray("OK\nsession\nhttp://now\nftp://127.0.0.1/submit\n") << "Bad handshake response";
         QTest::newRow("missing-session") << QByteArray("OK\n\nhttp://now\nhttp://submit\n") << "Bad handshake response";
     }
 
-    void handshakeFailure()
-    {
+    void handshakeFailure() {
         QFETCH(QByteArray, response);
         QFETCH(QString, message);
         HttpFixture server;
         QVERIFY(server.isListening());
-        server.respond = [&](const auto &) { return HttpFixture::Response{response}; };
+        server.respond = [&](const auto&) { return HttpFixture::Response{response}; };
         auto entries = tracks(1);
         QMutex mutex;
         Submit submit(0);
@@ -170,8 +163,7 @@ private slots:
         QVERIFY(!submit.submission_successful());
     }
 
-    void responseFailure_data()
-    {
+    void responseFailure_data() {
         QTest::addColumn<QByteArray>("response");
         QTest::newRow("failed") << QByteArray("FAILED busy\n");
         QTest::newRow("empty") << QByteArray();
@@ -179,12 +171,11 @@ private slots:
         QTest::newRow("not-ok") << QByteArray("NOTOK\n");
     }
 
-    void responseFailure()
-    {
+    void responseFailure() {
         QFETCH(QByteArray, response);
         HttpFixture server;
         QVERIFY(server.isListening());
-        server.respond = [&](const auto &request) {
+        server.respond = [&](const auto& request) {
             return HttpFixture::Response{request.method == "GET" ? server.handshake() : response};
         };
         auto entries = tracks(1);
@@ -199,21 +190,18 @@ private slots:
         QVERIFY(!submit.submission_successful());
     }
 
-    void retry_data()
-    {
+    void retry_data() {
         QTest::addColumn<QByteArray>("response");
         QTest::newRow("bad-session") << QByteArray("BADSESSION\n");
         QTest::newRow("missing-post") << QByteArray("FAILED no POST parameters\n");
     }
 
-    void retry()
-    {
+    void retry() {
         QFETCH(QByteArray, response);
         HttpFixture server;
         int posts = 0;
-        server.respond = [&](const auto &request) {
-            if (request.method == "GET")
-                return HttpFixture::Response{server.handshake()};
+        server.respond = [&](const auto& request) {
+            if (request.method == "GET") return HttpFixture::Response{server.handshake()};
             return HttpFixture::Response{++posts == 1 ? response : QByteArray("OK\n")};
         };
         auto entries = tracks(1);
@@ -227,18 +215,16 @@ private slots:
         QVERIFY(finished.first().at(0).toBool());
         QCOMPARE(posts, 2);
         QCOMPARE(server.requests.size(), 4);
-        for (const auto &event : progress)
-            QVERIFY(event[1].toInt() <= event[2].toInt());
+        for (const auto& event : progress) QVERIFY(event[1].toInt() <= event[2].toInt());
         QCOMPARE(entries[0].sent[0], SENT_SUCCESS);
     }
 
-    void emptyAndUninitializedDoNotRequest()
-    {
+    void emptyAndUninitializedDoNotRequest() {
         HttpFixture server;
         auto entries = tracks(0);
         QMutex mutex;
         Submit submit(0);
-        submit.do_submit(); // Must not dereference an uninitialized context.
+        submit.do_submit();  // Must not dereference an uninitialized context.
         QVERIFY(!submit.init({}));
         QVERIFY(submit.init(context(server, entries, mutex)));
         QSignalSpy finished(&submit, &Submit::finished);
@@ -248,8 +234,7 @@ private slots:
         QCOMPARE(server.requests.size(), 0);
     }
 
-    void invalidContext_data()
-    {
+    void invalidContext_data() {
         QTest::addColumn<int>("site");
         QTest::addColumn<bool>("haveEntries");
         QTest::addColumn<bool>("haveMutex");
@@ -259,8 +244,7 @@ private slots:
         QTest::newRow("missing-mutex") << 0 << true << false;
     }
 
-    void invalidContext()
-    {
+    void invalidContext() {
         QFETCH(int, site);
         QFETCH(bool, haveEntries);
         QFETCH(bool, haveMutex);
@@ -268,10 +252,8 @@ private slots:
         auto entries = tracks(1);
         QMutex mutex;
         auto settings = context(server, entries, mutex);
-        if (!haveEntries)
-            settings.entries = nullptr;
-        if (!haveMutex)
-            settings.mutex = nullptr;
+        if (!haveEntries) settings.entries = nullptr;
+        if (!haveMutex) settings.mutex = nullptr;
         Submit submit(site);
         QVERIFY(!submit.init(settings));
         submit.do_submit();
@@ -280,10 +262,9 @@ private slots:
         QVERIFY(!submit.submission_successful());
     }
 
-    void noEligibleTracksNeverPostsOrLosesSuccessfulTracks()
-    {
+    void noEligibleTracksNeverPostsOrLosesSuccessfulTracks() {
         HttpFixture server;
-        server.respond = [&](const auto &) { return HttpFixture::Response{server.handshake()}; };
+        server.respond = [&](const auto&) { return HttpFixture::Response{server.handshake()}; };
         auto entries = tracks(2);
         entries[0].sent[0] = SENT_SUCCESS;
         entries[1].sent[0] = SENT_FAILED;
@@ -304,11 +285,10 @@ private slots:
         QVERIFY(!submit.submission_successful());
     }
 
-    void secureEndpointIsAcceptedAndCancellationKeepsTrack()
-    {
+    void secureEndpointIsAcceptedAndCancellationKeepsTrack() {
         HttpFixture server;
         const QByteArray endpoint = "https://" + server.host().toLatin1() + "/secure-submit";
-        server.respond = [&](const auto &) {
+        server.respond = [&](const auto&) {
             return HttpFixture::Response{"OK\nsecure & session\n" + server.url("/now") + '\n' + endpoint + '\n'};
         };
         auto entries = tracks(1);
@@ -320,9 +300,8 @@ private slots:
         submit.do_submit();
         QPointer<QNetworkReply> secure;
         auto pendingSecureRequest = [&] {
-            for (auto *reply : submit.findChildren<QNetworkReply *>())
-                if (reply->url() == QUrl(QString::fromLatin1(endpoint)))
-                    secure = reply;
+            for (auto* reply : submit.findChildren<QNetworkReply*>())
+                if (reply->url() == QUrl(QString::fromLatin1(endpoint))) secure = reply;
             return bool(secure);
         };
         QTRY_VERIFY_WITH_TIMEOUT(pendingSecureRequest(), 1000);
@@ -337,13 +316,11 @@ private slots:
         QVERIFY(secure.isNull());
     }
 
-    void retriesAreBoundedAndKeepSuccessfulTracks()
-    {
+    void retriesAreBoundedAndKeepSuccessfulTracks() {
         HttpFixture server;
         int posts = 0;
-        server.respond = [&](const auto &request) {
-            if (request.method == "GET")
-                return HttpFixture::Response{server.handshake()};
+        server.respond = [&](const auto& request) {
+            if (request.method == "GET") return HttpFixture::Response{server.handshake()};
             return HttpFixture::Response{++posts == 1 ? QByteArray("OK\n") : QByteArray("BADSESSION\n")};
         };
         auto entries = tracks(51);
@@ -357,28 +334,23 @@ private slots:
         QVERIFY(!finished.first()[0].toBool());
         QVERIFY(finished.first()[1].toString().contains("retry limit"));
         QCOMPARE(posts, 4);
-        QCOMPARE(server.requests.size(), 7); // Three handshakes, four posts.
-        for (int i = 0; i < 50; ++i)
-            QCOMPARE(entries[i].sent[0], SENT_SUCCESS);
+        QCOMPARE(server.requests.size(), 7);  // Three handshakes, four posts.
+        for (int i = 0; i < 50; ++i) QCOMPARE(entries[i].sent[0], SENT_SUCCESS);
         QCOMPARE(entries[50].sent[0], SENT_FAILED);
-        for (const auto &event : progress)
-            QVERIFY(event[1].toInt() <= event[2].toInt());
+        for (const auto& event : progress) QVERIFY(event[1].toInt() <= event[2].toInt());
     }
 
-    void cancellation_data()
-    {
+    void cancellation_data() {
         QTest::addColumn<bool>("duringPost");
         QTest::newRow("handshake") << false;
         QTest::newRow("submission") << true;
     }
 
-    void cancellation()
-    {
+    void cancellation() {
         QFETCH(bool, duringPost);
         HttpFixture server;
-        server.respond = [&](const auto &request) {
-            if (duringPost && request.method == "GET")
-                return HttpFixture::Response{server.handshake()};
+        server.respond = [&](const auto& request) {
+            if (duringPost && request.method == "GET") return HttpFixture::Response{server.handshake()};
             return HttpFixture::Response{{}, 200, true};
         };
         auto entries = tracks(1);
@@ -390,10 +362,9 @@ private slots:
         submit.do_submit();
         QTRY_COMPARE_WITH_TIMEOUT(server.requests.size(), duringPost ? 2 : 1, 1000);
         QPointer<QNetworkReply> pending;
-        for (auto *manager : submit.findChildren<QNetworkAccessManager *>())
-            for (auto *reply : manager->findChildren<QNetworkReply *>())
-                if (!reply->isFinished())
-                    pending = reply;
+        for (auto* manager : submit.findChildren<QNetworkAccessManager*>())
+            for (auto* reply : manager->findChildren<QNetworkReply*>())
+                if (!reply->isFinished()) pending = reply;
         QVERIFY(pending);
         submit.cancel_submission();
         QVERIFY(pending->isFinished());
@@ -408,20 +379,17 @@ private slots:
         QVERIFY(!submit.submission_successful());
     }
 
-    void networkFailure_data()
-    {
+    void networkFailure_data() {
         QTest::addColumn<bool>("duringPost");
         QTest::newRow("handshake") << false;
         QTest::newRow("submission") << true;
     }
 
-    void networkFailure()
-    {
+    void networkFailure() {
         QFETCH(bool, duringPost);
         HttpFixture server;
-        server.respond = [&](const auto &request) {
-            if (duringPost && request.method == "GET")
-                return HttpFixture::Response{server.handshake()};
+        server.respond = [&](const auto& request) {
+            if (duringPost && request.method == "GET") return HttpFixture::Response{server.handshake()};
             return HttpFixture::Response{QByteArray("offline"), 503};
         };
         auto entries = tracks(1);
@@ -441,10 +409,9 @@ private slots:
         QCOMPARE(entries[0].sent[0], duringPost ? SENT_FAILED : SENT_UNSENT);
     }
 
-    void managersAreOwned()
-    {
+    void managersAreOwned() {
         Submit submit(0);
-        QCOMPARE(submit.findChildren<QNetworkAccessManager *>().size(), 2);
+        QCOMPARE(submit.findChildren<QNetworkAccessManager*>().size(), 2);
     }
 };
 

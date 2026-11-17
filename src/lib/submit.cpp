@@ -17,17 +17,17 @@
  ***************************************************************************/
 
 #include "submit.h"
+
 #include <QCryptographicHash>
 
-Submit::Submit(int submit_index)
-{
+Submit::Submit(int submit_index) {
     index = submit_index;
     nam_handshake = new QNetworkAccessManager(this);
     nam_submit = new QNetworkAccessManager(this);
     nr_handshake = nr_submit = NULL;
 
     connect(nam_handshake, &QNetworkAccessManager::finished, this, &Submit::handshake_finished);
-    connect(nam_submit,    &QNetworkAccessManager::finished, this, &Submit::senddata_finished);
+    connect(nam_submit, &QNetworkAccessManager::finished, this, &Submit::senddata_finished);
 
     scrob_init = false;
     submission_ok = false;
@@ -37,24 +37,19 @@ Submit::Submit(int submit_index)
     batch_current = batch_total = 0;
 }
 
-Submit::~Submit()
-{
+Submit::~Submit() {
     // A controller may be destroyed by a handler of QNetworkAccessManager::finished.
     // Keep the managers and their replies alive until that Qt callback stack unwinds.
-    for (auto *manager : {nam_handshake, nam_submit})
-        QObject::disconnect(manager, nullptr, this, nullptr);
+    for (auto* manager : {nam_handshake, nam_submit}) QObject::disconnect(manager, nullptr, this, nullptr);
     cancel_submission();
-    for (auto *manager : {nam_handshake, nam_submit})
-    {
+    for (auto* manager : {nam_handshake, nam_submit}) {
         manager->setParent(QCoreApplication::instance());
         manager->deleteLater();
     }
 }
 
-bool Submit::init(submit_context conn)
-{
-    if (index < 0 || index >= CONFIG_NUM_SITES || !conn.entries || !conn.mutex)
-        return false;
+bool Submit::init(submit_context conn) {
+    if (index < 0 || index >= CONFIG_NUM_SITES || !conn.entries || !conn.mutex) return false;
     context = conn;
     batch_current = 0;
     retries = 0;
@@ -65,13 +60,10 @@ bool Submit::init(submit_context conn)
     return true;
 }
 
-void Submit::do_submit()
-{
-    if (!scrob_init || cancelled)
-        return;
+void Submit::do_submit() {
+    if (!scrob_init || cancelled) return;
     batch_total = context.entries->size();
-    if (batch_total == 0)
-    {
+    if (batch_total == 0) {
         emit finished(false, tr("Cannot submit an empty track list"));
         return;
     }
@@ -82,9 +74,8 @@ void Submit::do_submit()
         senddata();
 }
 
-void Submit::senddata()
-{
-    //emit add_log(LOG_INFO, "Submit::senddata");
+void Submit::senddata() {
+    // emit add_log(LOG_INFO, "Submit::senddata");
     entry_index.clear();
 
     QString data = "s=" + QUrl::toPercentEncoding(sessionid);
@@ -92,49 +83,38 @@ void Submit::senddata()
     // lock
     context.mutex->lock();
 
-    for ( int i = 0; i < context.entries->size(); i++ )
-    {
+    for (int i = 0; i < context.entries->size(); i++) {
         scrob_entry tmp = context.entries->at(i);
 
-        if (SENT_UNSENT == tmp.sent[index])
-        {
+        if (SENT_UNSENT == tmp.sent[index]) {
             entry_index.append(i);
             tmp.sent[index] = SENT_FAILED;
             context.entries->replace(i, tmp);
 
             // check length of musicbrainz id
             QString mbid = "";
-            if (tmp.mb_track_id.length() == 36)
-                mbid = tmp.mb_track_id;
+            if (tmp.mb_track_id.length() == 36) mbid = tmp.mb_track_id;
 
             QString tracknum = "";
-            if (tmp.tracknum != 0)
-                tracknum = QString::number(tmp.tracknum);
+            if (tmp.tracknum != 0) tracknum = QString::number(tmp.tracknum);
 
             QString str_count = QString::number(entry_index.size() - 1);
 
-            data += "&a[" + str_count + "]=" + QUrl::toPercentEncoding(tmp.artist) +
-                    "&t[" + str_count + "]=" + QUrl::toPercentEncoding(tmp.title) +
-                    "&b[" + str_count + "]=" + QUrl::toPercentEncoding(tmp.album) +
-                    "&m[" + str_count + "]=" + mbid +
-                    "&l[" + str_count + "]=" + QString::number(tmp.length) +
-                    "&i[" + str_count + "]=" + QString::number(tmp.when) +
-                    "&o[" + str_count + "]=P" +
-                    "&n[" + str_count + "]=" + tracknum +
-                    "&r[" + str_count + "]=";
+            data += "&a[" + str_count + "]=" + QUrl::toPercentEncoding(tmp.artist) + "&t[" + str_count +
+                    "]=" + QUrl::toPercentEncoding(tmp.title) + "&b[" + str_count +
+                    "]=" + QUrl::toPercentEncoding(tmp.album) + "&m[" + str_count + "]=" + mbid + "&l[" + str_count +
+                    "]=" + QString::number(tmp.length) + "&i[" + str_count + "]=" + QString::number(tmp.when) + "&o[" +
+                    str_count + "]=P" + "&n[" + str_count + "]=" + tracknum + "&r[" + str_count + "]=";
         }
         // do we have enough tracks?
-        if (entry_index.size() == 50)
-            break;
+        if (entry_index.size() == 50) break;
     }
     context.mutex->unlock();
 
     emit add_log(LOG_INFO, QString("entry_index: %1").arg(entry_index.size()));
-    if (0 == entry_index.size())
-    {
+    if (0 == entry_index.size()) {
         // should never be true...
-        emit finished(false, tr("%1: Error, attempted to send an empty submission!")
-                      .arg(SITE_NAME[index]));
+        emit finished(false, tr("%1: Error, attempted to send an empty submission!").arg(SITE_NAME[index]));
         return;
     }
 
@@ -142,38 +122,30 @@ void Submit::senddata()
 
     emit progress(context.site_index, batch_current + entry_index.size(), batch_total);
 
-    emit add_log(LOG_INFO, QString("%1: Submitting %2 entries")
-                 .arg(SITE_NAME[index]).arg(entry_index.size()));
+    emit add_log(LOG_INFO, QString("%1: Submitting %2 entries").arg(SITE_NAME[index]).arg(entry_index.size()));
 
     QNetworkRequest submit_handshake;
     submit_handshake.setUrl(submit_url);
     submit_handshake.setRawHeader("User-Agent", CLIENT_USERAGENT);
     // MUST have a content type, otherwise both last.fm and libre.fm will
     // reject the post.
-    submit_handshake.setHeader(QNetworkRequest::ContentTypeHeader,
-                               "application/x-www-form-urlencoded");
+    submit_handshake.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
 
     QByteArray submit_data = QByteArray(data.toUtf8());
     nr_submit = nam_submit->post(submit_handshake, submit_data);
 }
 
-void Submit::senddata_finished(QNetworkReply *reply)
-{
-    if (reply != nr_submit || cancelled)
-        return;
+void Submit::senddata_finished(QNetworkReply* reply) {
+    if (reply != nr_submit || cancelled) return;
     nr_submit = nullptr;
     reply->deleteLater();
-    if (reply->error() != QNetworkReply::NoError)
-    {
-        emit finished(false, tr("SUBMIT %1: Request failed, %2")
-                      .arg(SITE_NAME[index], reply->errorString()));
+    if (reply->error() != QNetworkReply::NoError) {
+        emit finished(false, tr("SUBMIT %1: Request failed, %2").arg(SITE_NAME[index], reply->errorString()));
         return;
     }
     const QString result = QString::fromUtf8(reply->readAll()).trimmed();
-    if (result == "BADSESSION" || result.contains("no POST parameters"))
-    {
-        if (++retries > 2)
-        {
+    if (result == "BADSESSION" || result.contains("no POST parameters")) {
+        if (++retries > 2) {
             emit finished(false, tr("%1: Submission retry limit reached").arg(SITE_NAME[index]));
             return;
         }
@@ -182,47 +154,42 @@ void Submit::senddata_finished(QNetworkReply *reply)
         do_submit();
         return;
     }
-    if (result != "OK")
-    {
-        emit finished(false, result.isEmpty() ? tr("%1: Empty result from server").arg(SITE_NAME[index])
-                      : tr("%1: Server returned an error after sending data").arg(SITE_NAME[index]));
+    if (result != "OK") {
+        emit finished(false, result.isEmpty()
+                                 ? tr("%1: Empty result from server").arg(SITE_NAME[index])
+                                 : tr("%1: Server returned an error after sending data").arg(SITE_NAME[index]));
         return;
     }
     int remaining = 0;
     {
         QMutexLocker lock(context.mutex);
-        for (int entry : std::as_const(entry_index))
-            (*context.entries)[entry].sent[index] = SENT_SUCCESS;
-        for (const auto &entry : std::as_const(*context.entries))
-            if (entry.sent[index] == SENT_UNSENT)
-                ++remaining;
+        for (int entry : std::as_const(entry_index)) (*context.entries)[entry].sent[index] = SENT_SUCCESS;
+        for (const auto& entry : std::as_const(*context.entries))
+            if (entry.sent[index] == SENT_UNSENT) ++remaining;
     }
     batch_current += entry_index.size();
     retries = 0;
     if (remaining)
         do_submit();
-    else
-    {
+    else {
         submission_ok = true;
         emit finished(true, "");
     }
 }
 
-void Submit::handshake()
-{
-    //emit add_log(LOG_INFO, "Submit::handshake");
+void Submit::handshake() {
+    // emit add_log(LOG_INFO, "Submit::handshake");
     QString time_str = QString::number(QDateTime::currentDateTime().toSecsSinceEpoch());
 
     QCryptographicHash auth_hash(QCryptographicHash::Md5);
     auth_hash.addData(QString(context.password_hash + time_str).toLocal8Bit());
     QString auth = QString(auth_hash.result().toHex());
 
-    QUrl url_handshake = QString( "http://%1/?hs=true&p=%2&c=%3&v=%4&u=%5&t=%6&a=%7" )
-                .arg(context.host, PROTOCOL_VERSION, CLIENT_ID, CLIENT_VERSION,
-                     QString::fromLatin1(QUrl::toPercentEncoding(context.username)), time_str, auth);
+    QUrl url_handshake = QString("http://%1/?hs=true&p=%2&c=%3&v=%4&u=%5&t=%6&a=%7")
+                             .arg(context.host, PROTOCOL_VERSION, CLIENT_ID, CLIENT_VERSION,
+                                  QString::fromLatin1(QUrl::toPercentEncoding(context.username)), time_str, auth);
 
-    emit add_log(LOG_DEBUG, QString("%1: Time: %2")
-                 .arg(SITE_NAME[index], time_str));
+    emit add_log(LOG_DEBUG, QString("%1: Time: %2").arg(SITE_NAME[index], time_str));
 
     QNetworkRequest request_handshake;
     request_handshake.setUrl(url_handshake);
@@ -231,17 +198,14 @@ void Submit::handshake()
     nr_handshake = nam_handshake->get(request_handshake);
 }
 
-void Submit::handshake_finished(QNetworkReply *reply)
-{
-    if (reply != nr_handshake || cancelled)
-        return;
+void Submit::handshake_finished(QNetworkReply* reply) {
+    if (reply != nr_handshake || cancelled) return;
     nr_handshake = nullptr;
     reply->deleteLater();
     QString error;
     if (reply->error() != QNetworkReply::NoError)
         error = tr("%1: HANDSHAKE: Request failed: %2").arg(SITE_NAME[index], reply->errorString());
-    else
-    {
+    else {
         const auto fields = QString::fromUtf8(reply->readAll()).split('\n');
         const QString status = fields.first().trimmed();
         if (status == "BANNED")
@@ -252,26 +216,21 @@ void Submit::handshake_finished(QNetworkReply *reply)
             error = tr("%1: Handshake Failed - clock is incorrect").arg(SITE_NAME[index]);
         else if (status.startsWith("FAILED"))
             error = tr("%1: Handshake Failed").arg(SITE_NAME[index]);
-        else if (status.isEmpty() || status == "OK")
-        {
+        else if (status.isEmpty() || status == "OK") {
             const QUrl endpoint(fields.value(3).trimmed());
-            if (status.isEmpty() || fields.size() < 4 || fields.value(1).trimmed().isEmpty()
-                || !endpoint.isValid() || endpoint.host().isEmpty()
-                || (endpoint.scheme() != "http" && endpoint.scheme() != "https"))
+            if (status.isEmpty() || fields.size() < 4 || fields.value(1).trimmed().isEmpty() || !endpoint.isValid() ||
+                endpoint.host().isEmpty() || (endpoint.scheme() != "http" && endpoint.scheme() != "https"))
                 error = tr("%1: Bad handshake response").arg(SITE_NAME[index]);
-            else
-            {
+            else {
                 sessionid = fields[1].trimmed();
                 nowplay_url = fields[2].trimmed();
                 submit_url = endpoint.toString();
                 need_handshake = false;
             }
-        }
-        else
+        } else
             error = tr("%1: Unknown handshake response").arg(SITE_NAME[index]);
     }
-    if (!error.isEmpty())
-    {
+    if (!error.isEmpty()) {
         emit add_log(LOG_ERROR, error);
         emit signalHandshakeFailure(error);
         return;
@@ -279,13 +238,10 @@ void Submit::handshake_finished(QNetworkReply *reply)
     senddata();
 }
 
-void Submit::cancel_submission()
-{
+void Submit::cancel_submission() {
     cancelled = true;
-    for (QNetworkReply *reply : {nr_handshake, nr_submit})
-    {
-        if (reply)
-        {
+    for (QNetworkReply* reply : {nr_handshake, nr_submit}) {
+        if (reply) {
             reply->disconnect(this);
             reply->abort();
             reply->deleteLater();
@@ -294,15 +250,12 @@ void Submit::cancel_submission()
     nr_handshake = nr_submit = nullptr;
 }
 
-void Submit::reset_tracks()
-{
+void Submit::reset_tracks() {
     context.mutex->lock();
-    for ( int i = 0; i < context.entries->size(); i++ )
-    {
+    for (int i = 0; i < context.entries->size(); i++) {
         scrob_entry tmp = context.entries->at(i);
 
-        if (tmp.sent[index] != SENT_SUCCESS)
-        {
+        if (tmp.sent[index] != SENT_SUCCESS) {
             tmp.sent[index] = SENT_UNSENT;
             context.entries->replace(i, tmp);
         }

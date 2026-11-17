@@ -18,35 +18,37 @@
  ***************************************************************************/
 
 #include "qtscrob.h"
-#include "settings.h"
-#include "about.h"
-#include "help.h"
-#include "progress.h"
-#include "missingtimeprogress.h"
-#include "console.h"
 
-#include <QTime>
-#include <QTableWidget>
 #include <QCloseEvent>
-#include <QtGui>
 #include <QFileDialog>
 #include <QHeaderView>
+#include <QTableWidget>
+#include <QTime>
+#include <QtGui>
 #include <limits>
+
+#include "about.h"
+#include "console.h"
+#include "help.h"
+#include "missingtimeprogress.h"
+#include "progress.h"
+#include "settings.h"
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
-#pragma warning (disable: 4996)
+#pragma warning(disable : 4996)
 #endif
 
-QTScrob::QTScrob(QWidget *parent) : QMainWindow( parent ) {
-	scrob = new Scrobble();
+QTScrob::QTScrob(QWidget* parent) : QMainWindow(parent) {
+    scrob = new Scrobble();
 
-	logTable = new QTableWidget(this);
-	tableLabels << tr("Artist") << tr("Album") << tr("Title") << tr("TrackNumber") << tr("Length") << tr("Played") << "";
-	logTable->setColumnCount(7);
-	logTable->setRowCount(0);
-	logTable->setHorizontalHeaderLabels(tableLabels);
-	logTable->setAlternatingRowColors(true);
+    logTable = new QTableWidget(this);
+    tableLabels << tr("Artist") << tr("Album") << tr("Title") << tr("TrackNumber") << tr("Length") << tr("Played")
+                << "";
+    logTable->setColumnCount(7);
+    logTable->setRowCount(0);
+    logTable->setHorizontalHeaderLabels(tableLabels);
+    logTable->setAlternatingRowColors(true);
     logTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     logTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     logTable->installEventFilter(this);
@@ -55,591 +57,512 @@ QTScrob::QTScrob(QWidget *parent) : QMainWindow( parent ) {
 }
 
 QTScrob::~QTScrob() {
-	if (winSettings!=NULL)
-		delete winSettings;
+    if (winSettings != NULL) delete winSettings;
 
-	if (winConsole != NULL)
-		delete winConsole;
+    if (winConsole != NULL) delete winConsole;
 
-	delete scrob;
+    delete scrob;
 }
 
-void QTScrob::closeEvent(QCloseEvent *event)
-{
-	saveWindow();
-	scrob->conf->save_config();
-	event->accept();
+void QTScrob::closeEvent(QCloseEvent* event) {
+    saveWindow();
+    scrob->conf->save_config();
+    event->accept();
 }
 
 void QTScrob::setupWindow() {
-	readWindow();
-	setupWidgets();
-	connectSlots();
+    readWindow();
+    setupWidgets();
+    connectSlots();
 }
 
 void QTScrob::readWindow() {
-	QHash <QString, QVariant> values = scrob->conf->load_custom("window");
+    QHash<QString, QVariant> values = scrob->conf->load_custom("window");
 
-	resize(values.value("size", QSize(705, 458)).toSize());
-	move(values.value("pos", QPoint(100, 100)).toPoint());
+    resize(values.value("size", QSize(705, 458)).toSize());
+    move(values.value("pos", QPoint(100, 100)).toPoint());
 
-	if (values.value("maximized", "false").toBool())
-	{
-		setWindowState(windowState() | Qt::WindowMaximized);
-	}
+    if (values.value("maximized", "false").toBool()) {
+        setWindowState(windowState() | Qt::WindowMaximized);
+    }
 }
 
 void QTScrob::saveWindow() {
-	QHash <QString, QVariant> values;
-	values.insert("maximized", isMaximized());
-	if (!isMaximized())
-	{
-		values.insert("size", size());
-		values.insert("pos", pos());
-	}
+    QHash<QString, QVariant> values;
+    values.insert("maximized", isMaximized());
+    if (!isMaximized()) {
+        values.insert("size", size());
+        values.insert("pos", pos());
+    }
 
-	scrob->conf->save_custom("window", values);
+    scrob->conf->save_custom("window", values);
 }
 
 void QTScrob::setupWidgets() {
-	actOpen = new QAction(tr("Open"),this);
-	actOpeniTunes = new QAction(tr("Open iTunesDB"),this);
-	actExit = new QAction(tr("Exit"),this);
-	actHelp = new QAction(tr("Help"),this);
-	actAbout = new QAction(tr("About"),this);
-    actAboutQt = new QAction(tr("About Qt"),this);
-	actSettings = new QAction(tr("Settings"),this);
-	actConsole = new QAction(tr("Console"), this);
+    actOpen = new QAction(tr("Open"), this);
+    actOpeniTunes = new QAction(tr("Open iTunesDB"), this);
+    actExit = new QAction(tr("Exit"), this);
+    actHelp = new QAction(tr("Help"), this);
+    actAbout = new QAction(tr("About"), this);
+    actAboutQt = new QAction(tr("About Qt"), this);
+    actSettings = new QAction(tr("Settings"), this);
+    actConsole = new QAction(tr("Console"), this);
 
-	centralWidget = new QWidget(this);
+    centralWidget = new QWidget(this);
 
-	btnOpen = new QPushButton(tr("Open .scrobbler.log"));
-	btnOpeniTunes = new QPushButton(tr("Open iTunesDB"));
-	btnDelete = new QPushButton(tr("Delete selected item"));
-	btnSubmit = new QPushButton(tr("Submit"));
+    btnOpen = new QPushButton(tr("Open .scrobbler.log"));
+    btnOpeniTunes = new QPushButton(tr("Open iTunesDB"));
+    btnDelete = new QPushButton(tr("Delete selected item"));
+    btnSubmit = new QPushButton(tr("Submit"));
 
-	btnOpen->setIcon(QIcon::fromTheme("document-open",
-							QIcon(":/resources/icons/document-open.png")));
-	btnDelete->setIcon(QIcon::fromTheme("edit-clear",
-							QIcon(":/resources/icons/edit-clear.png")));
-	btnSubmit->setIcon(QIcon::fromTheme("mail-send-receive",
-							QIcon(":/resources/icons/mail-send-receive.png")));
+    btnOpen->setIcon(QIcon::fromTheme("document-open", QIcon(":/resources/icons/document-open.png")));
+    btnDelete->setIcon(QIcon::fromTheme("edit-clear", QIcon(":/resources/icons/edit-clear.png")));
+    btnSubmit->setIcon(QIcon::fromTheme("mail-send-receive", QIcon(":/resources/icons/mail-send-receive.png")));
 
-	btnOpeniTunes->setIcon(QIcon(":/resources/icons/16x16/qtscrob.png"));
+    btnOpeniTunes->setIcon(QIcon(":/resources/icons/16x16/qtscrob.png"));
 
 #ifdef HAVE_MTP
-	actOpenMTP = new QAction(tr("Open MTP Device"), this);
-	actOpenMTP->setIcon(QIcon(":/resources/icons/multimedia-player-iriver-s10_16.png"));
-	btnOpenMTP = new QPushButton(tr("Open MTP Device"));
-	btnOpenMTP->setIcon(QIcon(":/resources/icons/multimedia-player-iriver-s10_16.png"));
+    actOpenMTP = new QAction(tr("Open MTP Device"), this);
+    actOpenMTP->setIcon(QIcon(":/resources/icons/multimedia-player-iriver-s10_16.png"));
+    btnOpenMTP = new QPushButton(tr("Open MTP Device"));
+    btnOpenMTP->setIcon(QIcon(":/resources/icons/multimedia-player-iriver-s10_16.png"));
 #endif
 
-	QGridLayout *layout = new QGridLayout(centralWidget);
-	layout->setContentsMargins(0, 0, 0, 0);
-	layout->setColumnStretch(0, 1);
-	layout->addWidget(btnOpen, 0, 1);
-	layout->addWidget(btnOpeniTunes, 0, 2);
+    QGridLayout* layout = new QGridLayout(centralWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setColumnStretch(0, 1);
+    layout->addWidget(btnOpen, 0, 1);
+    layout->addWidget(btnOpeniTunes, 0, 2);
 #ifdef HAVE_MTP
-	layout->addWidget(btnOpenMTP, 0, 3);
+    layout->addWidget(btnOpenMTP, 0, 3);
 #endif
-	layout->addWidget(btnDelete, 0, 4);
-	layout->addWidget(btnSubmit, 0, 5);
-	layout->setColumnStretch(6, 1);
-	layout->addWidget(logTable, 1, 0, 1, 7);
+    layout->addWidget(btnDelete, 0, 4);
+    layout->addWidget(btnSubmit, 0, 5);
+    layout->setColumnStretch(6, 1);
+    layout->addWidget(logTable, 1, 0, 1, 7);
 
-	this->setCentralWidget(centralWidget);
+    this->setCentralWidget(centralWidget);
 
-	menuBar = new QMenuBar(this);
-	menuBar->setGeometry(QRect(0, 0, 705, 26));
-	menuHelp = new QMenu(tr("Help"),menuBar);
-	menuGlobal = new QMenu(tr("Global"),menuBar);
-	this->setMenuBar(menuBar);
-	statusbar = new QStatusBar(this);
-	this->setStatusBar(statusbar);
+    menuBar = new QMenuBar(this);
+    menuBar->setGeometry(QRect(0, 0, 705, 26));
+    menuHelp = new QMenu(tr("Help"), menuBar);
+    menuGlobal = new QMenu(tr("Global"), menuBar);
+    this->setMenuBar(menuBar);
+    statusbar = new QStatusBar(this);
+    this->setStatusBar(statusbar);
 
-	lblStatus = new QLabel(tr("Ready"));
-	lblDTformat = new QLabel();
-	DTedit = new QDateTimeEdit();
-	btnRecalcDT = new QPushButton(tr("Recalc Date/Time"));
-	statusbar->addWidget(lblStatus, 1);
-	statusbar->addWidget(lblDTformat);
-	statusbar->addWidget(DTedit);
-	statusbar->addWidget(btnRecalcDT);
+    lblStatus = new QLabel(tr("Ready"));
+    lblDTformat = new QLabel();
+    DTedit = new QDateTimeEdit();
+    btnRecalcDT = new QPushButton(tr("Recalc Date/Time"));
+    statusbar->addWidget(lblStatus, 1);
+    statusbar->addWidget(lblDTformat);
+    statusbar->addWidget(DTedit);
+    statusbar->addWidget(btnRecalcDT);
 
-	btnRecalcDT->setIcon(QIcon::fromTheme("appointment-new",
-							QIcon(":/resources/icons/appointment-new.png")));
-	actSettings->setIcon(QIcon::fromTheme("preferences-system",
-							QIcon(":/resources/icons/preferences-system.png")));
-	actHelp->setIcon(QIcon::fromTheme("help-browser",
-							QIcon(":/resources/icons/help-browser.png")));
-	actExit->setIcon(QIcon::fromTheme("application-exit",
-							QIcon(":/resources/icons/system-log-out.png")));
-	actOpen->setIcon(QIcon::fromTheme("document-open",
-							QIcon(":/resources/icons/document-open.png")));
+    btnRecalcDT->setIcon(QIcon::fromTheme("appointment-new", QIcon(":/resources/icons/appointment-new.png")));
+    actSettings->setIcon(QIcon::fromTheme("preferences-system", QIcon(":/resources/icons/preferences-system.png")));
+    actHelp->setIcon(QIcon::fromTheme("help-browser", QIcon(":/resources/icons/help-browser.png")));
+    actExit->setIcon(QIcon::fromTheme("application-exit", QIcon(":/resources/icons/system-log-out.png")));
+    actOpen->setIcon(QIcon::fromTheme("document-open", QIcon(":/resources/icons/document-open.png")));
 
-	actOpeniTunes->setIcon(QIcon(":/resources/icons/16x16/qtscrob.png"));
+    actOpeniTunes->setIcon(QIcon(":/resources/icons/16x16/qtscrob.png"));
 
-	actHelp->setShortcut(QKeySequence::HelpContents);
+    actHelp->setShortcut(QKeySequence::HelpContents);
 
-	menuBar->addAction(menuGlobal->menuAction());
-	menuBar->addAction(menuHelp->menuAction());
-	menuHelp->addAction(actHelp);
-	menuHelp->addAction(actConsole);
-	menuHelp->addAction(actAbout);
-	menuHelp->addAction(actAboutQt);
-	menuGlobal->addAction(actOpen);
-	menuGlobal->addAction(actOpeniTunes);
+    menuBar->addAction(menuGlobal->menuAction());
+    menuBar->addAction(menuHelp->menuAction());
+    menuHelp->addAction(actHelp);
+    menuHelp->addAction(actConsole);
+    menuHelp->addAction(actAbout);
+    menuHelp->addAction(actAboutQt);
+    menuGlobal->addAction(actOpen);
+    menuGlobal->addAction(actOpeniTunes);
 #ifdef HAVE_MTP
-	menuGlobal->addAction(actOpenMTP);
+    menuGlobal->addAction(actOpenMTP);
 #endif
-	menuGlobal->addAction(actSettings);
-	menuGlobal->addSeparator();
-	menuGlobal->addAction(actExit);
+    menuGlobal->addAction(actSettings);
+    menuGlobal->addSeparator();
+    menuGlobal->addAction(actExit);
 
-	this->setWindowTitle(tr("QTScrobbler"));
+    this->setWindowTitle(tr("QTScrobbler"));
 
-	winSettings = NULL;
-	winAbout = NULL;
-	winHelp = NULL;
-	winProgress = NULL;
-	winConsole = NULL;
-	passchanged = false;
+    winSettings = NULL;
+    winAbout = NULL;
+    winHelp = NULL;
+    winProgress = NULL;
+    winConsole = NULL;
+    passchanged = false;
 
-	DT_labels();
+    DT_labels();
 }
 
-void QTScrob::DT_labels()
-{
-	struct tm * tmp;
-	time_t tmp_dt;
+void QTScrob::DT_labels() {
+    struct tm* tmp;
+    time_t tmp_dt;
 
-	if(scrob->conf->display_utc)
-	{
-		logTable->horizontalHeaderItem(6)->setText(tr("Date (UTC)"));
-		lblDTformat->setText(tr("Adjust from (UTC):"));
-		tmp_dt = recalc_timestamp;
-	}
-	else
-	{
-		logTable->horizontalHeaderItem(6)->setText(tr("Date (Local)"));
-		lblDTformat->setText(tr("Adjust from (Local):"));
-		tmp_dt = recalc_timestamp + scrob->get_custom_offset();
-	}
+    if (scrob->conf->display_utc) {
+        logTable->horizontalHeaderItem(6)->setText(tr("Date (UTC)"));
+        lblDTformat->setText(tr("Adjust from (UTC):"));
+        tmp_dt = recalc_timestamp;
+    } else {
+        logTable->horizontalHeaderItem(6)->setText(tr("Date (Local)"));
+        lblDTformat->setText(tr("Adjust from (Local):"));
+        tmp_dt = recalc_timestamp + scrob->get_custom_offset();
+    }
 
-	tmp = gmtime(&tmp_dt);
+    tmp = gmtime(&tmp_dt);
 
-	QDate tmp_date(tmp->tm_year + 1900,
-			tmp->tm_mon + 1,
-			tmp->tm_mday);
+    QDate tmp_date(tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday);
 
-	QTime tmp_time(tmp->tm_hour,
-			tmp->tm_min,
-			tmp->tm_sec);
+    QTime tmp_time(tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 
-	DTedit->setDateTime(QDateTime(tmp_date, tmp_time));
+    DTedit->setDateTime(QDateTime(tmp_date, tmp_time));
 }
 
 void QTScrob::connectSlots() {
-    connect(actOpen,      &QAction::triggered, this, &QTScrob::open_log);
-    connect(actExit,      &QAction::triggered, this, &QWidget::close);
-    connect(actHelp,      &QAction::triggered, this, &QTScrob::help);
-    connect(actAbout,     &QAction::triggered, this, &QTScrob::about);
-    connect(actAboutQt,   &QAction::triggered, this, &QTScrob::aboutQt);
-    connect(actOpeniTunes,&QAction::triggered, this, &QTScrob::open_ipod);
-    connect(actConsole,   &QAction::triggered, this, &QTScrob::console);
+    connect(actOpen, &QAction::triggered, this, &QTScrob::open_log);
+    connect(actExit, &QAction::triggered, this, &QWidget::close);
+    connect(actHelp, &QAction::triggered, this, &QTScrob::help);
+    connect(actAbout, &QAction::triggered, this, &QTScrob::about);
+    connect(actAboutQt, &QAction::triggered, this, &QTScrob::aboutQt);
+    connect(actOpeniTunes, &QAction::triggered, this, &QTScrob::open_ipod);
+    connect(actConsole, &QAction::triggered, this, &QTScrob::console);
 #ifdef HAVE_MTP
-    connect(actOpenMTP,  &QAction::triggered,     this, &QTScrob::open_mtp);
-    connect(btnOpenMTP,  &QPushButton::clicked,   this, &QTScrob::open_mtp);
+    connect(actOpenMTP, &QAction::triggered, this, &QTScrob::open_mtp);
+    connect(btnOpenMTP, &QPushButton::clicked, this, &QTScrob::open_mtp);
 #endif
     connect(btnOpeniTunes, &QPushButton::clicked, this, &QTScrob::open_ipod);
-    connect(btnOpen,       &QPushButton::clicked, this, &QTScrob::open_log);
-    connect(btnDelete,     &QPushButton::clicked, this, &QTScrob::deleteRow);
-    connect(btnSubmit,     &QPushButton::clicked, this, &QTScrob::scrobble);
-    connect(actSettings,   &QAction::triggered,   this, &QTScrob::settings);
-    connect(btnRecalcDT,   &QPushButton::clicked, this, &QTScrob::recalcDT);
-    connect(DTedit,  &QDateTimeEdit::dateTimeChanged, this, &QTScrob::updaterecalcDT);
-    connect(logTable, &QTableWidget::cellChanged,     this, &QTScrob::changeRow);
+    connect(btnOpen, &QPushButton::clicked, this, &QTScrob::open_log);
+    connect(btnDelete, &QPushButton::clicked, this, &QTScrob::deleteRow);
+    connect(btnSubmit, &QPushButton::clicked, this, &QTScrob::scrobble);
+    connect(actSettings, &QAction::triggered, this, &QTScrob::settings);
+    connect(btnRecalcDT, &QPushButton::clicked, this, &QTScrob::recalcDT);
+    connect(DTedit, &QDateTimeEdit::dateTimeChanged, this, &QTScrob::updaterecalcDT);
+    connect(logTable, &QTableWidget::cellChanged, this, &QTScrob::changeRow);
     // Completion can show a modal dialog: let the network callback unwind first.
     connect(scrob, &Scrobble::submission_finished, this, &QTScrob::scrobbled, Qt::QueuedConnection);
-    connect(scrob, &Scrobble::parsing_opened,         this, &QTScrob::parsed);
-    connect(scrob, &Scrobble::missing_times_start,    this, &QTScrob::missing_times_start);
+    connect(scrob, &Scrobble::parsing_opened, this, &QTScrob::parsed);
+    connect(scrob, &Scrobble::missing_times_start, this, &QTScrob::missing_times_start);
     connect(scrob, &Scrobble::missing_times_progress, this, &QTScrob::missing_times_progress);
     connect(scrob, &Scrobble::missing_times_finished, this, &QTScrob::missing_times_finished);
 }
 
 void QTScrob::help() {
-	if (winHelp==NULL)
-		winHelp = new Help(this);
-	winHelp->show();
+    if (winHelp == NULL) winHelp = new Help(this);
+    winHelp->show();
 }
 
 void QTScrob::about() {
-	if (winAbout==NULL)
-		winAbout = new About(this);
-	winAbout->show();
+    if (winAbout == NULL) winAbout = new About(this);
+    winAbout->show();
 }
 
 void QTScrob::settings() {
-	if (winSettings==NULL)
-		winSettings = new Settings(this);
-	winSettings->show();
+    if (winSettings == NULL) winSettings = new Settings(this);
+    winSettings->show();
 }
 
 void QTScrob::console() {
-	if (winConsole==NULL)
-		winConsole = new Console(this);
-	winConsole->show();
+    if (winConsole == NULL) winConsole = new Console(this);
+    winConsole->show();
 }
 
-void QTScrob::aboutQt() {
-	QApplication::aboutQt();
-}
+void QTScrob::aboutQt() { QApplication::aboutQt(); }
 
-void QTScrob::open_log()
-{
-	open(SCROBBLE_LOG);
-}
+void QTScrob::open_log() { open(SCROBBLE_LOG); }
 
-void QTScrob::open_ipod()
-{
-	open(SCROBBLE_IPOD);
-}
+void QTScrob::open_ipod() { open(SCROBBLE_IPOD); }
 
 #ifdef HAVE_MTP
-void QTScrob::open_mtp()
-{
-	open(SCROBBLE_MTP);
-}
+void QTScrob::open_mtp() { open(SCROBBLE_MTP); }
 #endif
 
 void QTScrob::open(SCROBBLE_METHOD method) {
 #ifdef HAVE_MTP
-	if (SCROBBLE_MTP == method)
-	{
-		parse(method, "");
-		return;
-	}
+    if (SCROBBLE_MTP == method) {
+        parse(method, "");
+        return;
+    }
 #endif
-	if (scrob->conf->auto_open &&
-		!scrob->conf->mru.isEmpty()
-        && ( check_path(method, scrob->conf->mru.first())
-             != CHECK_FAIL ))
-		parse(method, scrob->conf->mru.first());
-	else
-	{
-		QString mount_root;
+    if (scrob->conf->auto_open && !scrob->conf->mru.isEmpty() &&
+        (check_path(method, scrob->conf->mru.first()) != CHECK_FAIL))
+        parse(method, scrob->conf->mru.first());
+    else {
+        QString mount_root;
 
-		if (!scrob->conf->mru.isEmpty() &&
-			QDir(scrob->conf->mru.first()).exists())
-			mount_root = scrob->conf->mru.first();
-		else
+        if (!scrob->conf->mru.isEmpty() && QDir(scrob->conf->mru.first()).exists())
+            mount_root = scrob->conf->mru.first();
+        else
 #if defined(Q_OS_DARWIN)
-			mount_root = "/Volumes";
+            mount_root = "/Volumes";
 #elif defined(Q_OS_LINUX)
-			mount_root = "/media";
+            mount_root = "/media";
 #else
-			mount_root = "/";
+            mount_root = "/";
 #endif
 
-		QFileDialog dialog(this,
+        QFileDialog dialog(this,
 #if defined(Q_OS_WIN32)
-                tr("Select media player drive letter"),
+                           tr("Select media player drive letter"),
 #else
-                tr("Select media player mountpoint"),
+                           tr("Select media player mountpoint"),
 #endif
-                mount_root);
+                           mount_root);
         dialog.setFileMode(QFileDialog::Directory);
         dialog.setOption(QFileDialog::ShowDirsOnly);
-        if (!scrob->conf->mru.isEmpty())
-            dialog.setHistory(scrob->conf->mru);
-        if (dialog.exec() != QDialog::Accepted)
-            return;
+        if (!scrob->conf->mru.isEmpty()) dialog.setHistory(scrob->conf->mru);
+        if (dialog.exec() != QDialog::Accepted) return;
         const QString mount_point = dialog.selectedFiles().value(0);
 
-		if (mount_point.isEmpty())
-			return;
-		parse(method, mount_point);
-	}
+        if (mount_point.isEmpty()) return;
+        parse(method, mount_point);
+    }
 }
 
-void QTScrob::parse(SCROBBLE_METHOD method, QString fileDir)
-{
-	if (!fileDir.isEmpty())
-		last_mountpoint = fileDir;
-	scrob->parse(method, fileDir);
+void QTScrob::parse(SCROBBLE_METHOD method, QString fileDir) {
+    if (!fileDir.isEmpty()) last_mountpoint = fileDir;
+    scrob->parse(method, fileDir);
 }
 
-void QTScrob::parsed(bool success)
-{
-	if (!success)
-	{
-		QMessageBox::warning(this, QCoreApplication::applicationName(),
-							 tr("Error parsing: %1").arg(scrob->get_error_str()));
-		return;
-	}
+void QTScrob::parsed(bool success) {
+    if (!success) {
+        QMessageBox::warning(this, QCoreApplication::applicationName(),
+                             tr("Error parsing: %1").arg(scrob->get_error_str()));
+        return;
+    }
 
-	loadtable();
+    loadtable();
 
-	lblStatus->setText(tr("Loaded %1 entries").arg(logTable->rowCount()));
+    lblStatus->setText(tr("Loaded %1 entries").arg(logTable->rowCount()));
 
-	// move the most recent entry to the start of the mru stringlist
-	if (!last_mountpoint.isEmpty())
-	{
-		if (scrob->conf->mru.contains(last_mountpoint))
-			scrob->conf->mru.removeAll(last_mountpoint);
+    // move the most recent entry to the start of the mru stringlist
+    if (!last_mountpoint.isEmpty()) {
+        if (scrob->conf->mru.contains(last_mountpoint)) scrob->conf->mru.removeAll(last_mountpoint);
 
-		scrob->conf->mru.prepend(last_mountpoint);
-	}
+        scrob->conf->mru.prepend(last_mountpoint);
+    }
 
-	set_open_buttons();
+    set_open_buttons();
 }
 
 void QTScrob::loadtable(void) {
-	int i;
-	scrob_entry scrob_tmp;
+    int i;
+    scrob_entry scrob_tmp;
 
     QObject::disconnect(logTable, &QTableWidget::cellChanged, nullptr, nullptr);
 
-	logTable->clearContents();
+    logTable->clearContents();
 
-	logTable->setRowCount(scrob->get_num_tracks());
+    logTable->setRowCount(scrob->get_num_tracks());
 
-	QApplication::setOverrideCursor(Qt::WaitCursor);
+    QApplication::setOverrideCursor(Qt::WaitCursor);
 
-	for (i = 0; i < scrob->get_num_tracks(); i++) {
-		scrob_tmp = scrob->get_track(i);
+    for (i = 0; i < scrob->get_num_tracks(); i++) {
+        scrob_tmp = scrob->get_track(i);
 
-		QTableWidgetItem *temp_artist = new QTableWidgetItem;
-		temp_artist->setText(scrob_tmp.artist);
-		logTable->setItem(i, 0, temp_artist );
+        QTableWidgetItem* temp_artist = new QTableWidgetItem;
+        temp_artist->setText(scrob_tmp.artist);
+        logTable->setItem(i, 0, temp_artist);
 
-		QTableWidgetItem *temp_album = new QTableWidgetItem;
-		temp_album->setText(scrob_tmp.album);
-		logTable->setItem(i, 1, temp_album );
+        QTableWidgetItem* temp_album = new QTableWidgetItem;
+        temp_album->setText(scrob_tmp.album);
+        logTable->setItem(i, 1, temp_album);
 
-		QTableWidgetItem *temp_title = new QTableWidgetItem;
-		temp_title->setText(scrob_tmp.title);
-		logTable->setItem(i, 2, temp_title );
+        QTableWidgetItem* temp_title = new QTableWidgetItem;
+        temp_title->setText(scrob_tmp.title);
+        logTable->setItem(i, 2, temp_title);
 
-		QTableWidgetItem *temp_tracknum = new QTableWidgetItem;
-		temp_tracknum->setText(QString::number(scrob_tmp.tracknum));
-		logTable->setItem(i, 3, temp_tracknum );
+        QTableWidgetItem* temp_tracknum = new QTableWidgetItem;
+        temp_tracknum->setText(QString::number(scrob_tmp.tracknum));
+        logTable->setItem(i, 3, temp_tracknum);
 
-		QTableWidgetItem *temp_length = new QTableWidgetItem;
-		temp_length->setText(QString::number(scrob_tmp.length, 10));
-		logTable->setItem(i, 4, temp_length );
+        QTableWidgetItem* temp_length = new QTableWidgetItem;
+        temp_length->setText(QString::number(scrob_tmp.length, 10));
+        logTable->setItem(i, 4, temp_length);
 
-		QTableWidgetItem *temp_played = new QTableWidgetItem;
-		temp_played->setText(QChar(scrob_tmp.played));
-		logTable->setItem(i, 5, temp_played );
+        QTableWidgetItem* temp_played = new QTableWidgetItem;
+        temp_played->setText(QChar(scrob_tmp.played));
+        logTable->setItem(i, 5, temp_played);
 
-		QTableWidgetItem *temp_when = new QTableWidgetItem;
-		QString when;
+        QTableWidgetItem* temp_when = new QTableWidgetItem;
+        QString when;
 
-		if (scrob->conf->display_utc)
-		{
-			when = dt_format(scrob_tmp.when);
-		}
-		else
-		{
-			when = dt_format(scrob_tmp.when + scrob->get_custom_offset());
-		}
-		temp_when->setText(when);
+        if (scrob->conf->display_utc) {
+            when = dt_format(scrob_tmp.when);
+        } else {
+            when = dt_format(scrob_tmp.when + scrob->get_custom_offset());
+        }
+        temp_when->setText(when);
 
-		logTable->setItem(i, 6, temp_when );
-
-	}
-	QApplication::restoreOverrideCursor();
+        logTable->setItem(i, 6, temp_when);
+    }
+    QApplication::restoreOverrideCursor();
 
     connect(logTable, &QTableWidget::cellChanged, this, &QTScrob::changeRow);
 }
 
 /*!
-  * Using the built-in QDateTime::toString results in Qt being clever and
-  * adjusting for locale - we just want the straight time.
-  */
-QString QTScrob::dt_format(time_t when)
-{
-	struct tm * tmp = gmtime(&when);
+ * Using the built-in QDateTime::toString results in Qt being clever and
+ * adjusting for locale - we just want the straight time.
+ */
+QString QTScrob::dt_format(time_t when) {
+    struct tm* tmp = gmtime(&when);
 
-	return QString("%1-%2-%3 %4:%5:%6")
-			.arg(QString::number(tmp->tm_year + 1900).rightJustified(4, '0'))
-			.arg(QString::number(tmp->tm_mon + 1).rightJustified(2, '0'))
-			.arg(QString::number(tmp->tm_mday).rightJustified(2, '0'))
-			.arg(QString::number(tmp->tm_hour).rightJustified(2, '0'))
-			.arg(QString::number(tmp->tm_min).rightJustified(2, '0'))
-			.arg(QString::number(tmp->tm_sec).rightJustified(2, '0'));
+    return QString("%1-%2-%3 %4:%5:%6")
+        .arg(QString::number(tmp->tm_year + 1900).rightJustified(4, '0'))
+        .arg(QString::number(tmp->tm_mon + 1).rightJustified(2, '0'))
+        .arg(QString::number(tmp->tm_mday).rightJustified(2, '0'))
+        .arg(QString::number(tmp->tm_hour).rightJustified(2, '0'))
+        .arg(QString::number(tmp->tm_min).rightJustified(2, '0'))
+        .arg(QString::number(tmp->tm_sec).rightJustified(2, '0'));
 }
 
-void QTScrob::updaterecalcDT(QDateTime newrecalcDT)
-{
-	// temp value - we just want to setup the tm struct
-	struct tm * tmp = gmtime(&recalc_timestamp);
+void QTScrob::updaterecalcDT(QDateTime newrecalcDT) {
+    // temp value - we just want to setup the tm struct
+    struct tm* tmp = gmtime(&recalc_timestamp);
 
-	tmp->tm_year = newrecalcDT.date().year() - 1900;
-	tmp->tm_mon = newrecalcDT.date().month() - 1;
-	tmp->tm_mday = newrecalcDT.date().day();
+    tmp->tm_year = newrecalcDT.date().year() - 1900;
+    tmp->tm_mon = newrecalcDT.date().month() - 1;
+    tmp->tm_mday = newrecalcDT.date().day();
 
-	tmp->tm_hour = newrecalcDT.time().hour();
-	tmp->tm_min = newrecalcDT.time().minute();
-	tmp->tm_sec = newrecalcDT.time().second();
+    tmp->tm_hour = newrecalcDT.time().hour();
+    tmp->tm_min = newrecalcDT.time().minute();
+    tmp->tm_sec = newrecalcDT.time().second();
 
-	tmp->tm_isdst = 0;
-	tmp->tm_wday = newrecalcDT.date().dayOfWeek();
-	tmp->tm_yday = newrecalcDT.date().dayOfYear();
+    tmp->tm_isdst = 0;
+    tmp->tm_wday = newrecalcDT.date().dayOfWeek();
+    tmp->tm_yday = newrecalcDT.date().dayOfYear();
 
 #ifdef _MSC_VER
-	recalc_timestamp = _mkgmtime(tmp);
+    recalc_timestamp = _mkgmtime(tmp);
 #else
-	tmp->tm_gmtoff = 0;
-	recalc_timestamp = timegm(tmp);
+    tmp->tm_gmtoff = 0;
+    recalc_timestamp = timegm(tmp);
 #endif
 
-	if (!scrob->conf->display_utc)
-		recalc_timestamp -= scrob->get_custom_offset();
+    if (!scrob->conf->display_utc) recalc_timestamp -= scrob->get_custom_offset();
 }
 
 void QTScrob::recalcDT(void) {
+    scrob->recalc_dt(recalc_timestamp);
 
-	scrob->recalc_dt(recalc_timestamp);
-
-	loadtable();
+    loadtable();
 }
 
 void QTScrob::deleteRow() {
-	if (logTable->rowCount()) { // Items are displayed.
+    if (logTable->rowCount()) {  // Items are displayed.
         if (logTable->selectedItems().isEmpty()) {
             return;
         }
-	if (logTable->rowCount() == 1) { // Handle it as one item.
-        if (logTable->currentRow() < 0)
-            return;
-        QTableWidgetItem * artist = logTable->item(logTable->currentRow(),0);
-        QTableWidgetItem * title = logTable->item(logTable->currentRow(),2);
-        if (QMessageBox::question(this,
-                QCoreApplication::applicationName(),
-                tr("Are you sure you want to delete: %1 - %2?")
-                    .arg(artist->text(), title->text()),
-                QMessageBox::Yes | QMessageBox::No,
-                QMessageBox::No) == QMessageBox::Yes) {
-            scrob->remove_track(logTable->currentRow());
-        }
-    } else { // More than one item.
-        if (QMessageBox::question(this,
-                QCoreApplication::applicationName(),
-                tr("Are you sure you want to delete the selected items?"),
-                QMessageBox::Yes | QMessageBox::No,
-                QMessageBox::No) == QMessageBox::Yes) {
-            for (int i = logTable->rowCount() - 1; i >= 0; i--) {
-                if (logTable->item(i, 0)->isSelected())
-                    scrob->remove_track(i);
+        if (logTable->rowCount() == 1) {  // Handle it as one item.
+            if (logTable->currentRow() < 0) return;
+            QTableWidgetItem* artist = logTable->item(logTable->currentRow(), 0);
+            QTableWidgetItem* title = logTable->item(logTable->currentRow(), 2);
+            if (QMessageBox::question(
+                    this, QCoreApplication::applicationName(),
+                    tr("Are you sure you want to delete: %1 - %2?").arg(artist->text(), title->text()),
+                    QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes) {
+                scrob->remove_track(logTable->currentRow());
+            }
+        } else {  // More than one item.
+            if (QMessageBox::question(this, QCoreApplication::applicationName(),
+                                      tr("Are you sure you want to delete the selected items?"),
+                                      QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes) {
+                for (int i = logTable->rowCount() - 1; i >= 0; i--) {
+                    if (logTable->item(i, 0)->isSelected()) scrob->remove_track(i);
+                }
             }
         }
     }
-	}
 
-	loadtable();
-	if (scrob->get_num_tracks() == 0)
-	{
-		scrob->clear_method();
-		set_open_buttons();
-	}
+    loadtable();
+    if (scrob->get_num_tracks() == 0) {
+        scrob->clear_method();
+        set_open_buttons();
+    }
 }
 
 void QTScrob::changeRow(int r, int c) {
-	scrob_entry tmp = scrob->get_track(r);
+    scrob_entry tmp = scrob->get_track(r);
 
-	bool clear_mb = false;
+    bool clear_mb = false;
 
-	// album name and tracknum are allowed to be blank
-	switch (c) {
-		case 0:
-			if (!logTable->item(r, c)->text().isEmpty())
-			{
-				tmp.artist = logTable->item(r, c)->text().toUtf8().data();
-				clear_mb = true;
-			}
-			break;
-		case 1:
-			tmp.album = logTable->item(r, c)->text().toUtf8().data();
-			clear_mb = true;
-			break;
-		case 2:
-			if (!logTable->item(r, c)->text().isEmpty())
-			{
-				tmp.title = logTable->item(r, c)->text().toUtf8().data();
-				clear_mb = true;
-			}
-			break;
-		case 3:
-            {
-                const QString text = logTable->item(r, c)->text();
-                bool valid = false;
-                const int tracknum = text.toInt(&valid);
-                if (text.isEmpty())
-                    tmp.tracknum = 0;
-                else if (valid && tracknum >= 0)
-                    tmp.tracknum = tracknum;
+    // album name and tracknum are allowed to be blank
+    switch (c) {
+        case 0:
+            if (!logTable->item(r, c)->text().isEmpty()) {
+                tmp.artist = logTable->item(r, c)->text().toUtf8().data();
+                clear_mb = true;
             }
             break;
-		case 4:
-            {
-                bool valid = false;
-                const int length = logTable->item(r, c)->text().toInt(&valid);
-                if (valid && length >= 0)
-                    tmp.length = length;
+        case 1:
+            tmp.album = logTable->item(r, c)->text().toUtf8().data();
+            clear_mb = true;
+            break;
+        case 2:
+            if (!logTable->item(r, c)->text().isEmpty()) {
+                tmp.title = logTable->item(r, c)->text().toUtf8().data();
+                clear_mb = true;
             }
-			break;
-		case 5:
-			if (!logTable->item(r, c)->text().isEmpty())
-			{
+            break;
+        case 3: {
+            const QString text = logTable->item(r, c)->text();
+            bool valid = false;
+            const int tracknum = text.toInt(&valid);
+            if (text.isEmpty())
+                tmp.tracknum = 0;
+            else if (valid && tracknum >= 0)
+                tmp.tracknum = tracknum;
+        } break;
+        case 4: {
+            bool valid = false;
+            const int length = logTable->item(r, c)->text().toInt(&valid);
+            if (valid && length >= 0) tmp.length = length;
+        } break;
+        case 5:
+            if (!logTable->item(r, c)->text().isEmpty()) {
                 char rating = logTable->item(r, c)->text().toLocal8Bit().data()[0];
-				if ('L' == rating || 'S' == rating)
-					tmp.played = rating;
-			}
-			break;
-		case 6:
-			if (!logTable->item(r, c)->text().isEmpty())
-			{
-				QDateTime dt = QDateTime::fromString(logTable->item(r, c)->text(), "yyyy-MM-dd hh:mm:ss");
+                if ('L' == rating || 'S' == rating) tmp.played = rating;
+            }
+            break;
+        case 6:
+            if (!logTable->item(r, c)->text().isEmpty()) {
+                QDateTime dt = QDateTime::fromString(logTable->item(r, c)->text(), "yyyy-MM-dd hh:mm:ss");
                 if (dt.isValid()) {
                     dt.setTimeZone(QTimeZone::utc());
-                    const qint64 timestamp = dt.toSecsSinceEpoch()
-                        - (scrob->conf->display_utc ? 0 : scrob->get_custom_offset());
-                    if (timestamp >= 0 && timestamp <= std::numeric_limits<int>::max())
-                        tmp.when = timestamp;
+                    const qint64 timestamp =
+                        dt.toSecsSinceEpoch() - (scrob->conf->display_utc ? 0 : scrob->get_custom_offset());
+                    if (timestamp >= 0 && timestamp <= std::numeric_limits<int>::max()) tmp.when = timestamp;
                 }
-			}
-			break;
-	}
+            }
+            break;
+    }
 
-	/*
-	  If certain track details have been changed (artist, album, title, etc)
-	  then we can no longer trust the existing MB information
-	  */
-	if (clear_mb)
-		tmp.mb_track_id = "";
+    /*
+      If certain track details have been changed (artist, album, title, etc)
+      then we can no longer trust the existing MB information
+      */
+    if (clear_mb) tmp.mb_track_id = "";
 
-	scrob->update_track(tmp, r);
-	loadtable();
+    scrob->update_track(tmp, r);
+    loadtable();
 }
 
 void QTScrob::scrobble() {
-	if ( logTable->rowCount()==0 ) {
-		QMessageBox::warning(this, QCoreApplication::applicationName(), "Nothing to submit");
-		return;
-	}
+    if (logTable->rowCount() == 0) {
+        QMessageBox::warning(this, QCoreApplication::applicationName(), "Nothing to submit");
+        return;
+    }
 
-	// make sure the widget appears before we submit()
-	QCoreApplication::processEvents();
+    // make sure the widget appears before we submit()
+    QCoreApplication::processEvents();
 
-	lblStatus->setText(tr("Submitting data to server..."));
-	btnSubmit->setEnabled(false);
+    lblStatus->setText(tr("Submitting data to server..."));
+    btnSubmit->setEnabled(false);
 
-    if (scrob->submit())
-    {
-        if (winProgress==NULL)
-        {
+    if (scrob->submit()) {
+        if (winProgress == NULL) {
             winProgress = new Progress(this);
             connect(scrob, &Scrobble::signalCancelProgress, winProgress, &Progress::cancel, Qt::QueuedConnection);
         }
@@ -648,33 +571,30 @@ void QTScrob::scrobble() {
 }
 
 void QTScrob::scrobbled(bool success) {
+    if (winProgress != NULL) {
+        winProgress->close();
+        delete winProgress;
+        winProgress = NULL;
+    }
 
-	if (winProgress != NULL)
-	{
-		winProgress->close();
-		delete winProgress;
-		winProgress = NULL;
-	}
-
-	if(success) {
+    if (success) {
         lblStatus->setText(tr("Data submitted succesfully"));
-	} else {
-		QMessageBox::warning(this, QCoreApplication::applicationName(),
-                             tr("There was a problem submitting data to the server.\n(Reason: %1)")
-							 .arg( scrob->get_error_str() ));
+    } else {
+        QMessageBox::warning(
+            this, QCoreApplication::applicationName(),
+            tr("There was a problem submitting data to the server.\n(Reason: %1)").arg(scrob->get_error_str()));
         lblStatus->setText(tr("Submission failed"));
-	}
+    }
 
-	loadtable();
-	scrob->clear_method();
-	set_open_buttons();
-	btnSubmit->setEnabled(true);
+    loadtable();
+    scrob->clear_method();
+    set_open_buttons();
+    btnSubmit->setEnabled(true);
 }
 
-void QTScrob::set_open_buttons()
-{
-// don't allow more than one parser method to be opened at a time
-// (unless the last method opened 0 tracks)
+void QTScrob::set_open_buttons() {
+    // don't allow more than one parser method to be opened at a time
+    // (unless the last method opened 0 tracks)
     bool const state(!(scrob->get_parser_busy() && scrob->get_num_tracks()));
 
     actOpen->setEnabled(state);
@@ -687,12 +607,11 @@ void QTScrob::set_open_buttons()
 #endif
 }
 
-void QTScrob::settings_close()
-{
-	// close and delete the settings window object.
-	// forces the window to reload the config changes.
-	// prevents a cancelled window from showing any changed settings next time
-	// it is opened
+void QTScrob::settings_close() {
+    // close and delete the settings window object.
+    // forces the window to reload the config changes.
+    // prevents a cancelled window from showing any changed settings next time
+    // it is opened
     if (winSettings != nullptr) {
         winSettings->close();
         winSettings->disconnect();
@@ -700,27 +619,21 @@ void QTScrob::settings_close()
         winSettings = nullptr;
     }
 
-	// reload the table to show the effect of any timezone related settings
-	DT_labels();
-	loadtable();
+    // reload the table to show the effect of any timezone related settings
+    DT_labels();
+    loadtable();
 }
 
-void QTScrob::missing_times_start(int total)
-{
+void QTScrob::missing_times_start(int total) {
     delete progress_missing;
     progress_missing = new MissingTimeProgress(total, this);
-    connect(this, &QTScrob::update_missing_times_progress,
-            progress_missing, &MissingTimeProgress::update_progress);
+    connect(this, &QTScrob::update_missing_times_progress, progress_missing, &MissingTimeProgress::update_progress);
     progress_missing->show();
 }
 
-void QTScrob::missing_times_progress(int remaining)
-{
-    emit update_missing_times_progress(remaining);
-}
+void QTScrob::missing_times_progress(int remaining) { emit update_missing_times_progress(remaining); }
 
-void QTScrob::missing_times_finished()
-{
+void QTScrob::missing_times_finished() {
     if (progress_missing != nullptr) {
         progress_missing->close();
         delete progress_missing;
@@ -729,13 +642,10 @@ void QTScrob::missing_times_finished()
     loadtable();
 }
 
-bool QTScrob::eventFilter(QObject *obj, QEvent *event)
-{
-    if (event->type() == QEvent::KeyPress)
-    {
-        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
-        if (Qt::Key_Delete == keyEvent->key())
-        {
+bool QTScrob::eventFilter(QObject* obj, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        if (Qt::Key_Delete == keyEvent->key()) {
             deleteRow();
             return true;
         }

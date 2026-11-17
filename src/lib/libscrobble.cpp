@@ -16,43 +16,38 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.         *
  ***************************************************************************/
 
-#include <algorithm>
-#include <cmath> // abs
-#include <utility>
 #include "libscrobble.h"
 
-#include "parse-log.h"
+#include <algorithm>
+#include <cmath>  // abs
+#include <utility>
+
 #include "parse-ipod.h"
+#include "parse-log.h"
 #ifdef HAVE_MTP
-    #include "parse-mtp.h"
+#include "parse-mtp.h"
 #endif
 #include "dbcache.h"
 
 #ifdef _MSC_VER
 // disable "'function': was declared deprecated"
-#pragma warning (disable: 4996)
+#pragma warning(disable : 4996)
 #endif
 
-void Scrobble::clear_method()
-{
+void Scrobble::clear_method() {
     scrobble_method = SCROBBLE_NONE;
-    if (entries.isEmpty() && parser != nullptr)
-    {
+    if (entries.isEmpty() && parser != nullptr) {
         ++metadata_generation;
-    api_info->cancel_pending();
+        api_info->cancel_pending();
         zero_length_tracks.clear();
         delete parser;
         parser = nullptr;
     }
 }
 
-uint Scrobble::get_gmt()
-{
-    return QDateTime::currentDateTime().toSecsSinceEpoch();
-}
+uint Scrobble::get_gmt() { return QDateTime::currentDateTime().toSecsSinceEpoch(); }
 
-Scrobble::Scrobble()
-{
+Scrobble::Scrobble() {
     parser = nullptr;
     num_submissions = 0;
     have_mb = false;
@@ -63,11 +58,11 @@ Scrobble::Scrobble()
     conf = new Conf();
     api_info = new GetTrackInfo();
     cache = new DBCache();
-    connect(conf,     &Conf::add_log,         this,     &Scrobble::add_log);
-    connect(api_info, &GetTrackInfo::finished, this,     &Scrobble::updated_track_length);
-    connect(api_info, &GetTrackInfo::add_log,  this,     &Scrobble::add_log);
-    connect(this,     &Scrobble::missing_times_get, api_info, &GetTrackInfo::get);
-    connect(cache,    &DBCache::add_log,       this,     &Scrobble::add_log);
+    connect(conf, &Conf::add_log, this, &Scrobble::add_log);
+    connect(api_info, &GetTrackInfo::finished, this, &Scrobble::updated_track_length);
+    connect(api_info, &GetTrackInfo::add_log, this, &Scrobble::add_log);
+    connect(this, &Scrobble::missing_times_get, api_info, &GetTrackInfo::get);
+    connect(cache, &DBCache::add_log, this, &Scrobble::add_log);
     api_info->start();
     conf->load_config();
     error_str = "";
@@ -84,13 +79,11 @@ Scrobble::Scrobble()
     add_log(LOG_DEBUG, QString("Detected GMT: %1").arg(get_gmt()));
 }
 
-Scrobble::~Scrobble()
-{
+Scrobble::~Scrobble() {
     ++metadata_generation;
     api_info->cancel_pending();
     delete parser;
-    for (Submit *submission : std::as_const(submissions))
-    {
+    for (Submit* submission : std::as_const(submissions)) {
         submission->disconnect();
         delete submission;
     }
@@ -102,21 +95,14 @@ Scrobble::~Scrobble()
     delete cache;
 }
 
-int Scrobble::get_custom_offset()
-{
-    return (conf->tz_override?conf->utc_offset:gmt_offset);
-}
+int Scrobble::get_custom_offset() { return (conf->tz_override ? conf->utc_offset : gmt_offset); }
 
 // convenience overloaded function.  Will recalc ALL tracks.
-void Scrobble::recalc_dt(int base_dt)
-{
-    recalc_dt(base_dt, entries.size() - 1);
-}
+void Scrobble::recalc_dt(int base_dt) { recalc_dt(base_dt, entries.size() - 1); }
 
 // recalcs datetime backwards from entry_offset
 // assumes that the entries have been sorted by datetime.
-void Scrobble::recalc_dt(int base_dt, int entry_offset)
-{
+void Scrobble::recalc_dt(int base_dt, int entry_offset) {
     for (int i = entry_offset; i >= 0; i--) {
         scrob_entry temp = entries.at(i);
         base_dt -= temp.length;
@@ -126,66 +112,49 @@ void Scrobble::recalc_dt(int base_dt, int entry_offset)
     }
 }
 
-void Scrobble::recalc_now()
-{
-    recalc_dt(get_gmt());
-}
+void Scrobble::recalc_now() { recalc_dt(get_gmt()); }
 
-int Scrobble::get_num_tracks()
-{
-    return entries.size();
-}
+int Scrobble::get_num_tracks() { return entries.size(); }
 
-scrob_entry Scrobble::get_track(int track_index)
-{
-    return entries.at(track_index);
-}
+scrob_entry Scrobble::get_track(int track_index) { return entries.at(track_index); }
 
-void Scrobble::remove_track(int track_index)
-{
+void Scrobble::remove_track(int track_index) {
     const bool pending_metadata = !zero_length_tracks.isEmpty();
-    entries.erase(entries.begin()+track_index);
-    if (pending_metadata)
-        check_track_lengths();
+    entries.erase(entries.begin() + track_index);
+    if (pending_metadata) check_track_lengths();
 }
 
-void Scrobble::update_track(scrob_entry track, int track_index)
-{
+void Scrobble::update_track(scrob_entry track, int track_index) {
     const scrob_entry previous = entries.at(track_index);
-    const bool restart_metadata = !zero_length_tracks.isEmpty()
-        && (previous.artist != track.artist || previous.title != track.title || previous.length != track.length);
+    const bool restart_metadata =
+        !zero_length_tracks.isEmpty() &&
+        (previous.artist != track.artist || previous.title != track.title || previous.length != track.length);
     entries.replace(track_index, track);
-    if (restart_metadata)
-        check_track_lengths();
+    if (restart_metadata) check_track_lengths();
 }
 
-void Scrobble::sort_tracks()
-{
+void Scrobble::sort_tracks() {
     // sort by played Date/Time
     std::sort(entries.begin(), entries.end(), entry_less_than);
 }
 
 // called before submission to ensure data sent is valid
-void Scrobble::cleanup_tracks(void)
-{
+void Scrobble::cleanup_tracks(void) {
     sort_tracks();
 
     int size = entries.size();
 
-    //delete tracks that were skipped or too short
+    // delete tracks that were skipped or too short
     for (int i = 0; i < size; i++) {
         scrob_entry tmp = entries.at(i);
 
         // reset all previously failed tracks to unsent
-        for (int j = 0; j < CONFIG_NUM_SITES; j++)
-        {
-            if (tmp.sent[j] != SENT_SUCCESS)
-                tmp.sent[j] = SENT_UNSENT;
+        for (int j = 0; j < CONFIG_NUM_SITES; j++) {
+            if (tmp.sent[j] != SENT_SUCCESS) tmp.sent[j] = SENT_UNSENT;
         }
         entries.replace(i, tmp);
-        if ( tmp.played != 'L' || tmp.length < 30 )
-        {
-            //entries.erase(entries.begin() + i);
+        if (tmp.played != 'L' || tmp.length < 30) {
+            // entries.erase(entries.begin() + i);
             entries.removeAt(i);
             size--;
             i--;
@@ -194,32 +163,24 @@ void Scrobble::cleanup_tracks(void)
 }
 
 // called after parsing to ensure all tracks have timestamps
-void Scrobble::check_timestamps()
-{
+void Scrobble::check_timestamps() {
     const int size = entries.size();
 
-    if (0 == size)
-        return;
+    if (0 == size) return;
 
     sort_tracks();
 
     // do we have at least one track without date/time info?
-    if (0 == entries.at(0).when)
-    {
+    if (0 == entries.at(0).when) {
         // do we have ANY tracks with dt info?
-        if (0 == entries.at(size - 1).when)
-        {
+        if (0 == entries.at(size - 1).when) {
             // no? then recalc them all
             recalc_dt(get_gmt());
-        }
-        else
-        {
+        } else {
             int i;
             // find where the good date info ends
-            for (i = 1; i < size; i++)
-            {
-                if (0 != entries.at(i).when)
-                    break;
+            for (i = 1; i < size; i++) {
+                if (0 != entries.at(i).when) break;
             }
             // recalc the bad ones
             recalc_dt(entries.at(i).when, i - 1);
@@ -227,21 +188,16 @@ void Scrobble::check_timestamps()
     }
 }
 
-void Scrobble::check_track_lengths()
-{
+void Scrobble::check_track_lengths() {
     const bool was_pending = !zero_length_tracks.isEmpty();
     ++metadata_generation;
     api_info->cancel_pending();
     zero_length_tracks.clear();
-    for (int i = 0; i < entries.length(); i++)
-    {
+    for (int i = 0; i < entries.length(); i++) {
         const int len = entries.at(i).length;
-        if (0 == len)
-        {
+        if (0 == len) {
             zero_length_tracks.append(i);
-        }
-        else if (len > 0 && len < 30)
-        {
+        } else if (len > 0 && len < 30) {
             // set tracks which are too short as skipped so they do not submit
             mutex->lock();
             entries[i].played = 'S';
@@ -249,15 +205,11 @@ void Scrobble::check_track_lengths()
         }
     }
 
-    if (db_ready)
-    {
-        for (int i = zero_length_tracks.length() - 1; i >= 0 ; i--)
-        {
+    if (db_ready) {
+        for (int i = zero_length_tracks.length() - 1; i >= 0; i--) {
             int index = zero_length_tracks[i];
-            int length = cache->get_track_length(entries[index].artist,
-                                                 entries[index].title);
-            if (length != -1)
-            {
+            int length = cache->get_track_length(entries[index].artist, entries[index].title);
+            if (length != -1) {
                 mutex->lock();
                 entries[index].length = length;
                 mutex->unlock();
@@ -266,121 +218,86 @@ void Scrobble::check_track_lengths()
         }
     }
 
-    if (!zero_length_tracks.isEmpty())
-    {
+    if (!zero_length_tracks.isEmpty()) {
         add_log(LOG_INFO, tr("Fetching missing track lengths from last.fm..."));
         const quint64 generation = metadata_generation;
         emit missing_times_start(zero_length_tracks.length());
-        if (generation != metadata_generation || zero_length_tracks.isEmpty())
-            return;
+        if (generation != metadata_generation || zero_length_tracks.isEmpty()) return;
         const int index = zero_length_tracks.first();
         emit missing_times_get(index, entries.at(index), 0);
-    }
-    else if (was_pending)
-    {
+    } else if (was_pending) {
         check_timestamps();
         emit missing_times_finished();
     }
 }
 
-void Scrobble::updated_track_length(int index, bool success, int length, int elapsed)
-{
-    if (zero_length_tracks.isEmpty() || zero_length_tracks.first() != index
-        || index < 0 || index >= entries.size())
+void Scrobble::updated_track_length(int index, bool success, int length, int elapsed) {
+    if (zero_length_tracks.isEmpty() || zero_length_tracks.first() != index || index < 0 || index >= entries.size())
         return;
     const quint64 generation = metadata_generation;
     const int minimum_time = 200;
-    if (success)
-    {
+    if (success) {
         mutex->lock();
         entries[index].length = length;
-        if (db_ready)
-            cache->set_track_length(entries[index].artist, entries[index].title, length);
+        if (db_ready) cache->set_track_length(entries[index].artist, entries[index].title, length);
         mutex->unlock();
     }
     zero_length_tracks.removeFirst();
-    if (!zero_length_tracks.isEmpty())
-    {
+    if (!zero_length_tracks.isEmpty()) {
         emit missing_times_progress(zero_length_tracks.length());
-        if (generation != metadata_generation || zero_length_tracks.isEmpty())
-            return;
+        if (generation != metadata_generation || zero_length_tracks.isEmpty()) return;
         const int target = zero_length_tracks.first();
-        emit missing_times_get(target, entries.at(target),
-                               (elapsed < minimum_time)?(minimum_time-elapsed):0);
-    }
-    else
-    {
+        emit missing_times_get(target, entries.at(target), (elapsed < minimum_time) ? (minimum_time - elapsed) : 0);
+    } else {
         check_timestamps();
         emit missing_times_finished();
     }
 }
 
-void Scrobble::slotCancelProgress()
-{
+void Scrobble::slotCancelProgress() {
     // Existing GUI listeners can cancel synchronously. CLI users have no progress dialog,
     // so finish the operation here if no listener already handled it.
     QPointer<Scrobble> guard(this);
     emit signalCancelProgress();
-    if (guard && !submissions.isEmpty())
-        cancel_submission();
+    if (guard && !submissions.isEmpty()) cancel_submission();
 }
 
-QString Scrobble::offset_str(void)
-{
-    QChar sign = (gmt_offset < 0)?'-':'+';
+QString Scrobble::offset_str(void) {
+    QChar sign = (gmt_offset < 0) ? '-' : '+';
     int hour = abs(gmt_offset) / 3600;
     int min = (abs(gmt_offset) % 3600) / 60;
     QString hour_str = QString::number(hour).rightJustified(2, '0');
     QString min_str = QString::number(min).rightJustified(2, '0');
 
-    return QString("UTC %1%2:%3")
-            .arg(sign)
-            .arg(hour_str, min_str);
+    return QString("UTC %1%2:%3").arg(sign).arg(hour_str, min_str);
 }
 
-void Scrobble::add_log(LOG_LEVEL level, QString msg)
-{
+void Scrobble::add_log(LOG_LEVEL level, QString msg) {
     log_entry tmp;
     tmp.level = level;
     tmp.msg = msg;
     log_messages.push_back(tmp);
 
-    if (level <= log_print_level)
-        QTextStream(stdout) << LOG_LEVEL_NAMES[level] << ": " << msg << Qt::endl;
+    if (level <= log_print_level) QTextStream(stdout) << LOG_LEVEL_NAMES[level] << ": " << msg << Qt::endl;
 
-    if (LOG_ERROR == level)
-        error_str = msg;
+    if (LOG_ERROR == level) error_str = msg;
 }
 
-int Scrobble::get_num_logs()
-{
-    return log_messages.size();
-}
+int Scrobble::get_num_logs() { return log_messages.size(); }
 
-log_entry Scrobble::get_log(int index)
-{
-    return log_messages.at(index);
-}
+log_entry Scrobble::get_log(int index) { return log_messages.at(index); }
 
-void Scrobble::clear_log()
-{
-    log_messages.clear();
-}
+void Scrobble::clear_log() { log_messages.clear(); }
 
-void Scrobble::set_log_level(LOG_LEVEL level)
-{
-    log_print_level = level;
-}
+void Scrobble::set_log_level(LOG_LEVEL level) { log_print_level = level; }
 
-bool Scrobble::check_age()
-{
+bool Scrobble::check_age() {
     bool too_old = false;
     // Now - 30 days
     time_t max_age = get_gmt() - 2592000;
-    for ( int i = 0; i < entries.size(); i++) {
+    for (int i = 0; i < entries.size(); i++) {
         scrob_entry tmp = entries.at(i);
-        if ( tmp.when < max_age )
-        {
+        if (tmp.when < max_age) {
             add_log(LOG_INFO, "Track too old: " + tmp.artist + " " + tmp.title);
             too_old = true;
         }
@@ -388,25 +305,21 @@ bool Scrobble::check_age()
     return too_old;
 }
 
-bool Scrobble::submit()
-{
-    if (!zero_length_tracks.isEmpty())
-    {
+bool Scrobble::submit() {
+    if (!zero_length_tracks.isEmpty()) {
         add_log(LOG_ERROR, tr("Track lengths are still being fetched. Please wait before submitting."));
         emit submission_finished(false);
         return false;
     }
     // Filtering can remove every track, even if the imported list was nonempty.
     cleanup_tracks();
-    if (entries.empty())
-    {
+    if (entries.empty()) {
         add_log(LOG_ERROR, tr("Nothing to submit!"));
         emit submission_finished(false);
         return false;
     }
 
-    if (check_age())
-    {
+    if (check_age()) {
         add_log(LOG_ERROR, tr("One or more tracks are too old.  Correct this and try again."));
         emit submission_finished(false);
         return false;
@@ -421,14 +334,9 @@ bool Scrobble::submit()
 
     submissions.clear();
     num_submissions = 0;
-    for (int i = 0; i < CONFIG_NUM_SITES; i++)
-    {
-        if (conf->sites[i].enabled
-            && !conf->sites[i].username.isEmpty()
-            && !conf->sites[i].password_hash.isEmpty()
-            && !conf->sites[i].handshake_host.isEmpty()
-            && !conf->sites[i].conf_name.isEmpty())
-        {
+    for (int i = 0; i < CONFIG_NUM_SITES; i++) {
+        if (conf->sites[i].enabled && !conf->sites[i].username.isEmpty() && !conf->sites[i].password_hash.isEmpty() &&
+            !conf->sites[i].handshake_host.isEmpty() && !conf->sites[i].conf_name.isEmpty()) {
             num_submissions++;
             conn.username = conf->sites[i].username;
             conn.password_hash = conf->sites[i].password_hash;
@@ -436,23 +344,22 @@ bool Scrobble::submit()
             conn.site_index = i;
             conn.mutex = mutex;
 
-            Submit *sub = new Submit(i);
+            Submit* sub = new Submit(i);
             submissions.insert(i, sub);
 
             submissions[i]->init(conn);
 
-            connect(submissions[i], &Submit::finished,  this, &Scrobble::submit_finished);
-            connect(submissions[i], &Submit::add_log,   this, &Scrobble::add_log);
+            connect(submissions[i], &Submit::finished, this, &Scrobble::submit_finished);
+            connect(submissions[i], &Submit::add_log, this, &Scrobble::add_log);
             // signalHandshakeFailure carries a QString the slot does not consume — use lambda
-            connect(submissions[i], &Submit::signalHandshakeFailure,
-                    this, [this](const QString &) { slotCancelProgress(); });
+            connect(submissions[i], &Submit::signalHandshakeFailure, this,
+                    [this](const QString&) { slotCancelProgress(); });
 
             submissions[i]->do_submit();
         }
     }
 
-    if (0 == submissions.size())
-    {
+    if (0 == submissions.size()) {
         add_log(LOG_ERROR, tr("No sites were configured and/or enabled. Unable to submit"));
         emit submission_finished(false);
         return false;
@@ -460,22 +367,18 @@ bool Scrobble::submit()
 
     add_log(LOG_INFO, "Scrobble::submit() finished");
 
-    if(!error_str.isEmpty())
-    {
+    if (!error_str.isEmpty()) {
         add_log(LOG_INFO, "Scrobble::submit() but with the following errors:" + error_str);
     }
 
-    return true; //error_str.isEmpty();
+    return true;  // error_str.isEmpty();
 }
 
-void Scrobble::submit_finished(bool success, QString msg)
-{
+void Scrobble::submit_finished(bool success, QString msg) {
     add_log(LOG_INFO, "Submit() complete");
-    if (!msg.isEmpty())
-        add_log(LOG_ERROR, msg);
+    if (!msg.isEmpty()) add_log(LOG_ERROR, msg);
 
-    if (!success && parser != nullptr)
-    {
+    if (!success && parser != nullptr) {
         parser->disconnect();
         delete parser;
         parser = NULL;
@@ -483,38 +386,29 @@ void Scrobble::submit_finished(bool success, QString msg)
 
     num_submissions--;
 
-    if (0 == num_submissions)
-    {
+    if (0 == num_submissions) {
         clear_submission_state(success);
     }
 }
 
-void Scrobble::remove_sent()
-{
-    if (submissions.isEmpty())
-        return;
+void Scrobble::remove_sent() {
+    if (submissions.isEmpty()) return;
 
-    for (int i = entries.size() - 1; i >= 0; i--)
-    {
+    for (int i = entries.size() - 1; i >= 0; i--) {
         bool submitted = true;
 
-        QHashIterator<int, Submit *> j(submissions);
-        while (j.hasNext())
-        {
+        QHashIterator<int, Submit*> j(submissions);
+        while (j.hasNext()) {
             j.next();
-            if (SENT_SUCCESS != entries[i].sent[j.value()->index])
-                submitted = false;
+            if (SENT_SUCCESS != entries[i].sent[j.value()->index]) submitted = false;
         }
-        if (submitted)
-            entries.removeAt(i);
+        if (submitted) entries.removeAt(i);
     }
 }
 
-bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
-{
+bool Scrobble::parse(SCROBBLE_METHOD method, QString path) {
     int offset = get_custom_offset();
-    if (parser != NULL)
-    {
+    if (parser != NULL) {
         add_log(LOG_ERROR, tr("Asked to create a duplicate parser"));
         return false;
     }
@@ -524,8 +418,7 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
     api_info->cancel_pending();
     zero_length_tracks.clear();
     entries.clear();
-    switch (method)
-    {
+    switch (method) {
         case SCROBBLE_LOG:
             parser = new Parse_Log();
             break;
@@ -545,9 +438,9 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
     }
     scrobble_method = method;
 
-    connect(parser, &Parse::add_log,        this, &Scrobble::add_log);
-    connect(parser, &Parse::entry,          this, &Scrobble::add_entry);
-    connect(parser, &Parse::open_finished,  this, &Scrobble::parser_open_finished);
+    connect(parser, &Parse::add_log, this, &Scrobble::add_log);
+    connect(parser, &Parse::entry, this, &Scrobble::add_entry);
+    connect(parser, &Parse::open_finished, this, &Scrobble::parser_open_finished);
     connect(parser, &Parse::clear_finished, this, &Scrobble::parser_clear_finished);
 
     parser->open(path, offset);
@@ -555,38 +448,28 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path)
     return true;
 }
 
-void Scrobble::parse_open(QString path, int offset)
-{
-    if (parser != nullptr)
-    {
+void Scrobble::parse_open(QString path, int offset) {
+    if (parser != nullptr) {
         ++metadata_generation;
-    api_info->cancel_pending();
+        api_info->cancel_pending();
         zero_length_tracks.clear();
         entries.clear();
         parser->open(path, offset);
     }
 }
 
-void Scrobble::add_entry(scrob_entry new_entry)
-{
-    entries.push_back(new_entry);
-}
+void Scrobble::add_entry(scrob_entry new_entry) { entries.push_back(new_entry); }
 
-void Scrobble::parser_open_finished(bool success, QString msg)
-{
-    if (success)
-    {
+void Scrobble::parser_open_finished(bool success, QString msg) {
+    if (success) {
         add_log(LOG_INFO, msg);
         // Metadata requests must honor the same configured proxy as submissions.
         set_proxy();
         // Resolve positional identities before starting asynchronous requests.
         sort_tracks();
         check_track_lengths();
-        if (zero_length_tracks.isEmpty())
-            check_timestamps();
-    }
-    else
-    {
+        if (zero_length_tracks.isEmpty()) check_timestamps();
+    } else {
         add_log(LOG_ERROR, msg);
         error_str = msg;
         parser->disconnect();
@@ -597,8 +480,7 @@ void Scrobble::parser_open_finished(bool success, QString msg)
     emit parsing_opened(success);
 }
 
-void Scrobble::parser_clear()
-{
+void Scrobble::parser_clear() {
     ++metadata_generation;
     api_info->cancel_pending();
     zero_length_tracks.clear();
@@ -608,14 +490,10 @@ void Scrobble::parser_clear()
         add_log(LOG_ERROR, tr("Parser: asked to clear without a live object"));
 }
 
-void Scrobble::parser_clear_finished(bool success, QString msg)
-{
-    if (success)
-    {
+void Scrobble::parser_clear_finished(bool success, QString msg) {
+    if (success) {
         add_log(LOG_INFO, msg);
-    }
-    else
-    {
+    } else {
         add_log(LOG_ERROR, msg);
         error_str = msg;
     }
@@ -629,10 +507,8 @@ void Scrobble::parser_clear_finished(bool success, QString msg)
     emit parsing_cleared(success);
 }
 
-void Scrobble::set_proxy()
-{
-    if (!conf->proxy_host.isEmpty())
-    {
+void Scrobble::set_proxy() {
+    if (!conf->proxy_host.isEmpty()) {
         QNetworkProxy proxy;
         proxy.setType(QNetworkProxy::HttpProxy);
         proxy.setHostName(conf->proxy_host);
@@ -641,55 +517,46 @@ void Scrobble::set_proxy()
         proxy.setPassword(conf->proxy_pass);
         QNetworkProxy::setApplicationProxy(proxy);
         proxy_set = true;
-    }
-    else if (proxy_set)
-    {
+    } else if (proxy_set) {
         QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
     }
 }
 
-void Scrobble::cancel_submission()
-{
+void Scrobble::cancel_submission() {
     ++metadata_generation;
     api_info->cancel_pending();
     zero_length_tracks.clear();
-    QHashIterator<int, Submit *> i(submissions);
-    while (i.hasNext())
-    {
+    QHashIterator<int, Submit*> i(submissions);
+    while (i.hasNext()) {
         i.next();
         i.value()->cancel_submission();
     }
     clear_submission_state(false);
 }
 
-void Scrobble::clear_submission_state(bool success)
-{
+void Scrobble::clear_submission_state(bool success) {
     bool overall_success = true;
 
     // parser will disconnect & delete itself after clearing
     remove_sent();
 
     // Remove sumbission classes now we are finished with them
-    QHashIterator<int, Submit *> i(submissions);
-    while (i.hasNext())
-    {
+    QHashIterator<int, Submit*> i(submissions);
+    while (i.hasNext()) {
         i.next();
-        if (!i.value()->submission_successful())
-            overall_success = false;
+        if (!i.value()->submission_successful()) overall_success = false;
         // remove all signals/slots
         i.value()->disconnect();
         i.value()->deleteLater();
     }
 
     // If nothing was sent (checks failed - tracks too old?) do not clear device
-    if (0 == submissions.size())
-        overall_success = false;
+    if (0 == submissions.size()) overall_success = false;
 
     // parser will disconnect & delete itself after clearing
     if (overall_success)
         parser_clear();
-    else if (parser != nullptr)
-    {
+    else if (parser != nullptr) {
         parser->disconnect();
         delete parser;
         parser = nullptr;

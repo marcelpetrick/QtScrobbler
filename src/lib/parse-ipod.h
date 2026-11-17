@@ -20,31 +20,31 @@
 #define PARSE_IPOD_H
 
 #include <QtCore>
+
 #include "parse.h"
 
 #define MHOD_TITLE 1
 #define MHOD_ALBUM 3
 #define MHOD_ARTIST 4
 
-class Parse_Ipod : public Parse
-{
+class Parse_Ipod : public Parse {
     Q_OBJECT
-public:
+   public:
     Parse_Ipod();
     ~Parse_Ipod();
     virtual void open(QString, int);
     virtual void clear();
     virtual SCROBBLE_METHOD get_method() { return SCROBBLE_IPOD; }
 
-private:
+   private:
     int entries;
     int playcounts;
     int tracks;
     QString playcounts_file;
     bool compressed;
-    void open_plain(QString folder_path, int tz, QByteArray &data);
-    void open_compressed(QString folder_path, int tz, QByteArray &data);
-    void parse_db(QString folder_path, int tz, QByteArray &data);
+    void open_plain(QString folder_path, int tz, QByteArray& data);
+    void open_compressed(QString folder_path, int tz, QByteArray& data);
+    void parse_db(QString folder_path, int tz, QByteArray& data);
 };
 
 #endif

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2026 Marcel Petrick
-#include "common.h"
-
 #include <QCryptographicHash>
 #include <QElapsedTimer>
 #include <QProcess>
@@ -12,17 +10,17 @@
 #include <QUrlQuery>
 #include <QtTest>
 
-struct HttpRequest
-{
+#include "common.h"
+
+struct HttpRequest {
     QByteArray method;
     QByteArray target;
     QHash<QByteArray, QByteArray> headers;
     QByteArray body;
 };
 
-class FakeScrobbleServer : public QTcpServer
-{
-public:
+class FakeScrobbleServer : public QTcpServer {
+   public:
     QList<HttpRequest> requests;
     QByteArray handshakeResult;
     QByteArray submissionResult = "OK\n";
@@ -30,52 +28,44 @@ public:
     bool listenLocally() { return listen(QHostAddress::LocalHost, 0); }
     QString host() const { return QString("127.0.0.1:%1").arg(serverPort()); }
 
-    FakeScrobbleServer()
-    {
+    FakeScrobbleServer() {
         connect(this, &QTcpServer::newConnection, this, [this] {
-            while (hasPendingConnections())
-            {
-                QTcpSocket *socket = nextPendingConnection();
+            while (hasPendingConnections()) {
+                QTcpSocket* socket = nextPendingConnection();
                 buffers.insert(socket, QByteArray());
                 connect(socket, &QTcpSocket::readyRead, this, [this, socket] {
-                    QByteArray &buffer = buffers[socket];
+                    QByteArray& buffer = buffers[socket];
                     buffer += socket->readAll();
                     const qsizetype end = buffer.indexOf("\r\n\r\n");
-                    if (end < 0)
-                        return;
+                    if (end < 0) return;
                     HttpRequest request;
                     const QList<QByteArray> lines = buffer.left(end).split('\n');
                     const QList<QByteArray> first = lines.first().trimmed().split(' ');
-                    if (first.size() != 3)
-                        return;
+                    if (first.size() != 3) return;
                     request.method = first[0];
                     request.target = first[1];
-                    for (qsizetype i = 1; i < lines.size(); ++i)
-                    {
+                    for (qsizetype i = 1; i < lines.size(); ++i) {
                         const QByteArray line = lines[i].trimmed();
                         const qsizetype colon = line.indexOf(':');
                         if (colon > 0)
                             request.headers.insert(line.left(colon).toLower(), line.mid(colon + 1).trimmed());
                     }
                     const int size = request.headers.value("content-length").toInt();
-                    if (buffer.size() - end - 4 < size)
-                        return;
+                    if (buffer.size() - end - 4 < size) return;
                     request.body = buffer.mid(end + 4, size);
                     requests.append(request);
                     QByteArray response;
                     if (request.body.startsWith("method=track.getinfo"))
                         response = metadataResult;
-                    else if (request.method == "GET")
-                    {
+                    else if (request.method == "GET") {
                         response = handshakeResult.isNull()
-                            ? QByteArray("OK\nfixture-session\nhttp://") + host().toLatin1() + "/now\nhttp://"
-                                + host().toLatin1() + "/submit\n"
-                            : handshakeResult;
-                    }
-                    else
+                                       ? QByteArray("OK\nfixture-session\nhttp://") + host().toLatin1() +
+                                             "/now\nhttp://" + host().toLatin1() + "/submit\n"
+                                       : handshakeResult;
+                    } else
                         response = submissionResult;
-                    socket->write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
-                                  + QByteArray::number(response.size()) + "\r\nConnection: close\r\n\r\n" + response);
+                    socket->write("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " +
+                                  QByteArray::number(response.size()) + "\r\nConnection: close\r\n\r\n" + response);
                     socket->disconnectFromHost();
                     buffer.clear();
                 });
@@ -84,15 +74,13 @@ public:
         });
     }
 
-private:
-    QHash<QTcpSocket *, QByteArray> buffers;
+   private:
+    QHash<QTcpSocket*, QByteArray> buffers;
 };
 
-class CliTest : public QObject
-{
+class CliTest : public QObject {
     Q_OBJECT
-    struct Result
-    {
+    struct Result {
         bool started = false;
         bool timedOut = false;
         int exitCode = -1;
@@ -101,8 +89,7 @@ class CliTest : public QObject
         QByteArray error;
     };
 
-    static Result run(const QStringList &arguments, const QString &home)
-    {
+    static Result run(const QStringList& arguments, const QString& home) {
         QProcess process;
         auto environment = QProcessEnvironment::systemEnvironment();
         environment.insert("HOME", home);
@@ -118,10 +105,9 @@ class CliTest : public QObject
         QElapsedTimer timer;
         timer.start();
         while (process.state() != QProcess::NotRunning && timer.elapsed() < 5000)
-            QTest::qWait(1); // Runs the parent's loopback HTTP server while the child works.
+            QTest::qWait(1);  // Runs the parent's loopback HTTP server while the child works.
         result.timedOut = process.state() != QProcess::NotRunning;
-        if (result.timedOut)
-        {
+        if (result.timedOut) {
             process.kill();
             process.waitForFinished(2000);
         }
@@ -132,14 +118,12 @@ class CliTest : public QObject
         return result;
     }
 
-    static bool write(const QString &path, const QByteArray &contents)
-    {
+    static bool write(const QString& path, const QByteArray& contents) {
         QFile file(path);
         return file.open(QIODevice::WriteOnly) && file.write(contents) == contents.size();
     }
 
-    static QString config(const QString &directory, const QString &host = QString())
-    {
+    static QString config(const QString& directory, const QString& host = QString()) {
         const QString path = directory + "/fixture.ini";
         QSettings settings(path, QSettings::IniFormat);
         settings.setValue("Custom/enabled", !host.isEmpty());
@@ -151,22 +135,17 @@ class CliTest : public QObject
         return settings.status() == QSettings::NoError ? path : QString();
     }
 
-    static QByteArray log(qint64 timestamp, bool utc = true)
-    {
-        return QByteArray("#AUDIOSCROBBLER/1.1\n#TZ/") + (utc ? "UTC" : "UNKNOWN")
-            + "\n#CLIENT/QtScrobbler-offline-test\n"
-            + "Fictional Élan & Friends\tDemo Album\tSample + / Tune\t2\t180\tL\t"
-            + QByteArray::number(timestamp) + "\t00000000-0000-0000-0000-000000000000\n";
+    static QByteArray log(qint64 timestamp, bool utc = true) {
+        return QByteArray("#AUDIOSCROBBLER/1.1\n#TZ/") + (utc ? "UTC" : "UNKNOWN") +
+               "\n#CLIENT/QtScrobbler-offline-test\n" +
+               "Fictional Élan & Friends\tDemo Album\tSample + / Tune\t2\t180\tL\t" + QByteArray::number(timestamp) +
+               "\t00000000-0000-0000-0000-000000000000\n";
     }
 
-    static QByteArray diagnostics(const Result &result)
-    {
-        return result.output + '\n' + result.error;
-    }
+    static QByteArray diagnostics(const Result& result) { return result.output + '\n' + result.error; }
 
-private slots:
-    void help_data()
-    {
+   private slots:
+    void help_data() {
         QTest::addColumn<QStringList>("arguments");
         QTest::newRow("long") << QStringList{"--help"};
         QTest::newRow("short") << QStringList{"-h"};
@@ -181,8 +160,7 @@ private slots:
 #endif
     }
 
-    void help()
-    {
+    void help() {
         QFETCH(QStringList, arguments);
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
@@ -201,46 +179,47 @@ private slots:
         QCOMPARE(result.error, QByteArray());
     }
 
-    void invalidArguments_data()
-    {
+    void invalidArguments_data() {
         QTest::addColumn<QStringList>("arguments");
         QTest::addColumn<QByteArray>("message");
-        for (const QString option : {"--unknown", "-X", "--config", "--location", "--verbose", "--timezone", "--recalc"})
-            QTest::newRow(qPrintable(option)) << QStringList{option}
-                << QByteArray("Invalid option or missing argument: ") + option.toUtf8() + '\n';
+        for (const QString option :
+             {"--unknown", "-X", "--config", "--location", "--verbose", "--timezone", "--recalc"})
+            QTest::newRow(qPrintable(option))
+                << QStringList{option} << QByteArray("Invalid option or missing argument: ") + option.toUtf8() + '\n';
         QTest::newRow("extra") << QStringList{"unexpected", "another"}
-            << QByteArray("Unknown option argument: unexpected another\n");
+                               << QByteArray("Unknown option argument: unexpected another\n");
         QTest::newRow("after-separator") << QStringList{"--", "--help"}
-            << QByteArray("Unknown option argument: --help\n");
+                                         << QByteArray("Unknown option argument: --help\n");
         QTest::newRow("empty-config") << QStringList{"--config=", "--help"}
-            << QByteArray("Configuration path must not be empty\n");
+                                      << QByteArray("Configuration path must not be empty\n");
         for (const QString value : {"bad", "1.5", "1x", "-1", "4", "2147483648"})
-            QTest::newRow(qPrintable("verbosity-" + value)) << QStringList{"--verbose=" + value, "--help"}
+            QTest::newRow(qPrintable("verbosity-" + value))
+                << QStringList{"--verbose=" + value, "--help"}
                 << QByteArray("Verbosity must be an integer between 0 and 3\n");
         for (const QString value : {"bad", "1x", "nan", "inf", "-inf", "-24.01", "24.01"})
-            QTest::newRow(qPrintable("timezone-" + value)) << QStringList{"--timezone=" + value, "--help"}
+            QTest::newRow(qPrintable("timezone-" + value))
+                << QStringList{"--timezone=" + value, "--help"}
                 << QByteArray("Timezone must be a finite number between -24 and 24 hours\n");
         for (const QString value : {"bad", "1.5", "1x", "-1", "2147483648"})
-            QTest::newRow(qPrintable("recalc-" + value)) << QStringList{"--recalc=" + value, "--help"}
+            QTest::newRow(qPrintable("recalc-" + value))
+                << QStringList{"--recalc=" + value, "--help"}
                 << QByteArray("Recalculation time must be an integer between 0 and 2147483647\n");
-        QTest::newRow("conflicting-time") << QStringList{"-n", "-r", "1"}
-            << QByteArray("You can only use one of -n and -r\n");
-        QTest::newRow("no-method") << QStringList{}
-            << QByteArray("Error - no (single) method specified\n");
-        QTest::newRow("conflicting-methods") << QStringList{"-f", "-d"}
-            << QByteArray("Error - no (single) method specified\n");
-        QTest::newRow("conflicting-long-methods") << QStringList{"--file", "--database"}
-            << QByteArray("Error - no (single) method specified\n");
+        QTest::newRow("conflicting-time")
+            << QStringList{"-n", "-r", "1"} << QByteArray("You can only use one of -n and -r\n");
+        QTest::newRow("no-method") << QStringList{} << QByteArray("Error - no (single) method specified\n");
+        QTest::newRow("conflicting-methods")
+            << QStringList{"-f", "-d"} << QByteArray("Error - no (single) method specified\n");
+        QTest::newRow("conflicting-long-methods")
+            << QStringList{"--file", "--database"} << QByteArray("Error - no (single) method specified\n");
 #ifdef HAVE_MTP
-        QTest::newRow("conflicting-mtp-file") << QStringList{"-m", "-f"}
-            << QByteArray("Error - no (single) method specified\n");
-        QTest::newRow("conflicting-mtp-db") << QStringList{"--mtp", "--database"}
-            << QByteArray("Error - no (single) method specified\n");
+        QTest::newRow("conflicting-mtp-file")
+            << QStringList{"-m", "-f"} << QByteArray("Error - no (single) method specified\n");
+        QTest::newRow("conflicting-mtp-db")
+            << QStringList{"--mtp", "--database"} << QByteArray("Error - no (single) method specified\n");
 #endif
     }
 
-    void invalidArguments()
-    {
+    void invalidArguments() {
         QFETCH(QStringList, arguments);
         QFETCH(QByteArray, message);
         QTemporaryDir directory;
@@ -251,8 +230,7 @@ private slots:
         QCOMPARE(result.error, message);
     }
 
-    void badConfiguration_data()
-    {
+    void badConfiguration_data() {
         QTest::addColumn<QString>("kind");
         QTest::newRow("missing") << "missing";
         QTest::newRow("directory") << "directory";
@@ -262,27 +240,23 @@ private slots:
 #endif
     }
 
-    void badConfiguration()
-    {
+    void badConfiguration() {
         QFETCH(QString, kind);
         QTemporaryDir directory;
         QString file = directory.filePath("missing.ini");
-        if (kind == "directory")
-            file = directory.path();
-        if (kind == "corrupt")
-            QVERIFY(write(file, "[broken\nkey=value\n"));
+        if (kind == "directory") file = directory.path();
+        if (kind == "corrupt") QVERIFY(write(file, "[broken\nkey=value\n"));
         QStringList arguments{kind == "mtp" ? "-m" : "-f", "-c", file, "-l", directory.path()};
         const Result result = run(arguments, directory.path());
         QVERIFY2(result.started && !result.timedOut, diagnostics(result).constData());
         QCOMPARE(result.exitStatus, QProcess::NormalExit);
         QCOMPARE(result.exitCode, 1);
         QCOMPARE(result.error, (kind == "corrupt" ? QByteArray("Invalid configuration file: ")
-                                                  : QByteArray("Unable to read configuration file: "))
-                  + file.toUtf8() + '\n');
+                                                  : QByteArray("Unable to read configuration file: ")) +
+                                   file.toUtf8() + '\n');
     }
 
-    void parserFailures_data()
-    {
+    void parserFailures_data() {
         QTest::addColumn<QString>("kind");
         QTest::newRow("missing-log") << "missing";
         QTest::newRow("short-log") << "short";
@@ -291,14 +265,11 @@ private slots:
         QTest::newRow("missing-ipod") << "ipod";
     }
 
-    void parserFailures()
-    {
+    void parserFailures() {
         QFETCH(QString, kind);
         QTemporaryDir directory;
-        if (kind == "short")
-            QVERIFY(write(directory.filePath(".scrobbler.log"), "broken\n"));
-        if (kind == "header")
-            QVERIFY(write(directory.filePath(".scrobbler.log"), "wrong\n#TZ/UTC\n#CLIENT/test\n"));
+        if (kind == "short") QVERIFY(write(directory.filePath(".scrobbler.log"), "broken\n"));
+        if (kind == "header") QVERIFY(write(directory.filePath(".scrobbler.log"), "wrong\n#TZ/UTC\n#CLIENT/test\n"));
         if (kind == "empty")
             QVERIFY(write(directory.filePath(".scrobbler.log"), "#AUDIOSCROBBLER/1.0\n#TZ/UTC\n#CLIENT/test\n"));
         const Result result = run({kind == "ipod" ? "-d" : "-f", "-l", directory.path()}, directory.path());
@@ -309,8 +280,7 @@ private slots:
         QVERIFY(!result.output.contains("Submission complete"));
     }
 
-    void noEnabledSite()
-    {
+    void noEnabledSite() {
         QTemporaryDir directory;
         QVERIFY(write(directory.filePath(".scrobbler.log"), log(QDateTime::currentSecsSinceEpoch() - 60)));
         const QString configuration = config(directory.path());
@@ -319,19 +289,18 @@ private slots:
         QVERIFY2(result.started && !result.timedOut, diagnostics(result).constData());
         QCOMPARE(result.exitStatus, QProcess::NormalExit);
         QCOMPARE(result.exitCode, 1);
-        QCOMPARE(result.error, QByteArray("Submission failed: No sites were configured and/or enabled. Unable to submit\n"));
+        QCOMPARE(result.error,
+                 QByteArray("Submission failed: No sites were configured and/or enabled. Unable to submit\n"));
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void upload_data()
-    {
+    void upload_data() {
         QTest::addColumn<QString>("mode");
         for (const QString mode : {"short", "long", "timezone", "utc-overrides-timezone", "recalc", "now", "quiet"})
             QTest::newRow(qPrintable(mode)) << mode;
     }
 
-    void upload()
-    {
+    void upload() {
         QFETCH(QString, mode);
         QTemporaryDir directory;
         FakeScrobbleServer server;
@@ -341,18 +310,14 @@ private slots:
         QVERIFY(write(file, log(timestamp, mode != "timezone")));
         const QString configuration = config(directory.path(), server.host());
         QVERIFY(!configuration.isEmpty());
-        QStringList arguments = mode == "long"
-            ? QStringList{"--file", "--location=" + directory.path(), "--config=" + configuration}
-            : QStringList{"-f", "-l", directory.path(), "-c", configuration};
-        if (mode == "timezone" || mode == "utc-overrides-timezone")
-            arguments << "-t" << "2.5";
+        QStringList arguments =
+            mode == "long" ? QStringList{"--file", "--location=" + directory.path(), "--config=" + configuration}
+                           : QStringList{"-f", "-l", directory.path(), "-c", configuration};
+        if (mode == "timezone" || mode == "utc-overrides-timezone") arguments << "-t" << "2.5";
         const qint64 reference = timestamp + 1000;
-        if (mode == "recalc")
-            arguments << "-r" << QString::number(reference);
-        if (mode == "now")
-            arguments << "-n";
-        if (mode == "quiet")
-            arguments << "-v" << "0";
+        if (mode == "recalc") arguments << "-r" << QString::number(reference);
+        if (mode == "now") arguments << "-n";
+        if (mode == "quiet") arguments << "-v" << "0";
         const qint64 startedAt = QDateTime::currentSecsSinceEpoch();
         const Result result = run(arguments, directory.path());
         const qint64 finishedAt = QDateTime::currentSecsSinceEpoch();
@@ -362,7 +327,7 @@ private slots:
         QVERIFY(result.output.endsWith("Submission complete\n"));
         QCOMPARE(result.error, QByteArray());
         QCOMPARE(server.requests.size(), 2);
-        const HttpRequest &handshake = server.requests[0];
+        const HttpRequest& handshake = server.requests[0];
         QCOMPARE(handshake.method, QByteArray("GET"));
         const QUrlQuery handshakeQuery(QUrl::fromEncoded("http://fixture" + handshake.target));
         QCOMPARE(handshakeQuery.queryItemValue("hs"), "true");
@@ -370,10 +335,13 @@ private slots:
         QCOMPARE(handshakeQuery.queryItemValue("c"), QString(CLIENT_ID));
         QCOMPARE(handshakeQuery.queryItemValue("v"), QString(CLIENT_VERSION));
         QCOMPARE(handshakeQuery.queryItemValue("u", QUrl::FullyDecoded), "Demo User +/é");
-        QCOMPARE(handshakeQuery.queryItemValue("a"), QString::fromLatin1(QCryptographicHash::hash(
-            "0123456789abcdef0123456789abcdef" + handshakeQuery.queryItemValue("t").toLatin1(), QCryptographicHash::Md5).toHex()));
+        QCOMPARE(handshakeQuery.queryItemValue("a"),
+                 QString::fromLatin1(QCryptographicHash::hash("0123456789abcdef0123456789abcdef" +
+                                                                  handshakeQuery.queryItemValue("t").toLatin1(),
+                                                              QCryptographicHash::Md5)
+                                         .toHex()));
         QCOMPARE(handshake.headers.value("user-agent"), QByteArray(CLIENT_USERAGENT));
-        const HttpRequest &submission = server.requests[1];
+        const HttpRequest& submission = server.requests[1];
         QCOMPARE(submission.method, QByteArray("POST"));
         QCOMPARE(submission.target, QByteArray("/submit"));
         QCOMPARE(submission.headers.value("content-type"), QByteArray("application/x-www-form-urlencoded"));
@@ -391,13 +359,13 @@ private slots:
         if (mode == "now")
             QVERIFY(submittedTime >= startedAt - 180 && submittedTime <= finishedAt - 180);
         else
-            QCOMPARE(submittedTime, mode == "recalc" ? reference - 180
-                : mode == "timezone" ? timestamp - 9000 : timestamp);
+            QCOMPARE(submittedTime, mode == "recalc"     ? reference - 180
+                                    : mode == "timezone" ? timestamp - 9000
+                                                         : timestamp);
         QVERIFY(!QFile::exists(file));
     }
 
-    void missingDurationIsResolvedBeforeSubmission()
-    {
+    void missingDurationIsResolvedBeforeSubmission() {
         QTemporaryDir directory;
         FakeScrobbleServer server;
         QVERIFY(server.listenLocally());
@@ -424,8 +392,7 @@ private slots:
         QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
     }
 
-    void rejectedSubmission()
-    {
+    void rejectedSubmission() {
         QTemporaryDir directory;
         FakeScrobbleServer server;
         QVERIFY(server.listenLocally());

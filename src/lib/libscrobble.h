@@ -19,30 +19,28 @@
 #ifndef LIBSCROBBLE_H
 #define LIBSCROBBLE_H
 
-#include <QtCore>
 #include <QString>
-
-#include "submit.h"
-#include "common.h"
-#include "parse.h"
-#include "conf.h"
-#include "gettrackinfo.h"
-#include "dbcache.h"
-
+#include <QtCore>
 #include <ctime>
+
+#include "common.h"
+#include "conf.h"
+#include "dbcache.h"
+#include "gettrackinfo.h"
+#include "parse.h"
+#include "submit.h"
 
 #define HAVE_ITUNESDB  // to enable ipod support
 #define HAVE_LOG       // to enable portable player log support
 
 class Submit;
 
-class Scrobble : public QObject
-{
+class Scrobble : public QObject {
     Q_OBJECT
-private:
+   private:
     int num_submissions;
-    Parse *parser;
-    QMutex *mutex;
+    Parse* parser;
+    QMutex* mutex;
 
     QString error_str;
     bool have_mb;
@@ -57,7 +55,7 @@ private:
     void cleanup_tracks(void);
     void check_timestamps();
     void check_track_lengths();
-    GetTrackInfo *api_info;
+    GetTrackInfo* api_info;
     QList<int> zero_length_tracks;
     quint64 metadata_generation = 0;
     void remove_sent();
@@ -70,10 +68,10 @@ private:
     void set_proxy();
     bool proxy_set;
 
-    DBCache *cache;
+    DBCache* cache;
     bool db_ready;
 
-private slots:
+   private slots:
     void submit_finished(bool, QString);
     void add_log(LOG_LEVEL, QString);
     void add_entry(scrob_entry);
@@ -82,7 +80,7 @@ private slots:
     void updated_track_length(int index, bool success, int length, int elapsed);
     void slotCancelProgress();
 
-signals:
+   signals:
     void submission_finished(bool success);
     void parsing_opened(bool success);
     void parsing_cleared(bool success);
@@ -92,12 +90,12 @@ signals:
     void missing_times_get(int index, scrob_entry info, int wait);
     void signalCancelProgress();
 
-public:
+   public:
     Scrobble();
     ~Scrobble();
 
-    QHash<int, Submit *> submissions;
-    Conf *conf;
+    QHash<int, Submit*> submissions;
+    Conf* conf;
     bool parse(SCROBBLE_METHOD method, QString path);
     void parse_open(QString, int);
     void parser_clear();
@@ -110,7 +108,7 @@ public:
     void update_track(scrob_entry, int);
     bool submit();
     QString get_error_str() { return error_str; }
-    bool get_parser_busy() { return (parser==NULL) ? false : true; }
+    bool get_parser_busy() { return (parser == NULL) ? false : true; }
     void clear_method();
     int get_num_logs();
     log_entry get_log(int);

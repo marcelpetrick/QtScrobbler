@@ -17,109 +17,96 @@
  ***************************************************************************/
 
 #include "console.h"
+
+#include <QClipboard>
+#include <QPushButton>
+
 #include "qtscrob.h"
 #include "translation_labels.h"
 
-#include <QPushButton>
-#include <QClipboard>
+Console::Console(QTScrob* parent) : QDialog(parent) {
+    qtscrob = parent;
+    this->setWindowTitle(tr("Console"));
+    resize(QSize(800, 600));
 
-Console::Console(QTScrob *parent) : QDialog(parent) {
-	qtscrob = parent;
-	this->setWindowTitle(tr("Console"));
-	resize(QSize(800, 600));
+    log_pos = 0;
 
-	log_pos = 0;
+    edtConsole = new QTextEdit();
+    edtConsole->setReadOnly(true);
 
-	edtConsole = new QTextEdit();
-	edtConsole->setReadOnly(true);
+    lblCombo = new QLabel(tr("Log Level:"));
 
-	lblCombo = new QLabel(tr("Log Level:"));
+    comboLevel = new QComboBox();
 
-	comboLevel = new QComboBox();
+    for (int i = 0; i < LOG_NUM_LEVELS; i++)
+        comboLevel->insertItem(i, QString("%1 - %2").arg(i).arg(log_level_display_name(i)));
 
-	for (int i = 0; i < LOG_NUM_LEVELS; i++)
-	comboLevel->insertItem(i, QString("%1 - %2")
-			.arg(i).arg(log_level_display_name(i)));
+    comboLevel->setEditable(false);
 
-	comboLevel->setEditable(false);
+    connect(comboLevel, &QComboBox::currentIndexChanged, this, &Console::set_spin_level);
 
-	connect(comboLevel, &QComboBox::currentIndexChanged, this, &Console::set_spin_level);
+    current_level = LOG_DEFAULT;
+    comboLevel->setCurrentIndex(current_level);
 
-	current_level = LOG_DEFAULT;
-	comboLevel->setCurrentIndex(current_level);
+    timerConsole = new QTimer();
+    connect(timerConsole, &QTimer::timeout, this, &Console::update);
+    timerConsole->start(250);
 
-	timerConsole = new QTimer();
-	connect(timerConsole, &QTimer::timeout, this, &Console::update);
-	timerConsole->start(250);
+    btncopy = new QPushButton(tr("Copy to clipboard"));
+    connect(btncopy, &QPushButton::released, this, &Console::copy);
 
-	btncopy = new QPushButton(tr("Copy to clipboard"));
-	connect(btncopy, &QPushButton::released, this, &Console::copy);
+    QHBoxLayout* btmlayout = new QHBoxLayout;
+    btmlayout->addWidget(lblCombo);
+    btmlayout->addWidget(comboLevel);
+    btmlayout->addStretch(0);
+    btmlayout->addWidget(btncopy);
 
-	QHBoxLayout *btmlayout = new QHBoxLayout;
-	btmlayout->addWidget(lblCombo);
-	btmlayout->addWidget(comboLevel);
-	btmlayout->addStretch(0);
-	btmlayout->addWidget(btncopy);
+    QVBoxLayout* layout = new QVBoxLayout;
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(edtConsole);
+    layout->addLayout(btmlayout);
 
-	QVBoxLayout *layout = new QVBoxLayout;
-	layout->setContentsMargins(0, 0, 0, 0);
-	layout->addWidget(edtConsole);
-	layout->addLayout(btmlayout);
+    setLayout(layout);
 
-	setLayout(layout);
-
-	read_all_logs();
+    read_all_logs();
 }
 
-Console::~Console()
-{
-	timerConsole->stop();
-	timerConsole->deleteLater();
+Console::~Console() {
+    timerConsole->stop();
+    timerConsole->deleteLater();
 }
 
-void Console::update()
-{
+void Console::update() {
     int new_pos = qtscrob->scrob->get_num_logs();
-	if (new_pos > log_pos)
-	{
-		read_logs(log_pos, new_pos);
-	}
-	else if (new_pos < log_pos)
-	{
-		// The log has been cleared?
-		read_all_logs();
-	}
+    if (new_pos > log_pos) {
+        read_logs(log_pos, new_pos);
+    } else if (new_pos < log_pos) {
+        // The log has been cleared?
+        read_all_logs();
+    }
 }
 
-void Console::set_spin_level(int new_level)
-{
-	current_level = new_level;
-	read_all_logs();
+void Console::set_spin_level(int new_level) {
+    current_level = new_level;
+    read_all_logs();
 }
 
-void Console::read_all_logs()
-{
-	edtConsole->clear();
-	read_logs(0, qtscrob->scrob->get_num_logs());
+void Console::read_all_logs() {
+    edtConsole->clear();
+    read_logs(0, qtscrob->scrob->get_num_logs());
 }
 
-void Console::read_logs(int start, int end)
-{
-    for (int i = start; i < end; i++)
-	{
-		log_entry tmp = qtscrob->scrob->get_log(i);
-		if (tmp.level <= current_level)
-		{
-			QString line = QString("%0 : %1")
-				.arg(log_level_display_name(tmp.level), tmp.msg);
-			edtConsole->append(line);
-		}
-	}
-	log_pos = end;
+void Console::read_logs(int start, int end) {
+    for (int i = start; i < end; i++) {
+        log_entry tmp = qtscrob->scrob->get_log(i);
+        if (tmp.level <= current_level) {
+            QString line = QString("%0 : %1").arg(log_level_display_name(tmp.level), tmp.msg);
+            edtConsole->append(line);
+        }
+    }
+    log_pos = end;
 }
 
-void Console::copy()
-{
-	if (!edtConsole->document()->isEmpty())
-		QApplication::clipboard()->setText(edtConsole->document()->toPlainText());
+void Console::copy() {
+    if (!edtConsole->document()->isEmpty()) QApplication::clipboard()->setText(edtConsole->document()->toPlainText());
 }

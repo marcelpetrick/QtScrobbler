@@ -17,11 +17,12 @@
  ***************************************************************************/
 
 #include "about.h"
+
 #include "qtscrob.h"
 
-About::About(QTScrob *parent) : QDialog( parent ) {
-	setupUi(this);
-	qtscrob = parent;
-	lblVersion->setText(tr("QTScrobbler v%1").arg(CLIENT_VERSION));
-	setFixedSize(sizeHint());
+About::About(QTScrob* parent) : QDialog(parent) {
+    setupUi(this);
+    qtscrob = parent;
+    lblVersion->setText(tr("QTScrobbler v%1").arg(CLIENT_VERSION));
+    setFixedSize(sizeHint());
 }

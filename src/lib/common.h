@@ -22,7 +22,7 @@
 #include <QtCore>
 
 #define CLIENT_ID "qts"
-#define CLIENT_VERSION "0.13.56"
+#define CLIENT_VERSION "0.13.57"
 #define CLIENT_USERAGENT "QTScrobbler v" CLIENT_VERSION
 #define PROTOCOL_VERSION "1.2"
 #define API_KEY "992b6748eea766062671eccb419aecd0"
@@ -33,14 +33,15 @@
 #endif
 
 #if defined(HAVE_WPD) || defined(HAVE_LIBMTP)
-#define HAVE_MTP       // to enable MTP support
+#define HAVE_MTP  // to enable MTP support
 #endif
 
 #ifdef HAVE_WMDM
 #include <windows.h>
+
 #include "initguid.h"
-#include "mswmdm_i.c"
 #include "mswmdm.h"
+#include "mswmdm_i.c"
 #include "sac.h"
 #include "scclient.h"
 #endif
@@ -48,18 +49,9 @@
 #include <libmtp.h>
 #endif
 
-enum CONFIG_SITES {
-    CONFIG_LASTFM = 0,
-    CONFIG_LIBREFM,
-    CONFIG_CUSTOM,
-    CONFIG_NUM_SITES
-};
+enum CONFIG_SITES { CONFIG_LASTFM = 0, CONFIG_LIBREFM, CONFIG_CUSTOM, CONFIG_NUM_SITES };
 
-const QString SITE_NAME[CONFIG_NUM_SITES] = {
-    "Last.fm",
-    "Libre.fm",
-    QCoreApplication::translate("Scrobble", "Custom")
-};
+const QString SITE_NAME[CONFIG_NUM_SITES] = {"Last.fm", "Libre.fm", QCoreApplication::translate("Scrobble", "Custom")};
 
 enum SCROBBLE_METHOD {
     SCROBBLE_NONE = -1,
@@ -83,43 +75,30 @@ enum CHECK_RESULT {
 #endif
 };
 
-enum SENT_STATE {
-    SENT_UNSENT,
-    SENT_FAILED,
-    SENT_SUCCESS
-};
+enum SENT_STATE { SENT_UNSENT, SENT_FAILED, SENT_SUCCESS };
 
-struct scrob_entry{
+struct scrob_entry {
     QString artist;
     QString album;
     QString title;
     int tracknum;
     int length;
     QChar played;
-    int when;    // times in GMT
+    int when;  // times in GMT
     QString mb_track_id;
     SENT_STATE sent[CONFIG_NUM_SITES];
 };
 
 CHECK_RESULT check_path(SCROBBLE_METHOD, QString);
-bool entry_less_than(const scrob_entry &s1, const scrob_entry &s2);
+bool entry_less_than(const scrob_entry& s1, const scrob_entry& s2);
 
-enum LOG_LEVEL {
-    LOG_ERROR,
-    LOG_INFO,
-    LOG_DEBUG,
-    LOG_TRACE,
-    LOG_NUM_LEVELS
-};
+enum LOG_LEVEL { LOG_ERROR, LOG_INFO, LOG_DEBUG, LOG_TRACE, LOG_NUM_LEVELS };
 
 const LOG_LEVEL LOG_DEFAULT = LOG_INFO;
 
 const QString LOG_LEVEL_NAMES[LOG_NUM_LEVELS] = {
-    QCoreApplication::translate("Scrobble", "ERROR"),
-    QCoreApplication::translate("Scrobble", "INFO "),
-    QCoreApplication::translate("Scrobble", "DEBUG"),
-    QCoreApplication::translate("Scrobble", "TRACE")
-};
+    QCoreApplication::translate("Scrobble", "ERROR"), QCoreApplication::translate("Scrobble", "INFO "),
+    QCoreApplication::translate("Scrobble", "DEBUG"), QCoreApplication::translate("Scrobble", "TRACE")};
 
 struct log_entry {
     LOG_LEVEL level;

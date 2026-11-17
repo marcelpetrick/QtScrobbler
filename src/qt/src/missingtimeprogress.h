@@ -20,23 +20,23 @@
 #define MISSINGTIMEPROGRESS_H
 
 #include <QDialog>
-#include <QVBoxLayout>
-#include <QProgressBar>
 #include <QLabel>
+#include <QProgressBar>
+#include <QVBoxLayout>
 
 class MissingTimeProgress : public QDialog {
     Q_OBJECT
-private:
-    QVBoxLayout *layout;
-    QProgressBar *progress;
-    QLabel *lblprogress;
+   private:
+    QVBoxLayout* layout;
+    QProgressBar* progress;
+    QLabel* lblprogress;
 
-public slots:
+   public slots:
     void update_progress(int remaining);
 
-public:
-    MissingTimeProgress(int count, QWidget *parent = 0);
+   public:
+    MissingTimeProgress(int count, QWidget* parent = 0);
     ~MissingTimeProgress();
 };
 
-#endif // MISSINGTIMEPROGRESS_H
+#endif  // MISSINGTIMEPROGRESS_H

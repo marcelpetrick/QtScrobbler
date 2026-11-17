@@ -21,6 +21,7 @@
 
 #include <QObject>
 #include <QSettings>
+
 #include "common.h"
 
 #define LAST_FM_HOST "post.audioscrobbler.com"
@@ -34,10 +35,9 @@ struct site_conf {
     QString handshake_host;
 };
 
-class Conf : public QObject
-{
+class Conf : public QObject {
     Q_OBJECT
-public:
+   public:
     Conf();
     ~Conf();
     bool load_config();
@@ -59,13 +59,14 @@ public:
     int proxy_port;
     QString proxy_user;
     QString proxy_pass;
-private:
-    QSettings *settings;
+
+   private:
+    QSettings* settings;
     bool upgrade_from_0_10();
     bool upgrade_from_old_location();
     void status();
-signals:
+   signals:
     void add_log(LOG_LEVEL, QString);
 };
 
-#endif // CONF_H
+#endif  // CONF_H

@@ -26,13 +26,13 @@
 class QTScrob;
 
 class Help : public QDialog {
-		Q_OBJECT
-	private:
-		QTScrob *qtscrob;
-		QTextEdit *edtHelp;
+    Q_OBJECT
+   private:
+    QTScrob* qtscrob;
+    QTextEdit* edtHelp;
 
-	public:
-		Help(QTScrob *parent = 0);
+   public:
+    Help(QTScrob* parent = 0);
 };
 
 #endif
