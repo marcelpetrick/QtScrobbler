@@ -25,6 +25,7 @@
 #include <QNetworkReply>
 #include <QElapsedTimer>
 #include <QThread>
+#include <QPointer>
 #include "common.h"
 
 class GetTrackInfo : public QThread
@@ -32,6 +33,8 @@ class GetTrackInfo : public QThread
     Q_OBJECT
 public:
     explicit GetTrackInfo(QObject *parent = 0);
+    // Injected managers retain external ownership and must share this object's affinity.
+    GetTrackInfo(QNetworkAccessManager *network_manager, const QUrl &endpoint, QObject *parent = 0);
     ~GetTrackInfo();
 
 protected:
@@ -43,18 +46,23 @@ signals:
 
 public slots:
     void get(int index, scrob_entry info, int wait);
+    // Cancel active and delayed requests without emitting stale completion signals.
+    void cancel_pending();
 
 private slots:
     void get_finished(QNetworkReply *reply);
 
 private:
-    QXmlStreamReader *reader;
-    QUrl url;
-    QNetworkAccessManager *manager;
+    struct RequestState
+    {
+        int index = 0;
+        QElapsedTimer elapsed;
+    };
+    QPointer<QNetworkAccessManager> manager;
     QNetworkRequest request;
-    QElapsedTimer time;
-    int index;
-    scrob_entry track_info;
+    QHash<QNetworkReply *, RequestState> pending;
+    bool destroying = false;
+    quint64 generation = 0;
 };
 
 #endif // GETTRACKINFO_H
