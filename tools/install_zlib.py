@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import re
 from pathlib import Path
@@ -25,6 +26,7 @@ import xml.etree.ElementTree as ET
 
 VERSION = "1.4"
 URL = "https://zlib.net/zlib-1.4.tar.gz"
+SOURCE_URLS = (URL, "https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz")
 SHA256 = "02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584"
 MANIFEST = "zlib-manifest.json"
 
@@ -34,9 +36,49 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def download_source(archive: Path, reports: Path) -> str:
+    """Try two fixed official locations; every accepted byte uses the same pin.
+
+    Record every attempt outside the temporary build tree, including failures.
+    A mirror is transport redundancy, never an alternative artifact resolution.
+    """
+    attempts = []
+    for url in SOURCE_URLS:
+        archive.unlink(missing_ok=True)
+        attempt = {"url": url, "expected_sha256": SHA256, "http_status": None,
+                   "size_bytes": 0, "actual_sha256": None, "status": "download_error"}
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response, archive.open("wb") as output:
+                attempt["http_status"] = getattr(response, "status", None)
+                shutil.copyfileobj(response, output)
+            attempt["size_bytes"] = archive.stat().st_size
+            attempt["actual_sha256"] = digest(archive)
+            if attempt["actual_sha256"] == SHA256:
+                attempt["status"] = "verified"
+            else:
+                attempt["status"] = "checksum_mismatch"
+                attempt["error"] = (f"SHA-256 mismatch: expected {SHA256}, "
+                                    f"got {attempt['actual_sha256']} ({attempt['size_bytes']} bytes)")
+        except (OSError, http.client.HTTPException) as error:
+            attempt["http_status"] = getattr(error, "code", attempt["http_status"])
+            attempt["error"] = str(error)
+            if archive.is_file():
+                attempt["size_bytes"] = archive.stat().st_size
+                attempt["actual_sha256"] = digest(archive)
+        attempts.append(attempt)
+        (reports / "downloads.json").write_text(json.dumps(attempts, indent=2) + "\n")
+        if attempt["status"] == "verified":
+            return url
+        print(f"Rejected zlib source {url}: {attempt['error']}", flush=True)
+    details = "; ".join(f"{item['url']}: {item['error']}" for item in attempts)
+    raise ValueError(f"all pinned zlib sources failed: {details}; inspect {reports / 'downloads.json'}")
+
+
 def unpack(archive: Path, destination: Path) -> Path:
-    if digest(archive) != SHA256:
-        raise ValueError("zlib source SHA-256 mismatch")
+    actual = digest(archive)
+    if actual != SHA256:
+        raise ValueError(f"zlib source SHA-256 mismatch: expected {SHA256}, got {actual} "
+                         f"({archive.stat().st_size} bytes)")
     with tarfile.open(archive, "r:gz") as source:
         # The expected source release uses regular files/directories only.
         for member in source.getmembers():
@@ -107,10 +149,10 @@ def install(args: argparse.Namespace) -> Path:
     with tempfile.TemporaryDirectory(prefix="qtscrobbler-zlib-build-") as temporary:
         work = Path(temporary)
         archive = args.archive
+        downloaded_from = None
         if archive is None:
             archive = work / "zlib.tar.gz"
-            with urllib.request.urlopen(URL, timeout=60) as response, archive.open("wb") as output:
-                shutil.copyfileobj(response, output)
+            downloaded_from = download_source(archive, reports)
         source = unpack(archive, work)
         build = work / "build"
         run([str(cmake), "-S", str(source), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release",
@@ -138,6 +180,7 @@ def install(args: argparse.Namespace) -> Path:
         compiler = {"path": compiler_path,
                     "version": subprocess.check_output([compiler_path, "--version"], text=True).splitlines()[0]}
         manifest = {"version": VERSION, "source_url": URL, "source_sha256": SHA256,
+                    "downloaded_from": downloaded_from,
                     "static": True, "position_independent_code": True,
                     "upstream_tests_passed": count, "tools": tools, "compiler": compiler,
                     "qualification_reports": str(reports), "installed_files": installed}

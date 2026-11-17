@@ -670,3 +670,16 @@ auxiliary/Python dependency or network-isolation implementation. The prepared
 version hook had already run before testing; only that hook is disabled for the
 commit. These diagnostic checks authorize an incremental push under AGENTS.md;
 they do not establish the full gate, mutation95% or release readiness.
+
+Parser/audit commit **eaea9ac** (client0.13.62) pushed to main. Actual Actions
+**44150860625** concluded **failure** after 2m34s: `tools/install_zlib.py` reported
+`zlib source SHA-256 mismatch` while provisioning, before the pipeline ran. A fresh
+local download from zlib.net and the GitHub release asset both returned 1507140 bytes
+matching the pinned SHA-256, so the CI response was a transient bad transfer.
+Client **0.13.63** makes the installer try the two official locations of the same
+pinned artifact, record every attempt (URL, HTTP status, size, actual/expected
+digest) in `downloads.json`, report digests in errors and keep an explicit
+`--archive` mismatch fatal. `zlib_installer_contract` **13/13 PASS**; incremental
+`--quick --noRun --noOpen` gate on the exact staged snapshot
+`/tmp/qtscrobbler-63zlib-source` PASS, **20/20 CTests**, reports
+`/tmp/qtscrobbler-63zlib-reports`. Diagnostic subset only; no remote-green claim.
