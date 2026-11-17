@@ -19,6 +19,8 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | upload-artifact Action | v4 | v7.0.2, immutable SHA | CI/release workflows |
 | install-qt-action | v3 | v4.5.0, immutable SHA | CI/release workflows |
 | action-gh-release | v2 | v3.0.4, immutable SHA | Release workflow; publishing still requires authorization |
+| linuxdeploy (AppImage) | Absent | 1-alpha-20251107-1, SHA-256 pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy/releases/tag/1-alpha-20251107-1); newest non-continuous release; release workflow only |
+| linuxdeploy-plugin-qt | Absent | 1-alpha-20250213-1, SHA-256 `15106be8…c92724` pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/tag/1-alpha-20250213-1); newest non-continuous release; upstream publishes no digest, so the hash was measured on download (12317424 bytes, two consistent fetches); bundles Qt 6.12 into the AppImage |
 
 `requirements-quality.txt` pins the installed installer/coverage tools and their complete
 resolved Python dependency set. Re-review upstream releases before changing this file;

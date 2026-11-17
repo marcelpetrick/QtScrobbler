@@ -43,6 +43,18 @@ mutation-tool qualification remains open. See the
 [All documentation](documents/README.md) ·
 [Report an issue](https://github.com/marcelpetrick/QtScrobbler/issues)
 
+## Download
+
+Each [GitHub release](https://github.com/marcelpetrick/QtScrobbler/releases/latest) has
+Linux x86-64 builds and notes listing the changes and the checks that passed:
+
+- `QtScrobbler-<version>-x86_64.AppImage`: self-contained, bundles Qt 6.12.
+  Run `chmod +x QtScrobbler-*.AppImage && ./QtScrobbler-*.AppImage`.
+- `qtscrobbler-<version>-linux-x86_64.tar.gz`: the stripped `qtscrob` (GUI) and
+  `scrobbler` (CLI); needs Qt >= 6.12 and libmtp installed.
+
+Verify a download with its `.sha256` file: `sha256sum -c <file>.sha256`.
+
 ## Requirements
 
 - Qt >= 6.12 (qualified build: Qt 6.12.0)

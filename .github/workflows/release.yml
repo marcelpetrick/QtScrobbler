@@ -2,7 +2,8 @@ name: Release
 
 # Releases only publish commits that CI already qualified. The complete quality gate
 # (static analysis, sanitizers, coverage and native mutation testing) runs in CI on
-# main; this workflow repeats only the build, unit tests, packaging and smoke checks.
+# main; this workflow repeats only the build and unit tests, then publishes Linux
+# x86-64 binaries (tar.gz and AppImage) with evidence-based release notes.
 on:
   push:
     tags: ['v[0-9]*']
@@ -25,6 +26,8 @@ jobs:
     name: Linux release (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout the release tag
@@ -47,18 +50,27 @@ jobs:
           fi
           SHA=$(git rev-parse HEAD)
           # The CI workflow on main is the full quality gate; require its success here.
-          RUN=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=1" \
-            --jq '.workflow_runs[0].html_url // empty')
-          if [ -z "$RUN" ]; then
+          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id // empty')
+          if [ -z "$RUN_ID" ]; then
             echo "No successful CI run for $SHA; release only commits that passed CI on main." >&2
             exit 1
           fi
+          RUN="https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN_ID"
           echo "Qualified by $RUN"
+          # The qualifying run's reports provide the list of checks in the release notes.
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name quality-reports --dir "$RUNNER_TEMP/ci-reports"
+          REPORTS=$(dirname "$(find "$RUNNER_TEMP/ci-reports" -path '*build-reports/summary.txt' -print -quit)")
+          if [ ! -f "$REPORTS/summary.txt" ]; then
+            echo "Qualifying CI run $RUN_ID has no quality report summary" >&2
+            exit 1
+          fi
           {
             echo "tag=$TAG"
             echo "version=$VER"
             echo "sha=$SHA"
             echo "ci_run=$RUN"
+            echo "ci_reports=$REPORTS"
             echo "archive=qtscrobbler-${VER}-linux-x86_64"
           } >> "$GITHUB_OUTPUT"
 
@@ -72,7 +84,9 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
-            build-essential pkg-config libgl-dev libmtp-dev xvfb iproute2 util-linux dbus
+            build-essential pkg-config libgl-dev libmtp-dev xvfb iproute2 util-linux dbus \
+            libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libfuse2t64 file xauth
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
@@ -133,6 +147,31 @@ jobs:
             echo "sha256=$SHA"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Download pinned AppImage tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/appimage-tools"
+          cd "$RUNNER_TEMP/appimage-tools"
+          curl -sSfL --retry 3 -o linuxdeploy-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage
+          curl -sSfL --retry 3 -o linuxdeploy-plugin-qt-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-qt-x86_64.AppImage
+          sha256sum -c <<'SUMS'
+          c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  linuxdeploy-x86_64.AppImage
+          15106be885c1c48a021198e7e1e9a48ce9d02a86dd0a1848f00bdbf3c1c92724  linuxdeploy-plugin-qt-x86_64.AppImage
+          SUMS
+          chmod +x ./*.AppImage
+
+      - name: Build the AppImage
+        id: appimage
+        env:
+          QMAKE: ${{ steps.qt.outputs.qt-root-dir }}/bin/qmake
+          LINUXDEPLOY: ${{ runner.temp }}/appimage-tools/linuxdeploy-x86_64.AppImage
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          APPIMAGE=$(tools/build_appimage.sh build dist "$VERSION" | tail -n 1)
+          sha256sum "$APPIMAGE" | sed 's#  dist/#  #' > "$APPIMAGE.sha256"
+          echo "path=$APPIMAGE" >> "$GITHUB_OUTPUT"
+
       - name: Check extracted release entry points
         env:
           ARCHIVE: ${{ steps.meta.outputs.archive }}
@@ -145,26 +184,26 @@ jobs:
           timeout 5 "$PACKAGE_DIR/$ARCHIVE/qtscrob" --help
           test -s "$PACKAGE_DIR/$ARCHIVE/LICENSE"
           test -s "$PACKAGE_DIR/$ARCHIVE/examples/scrobble.log"
+          # The AppImage must start without any Qt installation on the library path.
+          # Use the bundled xcb platform plugin under Xvfb, as on a real desktop.
+          env -u LD_LIBRARY_PATH -u QT_PLUGIN_PATH -u QT_QPA_PLATFORM APPIMAGE_EXTRACT_AND_RUN=1 \
+            timeout 30 xvfb-run -a "${{ steps.appimage.outputs.path }}" --help | tee "$RUNNER_TEMP/appimage-help.txt"
+          grep -q "QTScrob (v${{ steps.meta.outputs.version }})" "$RUNNER_TEMP/appimage-help.txt"
 
       - name: Write release notes
         env:
           VERSION: ${{ steps.meta.outputs.version }}
           SHA: ${{ steps.meta.outputs.sha }}
           CI_RUN: ${{ steps.meta.outputs.ci_run }}
-          ARCHIVE_SHA256: ${{ steps.pkg.outputs.sha256 }}
+          CI_REPORTS: ${{ steps.meta.outputs.ci_reports }}
+          ARCHIVE: ${{ steps.pkg.outputs.archive_path }}
+          APPIMAGE: ${{ steps.appimage.outputs.path }}
         run: |
-          {
-            echo "# QtScrobbler $VERSION"
-            echo
-            awk 'NR > 1 && /^\* version/ { exit } NR > 1 { print }' documents/CHANGELOG
-            echo
-            echo "Commit \`$SHA\`, qualified by the full CI gate: $CI_RUN"
-            echo
-            echo "Archive SHA-256: \`$ARCHIVE_SHA256\`"
-            echo
-            echo 'The Linux x86-64 binaries require Qt >= 6.12 and libmtp at runtime; Qt is not bundled.'
-            echo 'See README and documents/DEPENDENCIES.md for SDK setup.'
-          } > release-notes.md
+          TESTS=$(grep -oE '[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+|100% tests passed out of [0-9]+' \
+            build-reports/ctest.log | tail -n 1)
+          python3 tools/release_notes.py --version "$VERSION" --commit "$SHA" --ci-run "$CI_RUN" \
+            --ci-reports "$CI_REPORTS" --release-tests "unit tests on the release build: $TESTS" \
+            --asset "$APPIMAGE" --asset "$ARCHIVE" --output release-notes.md
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release
@@ -174,6 +213,8 @@ jobs:
           name: QtScrobbler ${{ steps.meta.outputs.version }}
           body_path: release-notes.md
           files: |
+            ${{ steps.appimage.outputs.path }}
+            ${{ steps.appimage.outputs.path }}.sha256
             ${{ steps.pkg.outputs.archive_path }}
             ${{ steps.pkg.outputs.archive_path }}.sha256
           fail_on_unmatched_files: true

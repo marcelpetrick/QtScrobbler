@@ -73,7 +73,7 @@ Update the release URL and reviewed digest together during dependency review.
 qualified. Push a version tag matching `v[0-9]*`, or run the workflow manually with an
 existing tag. Ordinary pushes to `main` never publish a release.
 
-The workflow is deliberately small (about 15 minutes instead of the full gate's hours):
+The workflow is deliberately small (minutes instead of the full gate's hours):
 
 1. Check out the tag and require it to equal `CLIENT_VERSION` in `src/lib/common.h`.
 2. Require a **successful CI run on that exact commit**; otherwise stop. CI on `main`
@@ -82,10 +82,16 @@ The workflow is deliberately small (about 15 minutes instead of the full gate's 
 3. Build and run all unit tests with `./localPipeline.sh --quick` (GCC, pinned Qt,
    CMake and zlib, network-isolated CTest).
 4. Strip both executables and package them with README, the unchanged GPLv2
-   `LICENSE`/`COPYING`, documents and the fictional example log; write a `.sha256`.
-5. Extract the archive and run the packaged GUI/CLI `--help` entry points.
-6. Publish the GitHub release with the archive, its checksum, the changelog entry,
-   the qualifying CI run URL and the archive SHA-256. Logs are kept as an artifact.
+   `LICENSE`/`COPYING`, documents and the fictional example log as a `.tar.gz`.
+5. Build `QtScrobbler-<version>-x86_64.AppImage` with `tools/build_appimage.sh`, using
+   the SHA-256-pinned linuxdeploy and linuxdeploy-plugin-qt. It bundles Qt 6.12 and its
+   plugins; the CLI is included as `usr/bin/scrobbler`. Each file gets a `.sha256`.
+6. Extract the archive and run both `--help` entry points, and start the AppImage under
+   Xvfb with its bundled xcb plugin and no Qt on the library path.
+7. Write the release notes with `tools/release_notes.py`: the CHANGELOG entry, the
+   checks that passed in the qualifying CI run (read from its `quality-reports`
+   artifact; any non-PASS mandatory stage stops the release), the release build's
+   unit tests and the SHA-256 of every file. Then publish; logs are kept as an artifact.
 
 Release flow: push to `main`, wait for green CI, then
 `git tag -a vX.Y.Z <commit> && git push origin vX.Y.Z`.

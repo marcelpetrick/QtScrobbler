@@ -60,6 +60,19 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
       builds, runs unit tests (`--quick`), packages, smoke-tests and publishes.
       Mutation stays mandatory in CI and the local full gate. Verified locally with
       GCC and no LLVM/Mull on PATH: quick gate **26/26 CTests PASS**.
+- [ ] Releases carry compiled Linux x86-64 binaries (stripped `.tar.gz`), an
+      **AppImage** bundling Qt 6.12 (pinned linuxdeploy 1-alpha-20251107-1 and
+      plugin-qt 1-alpha-20250213-1, SHA-256 verified), `.sha256` files and release
+      notes with the changelog entry plus a **short list of the checks that passed**
+      in the qualifying CI run (`tools/release_notes.py`, refuses any non-PASS
+      mandatory stage; 4/4 contracts PASS). Local proof: `tools/build_appimage.sh`
+      built a 34 MB AppImage from the GCC/Qt 6.12 build; with no system Qt on the
+      library path it started under Xvfb via the bundled xcb plugin and printed
+      `QTScrob (v0.13.69)`; it bundles 8 Qt 6 libraries, only the SQLite SQL driver
+      (a qmake wrapper hides PostgreSQL/MySQL/ODBC drivers the app never uses) and the
+      CLI. Fixes found on the way: CRLF desktop file, linuxdeploy's old `strip`
+      (`NO_STRIP=1`). linuxdeploy-plugin-qt has no upstream digest; its SHA-256 was
+      measured on download. The `[x]` waits for the first published release.
 - [ ] Publish `v0.13.69`. Its tag was pushed on `d07b90e` before this change, so the
       old full release workflow (run **44169110976**) is qualifying it in parallel with
       CI run **44167982834**; later releases use the lean workflow.

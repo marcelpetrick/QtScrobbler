@@ -74,3 +74,6 @@ set_tests_properties(offline_runner_contract PROPERTIES TIMEOUT 30)
 
 add_test(NAME mutation_campaign_selection_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_campaign_selection.py")
 set_tests_properties(mutation_campaign_selection_contract PROPERTIES TIMEOUT 30)
+
+add_test(NAME release_notes_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_release_notes.py")
+set_tests_properties(release_notes_contract PROPERTIES TIMEOUT 30)
