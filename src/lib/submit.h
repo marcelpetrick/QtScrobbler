@@ -78,6 +78,8 @@ private:
     void senddata();
     void reset_tracks();
 
+    int retries = 0;
+    bool cancelled = false;
     bool scrob_init;
     bool submission_ok;
 
