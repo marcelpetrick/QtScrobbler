@@ -67,10 +67,10 @@ class OfflineRunnerTest(unittest.TestCase):
         with mock.patch.object(offline.shutil, "which", side_effect=lambda name: "/usr/bin/" + name), \
                 mock.patch.dict(os.environ, {"QTSCROBBLER_OFFLINE": "1", "ALREADY_ISOLATED": "1"}):
             result = offline.invocation(["--", *arguments], 99)
-        self.assertEqual(result[:8], ["/usr/bin/unshare", "--user", "--map-root-user", "--net",
-                                    "--pid", "--fork", "--kill-child=SIGKILL", "--"])
-        self.assertEqual(result[8:14], [sys.executable, "-c", offline.ENTER, "/usr/bin/ip", "/usr/bin/dbus-daemon", "99"])
-        self.assertEqual(result[14:], arguments)
+        self.assertEqual(result[:9], ["/usr/bin/unshare", "--user", "--map-root-user", "--net",
+                                    "--pid", "--fork", "--mount-proc", "--kill-child=SIGKILL", "--"])
+        self.assertEqual(result[9:15], [sys.executable, "-c", offline.ENTER, "/usr/bin/ip", "/usr/bin/dbus-daemon", "99"])
+        self.assertEqual(result[15:], arguments)
 
     def test_exec_failure_never_falls_back_to_host_command(self):
         with mock.patch.object(offline, "invocation", return_value=["unshare", "arguments"]), \
@@ -110,45 +110,73 @@ class OfflineRunnerTest(unittest.TestCase):
                 result = self.invoke(sys.executable, "-c", f"import os; os.kill(os.getpid(), {int(termination)})")
                 self.assertEqual(result.returncode, -termination, result.stderr)
 
+    @staticmethod
+    def host_processes_with(token: str) -> dict[int, str]:
+        """Map host PIDs of `python -c SCRIPT` processes whose SCRIPT carries token.
+
+        The namespace has its own /proc, so PIDs printed inside it are not host PIDs.
+        The supervisor, unshare and namespace init also carry the token as a later
+        argument; only the command and its grandchild run a script containing it.
+        """
+        found = {}
+        for entry in Path("/proc").iterdir():
+            if not entry.name.isdigit() or int(entry.name) == os.getpid():
+                continue
+            try:
+                argv = (entry / "cmdline").read_bytes().split(b"\0")
+                if len(argv) < 3 or argv[1] != b"-c" or token.encode() not in argv[2]:
+                    continue
+                found[int(entry.name)] = (entry / "stat").read_text().rsplit(")", 1)[1].split()[0]
+            except (FileNotFoundError, ProcessLookupError, PermissionError):
+                continue
+        return found
+
     def test_killed_supervisor_stops_command_and_separate_session_grandchild(self):
-        grandchild = "import pathlib,time; print(pathlib.Path('/proc/self/stat').read_text().split()[0],flush=True); time.sleep(30)"
-        command = ("import pathlib,subprocess,sys,time; "
+        token = f"qtscrobbler-offline-escape-{os.getpid()}-{time.monotonic_ns()}"
+        grandchild = f"import time; print('ready', flush=True); time.sleep(30)  # {token}"
+        command = ("import subprocess,sys,time; "
                    f"p=subprocess.Popen([sys.executable,'-c',{grandchild!r}],stdout=subprocess.PIPE,text=True,start_new_session=True); "
-                   "print(pathlib.Path('/proc/self/stat').read_text().split()[0],p.stdout.readline().strip(),flush=True); "
-                   "time.sleep(30)")
+                   "print(p.stdout.readline().strip(),flush=True); "
+                   f"time.sleep(30)  # {token}")
         process = subprocess.Popen([sys.executable, str(RUNNER), "--", sys.executable, "-c", command],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         child_pids = []
         try:
             self.assertTrue(select.select([process.stdout], [], [], 5)[0], "offline child did not start")
-            output = process.stdout.readline()
-            self.assertTrue(output.strip(), "offline child did not report its identity")
-            child_pids = list(map(int, output.split()))
-            self.assertEqual(len(child_pids), 2)
+            self.assertEqual(process.stdout.readline().strip(), "ready")
+            child_pids = list(self.host_processes_with(token))
+            self.assertEqual(len(child_pids), 2, child_pids)
             process.kill()
             process.communicate(timeout=5)
             self.assertEqual(process.returncode, -signal.SIGKILL)
-            for child_pid in child_pids:
-                deadline = time.monotonic() + 3
-                while time.monotonic() < deadline:
-                    try:
-                        state = Path(f"/proc/{child_pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
-                    except (FileNotFoundError, ProcessLookupError):
-                        break
-                    if state == "Z":  # An adopted zombie has exited and is waiting for PID1 to reap it.
-                        break
-                    time.sleep(0.01)
-                else:
-                    self.fail(f"offline descendant {child_pid} stayed running after its supervisor was killed")
+            deadline = time.monotonic() + 3
+            remaining = {}
+            while time.monotonic() < deadline:
+                # An adopted zombie has exited and is only waiting to be reaped.
+                remaining = {pid: state for pid, state in self.host_processes_with(token).items() if state != "Z"}
+                if not remaining:
+                    break
+                time.sleep(0.01)
+            self.assertEqual(remaining, {}, "offline descendants stayed running after their supervisor was killed")
         finally:
             if process.poll() is None:
                 process.kill()
                 process.communicate(timeout=5)
-            for child_pid in child_pids:
+            for child_pid in self.host_processes_with(token):
                 try:
                     os.kill(child_pid, signal.SIGKILL)
                 except ProcessLookupError:
                     pass
+
+    def test_namespace_has_its_own_proc_for_leak_sanitizer(self):
+        # LeakSanitizer reads /proc/<pid>/task; a host /proc in a PID namespace aborts it.
+        probe = ("import os; print(os.getpid(), os.readlink('/proc/self'), "
+                 "os.path.isdir(f'/proc/{os.getpid()}/task'), flush=True)")
+        result = self.invoke(sys.executable, "-c", probe)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        pid, proc_self, has_task = result.stdout.split()
+        self.assertEqual(pid, proc_self)
+        self.assertEqual(has_task, "True")
 
     def test_real_namespace_has_loopback_http_and_no_external_route(self):
         probe = r'''import errno,http.server,json,os,socket,subprocess,sys,threading,urllib.request

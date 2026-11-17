@@ -746,3 +746,15 @@ Incremental `--quick --noRun --noOpen` on the exact staged snapshot
 reports `/tmp/qtscrobbler-65infra-reports`. Diagnostic subset only: the full
 final gate (static, sanitizers, coverage, native mutation95%, package) and
 observed green Actions remain open.
+
+Full local gate on exact `c8c4693` (client0.13.65, `/tmp/qtscrobbler-65-final-reports`)
+**FAILED two stages**; build, 26/26 CTests, format, static, docs, coverage,
+mutation-toolchain preflight and package PASS. (1) Sanitizers: the new PID
+namespace kept the host `/proc`, so LeakSanitizer could not read
+`/proc/<pid>/task` and aborted every CLI child at exit. Client **0.13.67**
+adds `unshare --mount-proc`; a new contract checks `/proc/self` equals the
+namespace PID. The escape test used to read PIDs *inside* the namespace and kill
+them on the host. With a private `/proc` those would be unrelated host PIDs, so
+it now finds descendants on the host by a unique token in their `-c` script.
+Proof: without `--mount-proc` the `/proc` contract fails; without `--kill-child`
+the escape test fails (escapees hold the pipe) and cleanup leaves 0 processes.

@@ -87,7 +87,7 @@ def invocation(arguments: list[str], status_fd: int) -> list[str]:
             raise ValueError(f"required offline execution tool is missing: {name}")
         executables[name] = os.path.abspath(path)
     return [executables["unshare"], "--user", "--map-root-user", "--net", "--pid", "--fork",
-            "--kill-child=SIGKILL", "--", sys.executable, "-c", ENTER,
+            "--mount-proc", "--kill-child=SIGKILL", "--", sys.executable, "-c", ENTER,
             executables["ip"], executables["dbus-daemon"], str(status_fd), *arguments[1:]]
 
 
