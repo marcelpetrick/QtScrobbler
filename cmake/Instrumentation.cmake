@@ -18,9 +18,15 @@ endif()
 
 foreach(production_target IN ITEMS scrobble scrobble_gui scrobbler qtscrob)
     if(QTSCROBBLER_COVERAGE OR QTSCROBBLER_MULL_PLUGIN)
-        target_compile_options(${production_target} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
+        target_compile_options(${production_target} PRIVATE -fprofile-instr-generate)
+        if(QTSCROBBLER_COVERAGE)
+            target_compile_options(${production_target} PRIVATE -fcoverage-mapping)
+        endif()
         target_link_options(${production_target} PRIVATE -fprofile-instr-generate)
     endif()
+    # Mull 0.38 misclassifies covered source ranges when mapping is present.
+    # Mutation campaigns execute every generated mutant; separate LLVM builds
+    # provide trustworthy coverage classification without filtering execution.
     if(QTSCROBBLER_MULL_PLUGIN)
         target_compile_options(${production_target} PRIVATE
             "-fpass-plugin=${QTSCROBBLER_MULL_PLUGIN}" -g -grecord-command-line)
@@ -33,7 +39,10 @@ endforeach()
 
 # Static production libraries need their instrumentation runtime in every consumer.
 if(QTSCROBBLER_COVERAGE OR QTSCROBBLER_MULL_PLUGIN)
-    target_compile_options(scrobble INTERFACE -fprofile-instr-generate -fcoverage-mapping)
+    target_compile_options(scrobble INTERFACE -fprofile-instr-generate)
+    if(QTSCROBBLER_COVERAGE)
+        target_compile_options(scrobble INTERFACE -fcoverage-mapping)
+    endif()
     target_link_options(scrobble INTERFACE -fprofile-instr-generate)
 endif()
 if(QTSCROBBLER_SANITIZERS)

@@ -1,6 +1,10 @@
 # Qt6 Porting Assessment
 
-## Current State
+> Historical migration assessment, retained for context. The maintained build uses CMake
+> and Qt 6.12; see [setup](DEPENDENCIES.md) and the [execution plan](plan.md).
+> Legacy qmake project files are not a qualified build path.
+
+## Historical state
 
 The project was originally written for Qt4 and later adapted for Qt5.
 The local system ships **Qt 6.11.1** (Manjaro/Arch Linux) where `qmake` and `qmake6` both point to the Qt6 toolchain.

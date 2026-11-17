@@ -54,17 +54,19 @@ ctest --test-dir /tmp/qtscrobbler-mutation-build --output-on-failure --no-tests=
 
 # Initial measurement; a command success here does not mean the 95% target passes.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
-  --report-dir /tmp/qtscrobbler-mutation-baseline --baseline
+  --report-dir /tmp/qtscrobbler-mutation-baseline --baseline \
+  --coverage-summary /path/to/fresh-coverage/summary.json
 
 # Enforced score; this exits nonzero when fewer than 95% are assertion-killed.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
-  --report-dir /tmp/qtscrobbler-mutation-release
+  --report-dir /tmp/qtscrobbler-mutation-release \
+  --coverage-summary /path/to/fresh-coverage/summary.json
 ```
 
 The campaign discovers native test executables through CTest JSON. It also mutates
 the actual `scrobbler` executable through `test_cli`, and `qtscrob` through `test_gui`,
 so application entry points are not silently omitted. If a test does not launch
-the actual application process, those application's mutants remain uncovered. Python
+the actual application process, those application's mutants remain undetected. Python
 quality-tool tests are recorded as outside the native production mutation scope.
 
 `mull.yml` enables all standard C++ mutation groups plus logical negation, across
@@ -72,6 +74,24 @@ maintained first-party library, CLI and GUI `.cpp`/`.h` sources. Tests, generate
 files, Qt/system headers and vendored xgetopt are outside the production path filter.
 Windows-only sources not compiled on Linux remain unmeasured and must be reported as
 such. There are no blanket logging exclusions and no equivalent-mutant suppressions.
+
+## Coverage filtering correction
+
+The qualification investigation reproduced a Mull 0.38.0 coverage-filter defect:
+a mutation at historical `libscrobble.cpp:243` was reported uncovered, but activating
+that exact mutant produced 20 normal Qt Test assertion failures. An unchanged
+Mull runner executed and recorded it as assertion-killed when LLVM coverage-mapping
+sections were removed from a private copy. Historical campaigns using that filter
+are retained as historical diagnostics, not trusted classifications or release scores.
+
+Mutation builds now retain profiling but omit `-fcoverage-mapping` throughout the
+build. This makes the official runner execute **every generated mutant**, preserving
+the full denominator and avoiding coverage-based skipping. Source line and branch
+coverage still use a separate LLVM build with mappings enabled. Trusted LLVM export
+positions classify mutants independently of their observed execution result; missing
+or ambiguous mappings are reported as unknown and never removed from the denominator.
+The pipeline passes the fresh coverage summary into mutation qualification and verifies
+matching source/test/tool fingerprints plus export/profile digests.
 
 ## Timeout calibration
 

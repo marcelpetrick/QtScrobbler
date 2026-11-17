@@ -619,6 +619,7 @@ class GuiTest : public QObject {
         QCOMPARE(table->item(0, 5)->text(), "L");
         QCOMPARE(table->item(0, 6)->text(), "2026-11-17 08:00:00");
         if (qEnvironmentVariableIsSet("QTSCROBBLER_SCREENSHOT_PATH")) {
+            window.resize(1120, 320);
             QApplication::processEvents();
             QVERIFY(window.grab().save(qEnvironmentVariable("QTSCROBBLER_SCREENSHOT_PATH")));
         }

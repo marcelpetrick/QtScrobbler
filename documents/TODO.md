@@ -1,3 +1,8 @@
+# Historical TODO list
+
+These are older ideas and observations, not the current acceptance criteria.
+See the [execution plan](plan.md) for authorized scope and measured results.
+
 fixed: 0. bring it down to zero build warnings. check this via the localPipeline as well. a single warning shall make the build fail. add this as flag.
 fixed: 1. handle the remaining steps from the qt6 porting. like signal and slot connections.
 fixed: 7. bump to cpp20; check for outdated constructs, which can be improved too. whole source code base.

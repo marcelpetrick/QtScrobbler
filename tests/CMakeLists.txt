@@ -48,3 +48,8 @@ add_test(NAME mutation_accounting COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRE
 set_tests_properties(mutation_accounting PROPERTIES TIMEOUT 20)
 add_test(NAME quality_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_quality_checks.py")
 set_tests_properties(quality_contract PROPERTIES TIMEOUT 30)
+
+add_test(NAME mutation_installer_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_installer.py")
+set_tests_properties(mutation_installer_contract PROPERTIES TIMEOUT 30)
+add_test(NAME mutation_coverage_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_coverage.py")
+set_tests_properties(mutation_coverage_contract PROPERTIES TIMEOUT 20)

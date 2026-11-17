@@ -68,7 +68,7 @@ class MutationScoreTest(unittest.TestCase):
             path = directory / "example.cpp"
             path.write_text("int example() { return 1; }\n")
             commands.append({"file": str(path), "directory": str(build),
-                             "command": f"clang++ -fprofile-instr-generate -fcoverage-mapping -fpass-plugin={plugin} -c {path}"})
+                             "command": f"clang++ -fprofile-instr-generate -fpass-plugin={plugin} -c {path}"})
         (build / "CMakeCache.txt").write_text(
             f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\nQTSCROBBLER_MTP:BOOL=ON\n"
             f"QTSCROBBLER_MULL_PLUGIN:FILEPATH={plugin}\n")
@@ -98,14 +98,28 @@ class MutationScoreTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "lacks mutation instrumentation"):
             RUNNER.validate_build(build, source)
 
-    def test_mutation_scope_requires_coverage_mapping_for_uncovered_status(self):
+    def test_mutation_scope_requires_profiling_without_automatic_coverage_filter(self):
         source, build, commands = self.build_fixture()
-        for flag in ("-fprofile-instr-generate", "-fcoverage-mapping"):
-            changed = [dict(entry) for entry in commands]
-            changed[0]["command"] = changed[0]["command"].replace(flag, "")
+        changed = [dict(entry) for entry in commands]
+        changed[0]["command"] = changed[0]["command"].replace("-fprofile-instr-generate", "")
+        (build / "compile_commands.json").write_text(json.dumps(changed))
+        with self.assertRaisesRegex(ValueError, "coverage profiling"):
+            RUNNER.validate_build(build, source)
+        for entry in commands:
+            changed = [dict(row) for row in commands]
+            changed[commands.index(entry)]["command"] += " -fcoverage-mapping"
             (build / "compile_commands.json").write_text(json.dumps(changed))
-            with self.subTest(flag=flag), self.assertRaisesRegex(ValueError, "coverage profiling"):
+            with self.subTest(file=entry["file"]), self.assertRaisesRegex(ValueError, "omit coverage mapping"):
                 RUNNER.validate_build(build, source)
+
+    def test_mapping_in_test_translation_unit_cannot_reenable_mull_filter(self):
+        source, build, commands = self.build_fixture()
+        commands.append({"file": str(source / "tests/test_fixture.cpp"), "directory": str(build),
+                         "arguments": ["clang++", "-fprofile-instr-generate", "-fcoverage-mapping",
+                                       "-c", "test_fixture.cpp"]})
+        (build / "compile_commands.json").write_text(json.dumps(commands))
+        with self.assertRaisesRegex(ValueError, "omit coverage mapping"):
+            RUNNER.validate_build(build, source)
 
     def test_missing_compile_inventory_fails_closed(self):
         source, build, _ = self.build_fixture()
@@ -219,7 +233,7 @@ class MutationScoreTest(unittest.TestCase):
                 mock.patch.object(INSTALLER.platform, "machine", return_value="x86_64"), \
                 mock.patch.object(INSTALLER.shutil, "which", return_value="/usr/bin/bsdtar"), \
                 mock.patch.object(INSTALLER.subprocess, "check_output") as execute:
-            with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+            with self.assertRaisesRegex(ValueError, "prefix must be empty"):
                 INSTALLER.install(prefix)
             execute.assert_not_called()
 

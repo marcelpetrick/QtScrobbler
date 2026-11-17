@@ -1,36 +1,50 @@
-# Qt Scrobbler
+# QtScrobbler
+
+Import your portable player's listening history, review the tracks, and scrobble them from a Qt desktop app or the command line.
 
 [![CI](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/ci.yml)
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
+[![Release pipeline](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/release.yml/badge.svg)](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/marcelpetrick/QtScrobbler?sort=semver)](https://github.com/marcelpetrick/QtScrobbler/releases/latest)
+[![License: GPL v2](https://img.shields.io/badge/license-GPLv2-blue.svg)](LICENSE)
+[![Qt 6.12.0](https://img.shields.io/badge/Qt-6.12.0-41cd52.svg)](documents/DEPENDENCIES.md)
+[![CMake 4.5.0](https://img.shields.io/badge/CMake-4.5.0-064f8c.svg)](documents/DEPENDENCIES.md)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599c.svg)](CMakeLists.txt)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
+[![Tests: Qt Test](https://img.shields.io/badge/tests-Qt_Test-41cd52.svg)](tests/CMakeLists.txt)
+[![Code style: clang-format](https://img.shields.io/badge/code%20style-clang--format-4c566a.svg)](.clang-format)
 
-![QtScrobbler importing the fictional example tracks on Qt 6.12](documents/images/qtscrobbler.png)
+![QtScrobbler displaying three imported example tracks on Qt 6.12](documents/images/qtscrobbler.png)
 
-This screenshot is captured from the running Qt window after a real fixture import.
-Regenerate it with `tools/capture_screenshot.sh /path/to/build`; the test uses temporary
-settings and a disposable log copy. No real tracks are submitted.
+## Your listening history, ready to review
 
-Initially a clone/fork from the SourceForge project by Tomasz Mon, Robert Keevil and others. Now maintained by Marcel Petrick.  
-The code has since been adapted for Qt5 and is now being ported to **Qt6**.  
-QTScrobbler ships both a multiplatform GUI and a CLI version.  
+- Import Audioscrobbler logs, iPod databases, and supported MTP players.
+- Review and edit track details, remove entries, and recalculate timestamps before submitting.
+- Configure scrobbling services in the desktop settings, or use the CLI for scripted workflows.
+- Use the English, German, or Polish interface.
 
-Primary supported platform: **Linux**.  
-macOS and Windows support is not actively maintained.
+Linux is the maintained platform. Windows and macOS sources are retained, but their
+current builds and device compatibility have not been qualified.
 
-Optional MTP support requires `libmtp-dev` and `pkg-config`:
+The screenshot comes from the running application after importing the
+[fictional example log](examples/README.md). Recreate it with
+`tools/capture_screenshot.sh /path/to/build`; the capture uses temporary settings and a log copy.
 
-```sh
-sudo apt-get install libmtp-dev pkg-config   # Debian/Ubuntu
-sudo pacman -S libmtp pkgconf                # Arch/Manjaro
-```
+**Quality work is in progress.** The complete gate requires 95% line coverage,
+95% branch coverage, and 95% proven mutation kills. See the
+[execution record](documents/plan.md) for measurements and remaining work.
 
----
+[Build and dependencies](documents/DEPENDENCIES.md) ·
+[Testing and quality](documents/QUALITY.md) ·
+[Architecture](documents/ARCHITECTURE.md) ·
+[All documentation](documents/README.md) ·
+[Report an issue](https://github.com/marcelpetrick/QtScrobbler/issues)
 
 ## Requirements
 
 - Qt >= 6.12 (qualified build: Qt 6.12.0)
 - CMake >= 3.28
 - A C++20 capable compiler (GCC 12+ or Clang 14+)
-- `cmake` and `pkg-config`
+- `cmake`, `pkg-config`, libmtp and zlib (qualified native prefix: zlib 1.4)
 
 On Arch/Manjaro all of the above are available via `pacman`.  
 On Debian/Ubuntu, distribution Qt packages may be older than 6.12. Install the pinned
@@ -43,14 +57,27 @@ Qt SDK separately; see [dependency inventory](documents/DEPENDENCIES.md).
 ### Run the local pipeline
 
 ```sh
-QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
+python3 tools/install_mutation_toolchain.py --prefix /path/to/native-tools
+. /path/to/native-tools/env.sh
+python3 tools/install_zlib.py --prefix /path/to/zlib
+export ZLIB_ROOT=/path/to/zlib
+export QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
 ```
 
-The pipeline builds the library, GUI and CLI, checks translations, runs the CLI help
-smoke test and offline Qt Test/CTest suite, and retains logs and JUnit results.
-Missing/failed tests or failed CLI smoke tests cause failure. Coverage and mutation
-work toward the 95% targets is tracked in [plan.md](plan.md).
+Install the locked Python tools and native analyzers described in the
+[dependency inventory](documents/DEPENDENCIES.md) and put them on PATH first.
+The default pipeline runs builds, translations, offline Qt Test/CTest, formatting,
+static analysis, fatal Doxygen/docs checks, isolated ASan/UBSan, LLVM coverage,
+native Mull mutation and extracted-package CLI/GUI checks. Missing tools, failed
+checks and scores below either 95% coverage threshold or the 95% mutation threshold
+fail the complete gate. Retained reports include actual statuses and provenance.
+
+`--quick` explicitly runs only the build/test diagnostic subset. `--baseline` runs
+all stages while recording incomplete coverage/mutation as measurements; it does
+not qualify a release. Current measured progress and open requirements are in
+[plan.md](documents/plan.md). See [quality commands](documents/QUALITY.md),
+[architecture](documents/ARCHITECTURE.md) and [API contracts](documents/API.md).
 
 A [fictional example log](examples/README.md) is provided for safe imports from a temporary copy.
 
@@ -58,7 +85,8 @@ A [fictional example log](examples/README.md) is provided for safe imports from 
 
 ```sh
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64
-cmake --build build --parallel $(nproc)
+cmake --build build --parallel 4
+ctest --test-dir build --output-on-failure --no-tests=error
 ```
 
 Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
@@ -80,18 +108,17 @@ Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
 
 ```sh
 ./build/scrobbler --help
-./build/scrobbler -f /path/to/.scrobbler.log
+# Select a player directory and configure a service before submitting tracks.
+# Use the fictional example only from a disposable copy; see examples/README.md.
 ```
 
 ---
 
-## Qt6 port status
+## Project and contributors
 
-See [`port_to_qt6.md`](port_to_qt6.md) for the full compatibility assessment and list of required changes.
+QtScrobbler continues the SourceForge project by Tomasz Mon, Robert Keevil, and
+other contributors, and is maintained by Marcel Petrick. It remains licensed under
+[GPLv2](LICENSE). See [contributors](documents/AUTHORS),
+[changes](documents/CHANGELOG), and the [Qt port history](documents/port_to_qt6.md).
 
----
-
-# last.fm
-
-Last.fm stopped support for groups and closed all existing ones.
-GitHub issues are the place to exchange ideas and report bugs.
+Ideas and bug reports are welcome through [GitHub issues](https://github.com/marcelpetrick/QtScrobbler/issues).

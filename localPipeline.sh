@@ -8,6 +8,8 @@ BUILD_DIR="${QTSCROBBLER_BUILD_DIR:-${ROOT_DIR}/build}"
 APP_VERSION="$(grep -oP '#define CLIENT_VERSION "\K[^"]+' "${SRC_DIR}/lib/common.h" 2>/dev/null || echo "unknown")"
 PIPELINE_LOG_DIR="${TMPDIR:-/tmp}/qtscrob-pipeline-$$"
 KEEP_REPORTS=false
+# Invoked through a trap or quality_command.
+# shellcheck disable=SC2329
 cleanup() {
     if [[ "${KEEP_REPORTS}" == false ]]; then rm -rf "${PIPELINE_LOG_DIR}"; fi
 }
@@ -22,10 +24,10 @@ CMAKE_CONFIG_OK=0
 CMAKE_BUILD_OK=0
 GUI_BUILD_OK=0
 CLI_BUILD_OK=0
-CLI_SMOKE_OK=0
-GUI_SMOKE_OK=0
-LAUNCH_OK=0
 RUN_APP=true
+QUICK=false
+BASELINE=false
+FORCE_FULL=false
 
 # Detail strings
 QT6_DETAILS=""
@@ -42,7 +44,6 @@ TRANSLATION_DETAILS=""
 JOBS="${QTSCROBBLER_JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}"
 
 # Will be set to the detected Qt6 qmake binary (qmake6 or qmake) — used for Qt6 check only
-QMAKE=""
 
 # ---------------------------------------------------------------------------
 # Logging helpers
@@ -74,7 +75,7 @@ print_summary() {
 
 print_usage() {
     cat <<EOF
-Usage: ./localPipeline.sh [--noRun] [--noOpen] [--report-dir PATH] [--help]
+Usage: ./localPipeline.sh [--noRun] [--noOpen] [--report-dir PATH] [--quick|--baseline] [--help]
 
 Local build and quality pipeline for QtScrobbler (Qt 6, Linux).
 
@@ -89,9 +90,17 @@ Stages:
   7.  Translations        — count unfinished strings in .ts catalogs
   8.  Unit tests          — run QTest suite (missing or failed tests are fatal)
   9.  Launch app          — start qtscrob once (suppress with --noRun)
-  10. Summary             — stage-by-stage result table
+  10. Format/static/docs   — native analyzers, fatal Doxygen and documentation checks
+  11. Sanitizers           — isolated ASan/UBSan build and complete CTest suite
+  12. Coverage             — isolated LLVM build, separate 95% line and branch gates
+  13. Mutation             — isolated native Mull campaign, 95% assertion-killed gate
+  14. Package              — extracted CLI and actual GUI startup, dependency checks
+  15. Summary              — actual stage results (missing tools or reports fail)
 
 Options:
+  --quick   Explicit build/test diagnostic subset; does not qualify final quality
+  --baseline  Run all stages but MEASURE coverage/mutation below target; not a release gate
+  --mutation  Run the complete gate (mutation is mandatory in the default full gate)
   --noRun   Skip launching the GUI app at the end
   --noOpen  Keep reports closed (the pipeline never opens a browser)
   --report-dir PATH  Retain logs and JUnit XML in PATH
@@ -138,8 +147,6 @@ check_qt6() {
         error "  ${QT6_DETAILS}"
         return 1
     fi
-
-    QMAKE="${qmake_bin}"
     QT6_DETAILS="Qt ${qt_version} at ${qmake_bin}"
     log "  Qt version : ${qt_version}"
     log "  qmake path : ${qmake_bin}"
@@ -198,7 +205,9 @@ cmake_configure() {
             -S "${ROOT_DIR}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="${QTSCROBBLER_QT_PREFIX:-${CMAKE_PREFIX_PATH:-}}" \
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON \
+            -DQTSCROBBLER_MTP=ON -DQTSCROBBLER_COVERAGE=OFF \
+            -DQTSCROBBLER_MULL_PLUGIN:FILEPATH= -DQTSCROBBLER_SANITIZERS=OFF; then
         CMAKE_CONFIG_DETAILS="configured in ${BUILD_DIR}"
         log "  Configure PASS"
         return 0
@@ -354,7 +363,7 @@ check_translations() {
     if [[ "${#detail_parts[@]}" -eq 0 ]]; then
         TRANSLATION_DETAILS="no .ts catalogs found"
         warn "  ${TRANSLATION_DETAILS}"
-        return 0
+        return 1
     fi
 
     local joined
@@ -426,6 +435,84 @@ launch_application() {
     return 1
 }
 
+# Complete qualification. Each stage retains its own output and propagates failure.
+quality_command() {
+    local label="$1"; shift
+    local stage_status="PASS"
+    if run_with_log "${PIPELINE_LOG_DIR}/${label}.log" "$@"; then
+        if [[ "${BASELINE}" == true && ( "${label}" == Coverage || "${label}" == Mutation ) ]]; then
+            stage_status="MEASURE"
+        fi
+        mark_result "${label}" "${stage_status}" "see ${PIPELINE_LOG_DIR}/${label}.log"
+        return 0
+    fi
+    mark_result "${label}" "FAIL" "see ${PIPELINE_LOG_DIR}/${label}.log"
+    return 1
+}
+
+# Invoked through a trap or quality_command.
+# shellcheck disable=SC2329
+format_check() {
+    command -v clang-format >/dev/null || return 1
+    local sources=()
+    mapfile -t sources < <(find "${SRC_DIR}/lib" "${SRC_DIR}/cli" "${SRC_DIR}/qt/src" "${ROOT_DIR}/tests" \
+        -type f \( -name '*.cpp' -o -name '*.h' \) | sort)
+    [[ "${#sources[@]}" -gt 0 ]] || return 1
+    clang-format --dry-run --Werror "${sources[@]}"
+}
+
+# Invoked through a trap or quality_command.
+# shellcheck disable=SC2329
+sanitizer_check() {
+    local sanitizer_build="${BUILD_DIR}-sanitizers"
+    cmake -S "${ROOT_DIR}" -B "${sanitizer_build}" -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_PREFIX_PATH="${QTSCROBBLER_QT_PREFIX:-}" -DBUILD_TESTING=ON \
+        -DQTSCROBBLER_MTP=ON -DQTSCROBBLER_SANITIZERS=ON \
+        -DQTSCROBBLER_COVERAGE=OFF -DQTSCROBBLER_MULL_PLUGIN:FILEPATH= || return 1
+    cmake --build "${sanitizer_build}" --parallel "${JOBS}" || return 1
+    ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+        ctest --test-dir "${sanitizer_build}" --output-on-failure --no-tests=error -j "${JOBS}" \
+        --output-junit "${PIPELINE_LOG_DIR}/sanitizers-junit.xml"
+}
+
+# Invoked through a trap or quality_command.
+# shellcheck disable=SC2329
+mutation_check() {
+    [[ -n "${QTSCROBBLER_MULL_PLUGIN:-}" && -f "${QTSCROBBLER_MULL_PLUGIN}" ]] || {
+        error "Source the qualified native LLVM/Mull env.sh before full qualification"; return 1;
+    }
+    local mutation_build="${BUILD_DIR}-mutation"
+    local measure=()
+    [[ "${BASELINE}" == true ]] && measure+=(--baseline)
+    MULL_CONFIG="${ROOT_DIR}/mull.yml" cmake -S "${ROOT_DIR}" -B "${mutation_build}" \
+        -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${QTSCROBBLER_QT_PREFIX:-}" \
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON -DQTSCROBBLER_MTP=ON \
+        -DQTSCROBBLER_MULL_PLUGIN:FILEPATH="${QTSCROBBLER_MULL_PLUGIN}" \
+        -DQTSCROBBLER_COVERAGE=OFF -DQTSCROBBLER_SANITIZERS=OFF || return 1
+    python3 "${ROOT_DIR}/tools/run_mutation_tests.py" --build-dir "${mutation_build}" \
+        --report-dir "${PIPELINE_LOG_DIR}/mutation" --jobs "${JOBS}" \
+        --coverage-summary "${PIPELINE_LOG_DIR}/coverage/summary.json" "${measure[@]}"
+}
+
+full_quality_checks() {
+    local failed=0
+    local measure=()
+    [[ "${BASELINE}" == true ]] && measure+=(--baseline)
+    quality_command Format format_check || failed=1
+    for stage in static docs; do
+        quality_command "${stage}" python3 "${ROOT_DIR}/tools/run_quality_checks.py" \
+            --stage "${stage}" --build-dir "${BUILD_DIR}" --report-dir "${PIPELINE_LOG_DIR}/${stage}" || failed=1
+    done
+    quality_command Sanitizers sanitizer_check || failed=1
+    quality_command Coverage python3 "${ROOT_DIR}/tools/run_coverage.py" \
+        --build-dir "${BUILD_DIR}-coverage" --report-dir "${PIPELINE_LOG_DIR}/coverage" \
+        --jobs "${JOBS}" "${measure[@]}" || failed=1
+    quality_command Mutation mutation_check || failed=1
+    quality_command Package python3 "${ROOT_DIR}/tools/run_quality_checks.py" \
+        --stage package --build-dir "${BUILD_DIR}" --report-dir "${PIPELINE_LOG_DIR}/package" || failed=1
+    return "${failed}"
+}
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -433,6 +520,9 @@ launch_application() {
 parse_arguments() {
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
+            --quick) QUICK=true ;;
+            --baseline) BASELINE=true ;;
+            --mutation) FORCE_FULL=true ;;
             --noRun)  RUN_APP=false ;;
             --noOpen) ;;
             --report-dir)
@@ -448,6 +538,14 @@ parse_arguments() {
         esac
         shift
     done
+    local modes=0
+    [[ "${QUICK}" == true ]] && modes=$((modes + 1))
+    [[ "${BASELINE}" == true ]] && modes=$((modes + 1))
+    [[ "${FORCE_FULL}" == true ]] && modes=$((modes + 1))
+    if [[ "${modes}" -gt 1 ]]; then
+        error "Choose only one mode: --quick, --baseline or --mutation"
+        exit 2
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -458,6 +556,11 @@ main() {
     local exit_code=0
 
     parse_arguments "$@"
+    if [[ "${KEEP_REPORTS}" == false && "${QUICK}" == false ]]; then
+        PIPELINE_LOG_DIR="${ROOT_DIR}/quality-reports/$(date -u '+%Y%m%dT%H%M%SZ')-$$"
+        KEEP_REPORTS=true
+    fi
+    mkdir -p "${PIPELINE_LOG_DIR}"
 
     log "================================================"
     log " QtScrobbler v${APP_VERSION} — local pipeline"
@@ -536,7 +639,6 @@ main() {
     # Stage 5 — CLI smoke test
     if [[ "${CLI_BUILD_OK}" -eq 1 ]]; then
         if smoke_test_cli; then
-            CLI_SMOKE_OK=1
             mark_result "Smoke: CLI" "PASS" "${CLI_SMOKE_DETAILS}"
         else
             mark_result "Smoke: CLI" "FAIL" "${CLI_SMOKE_DETAILS}"
@@ -549,7 +651,6 @@ main() {
     # Stage 6 — GUI binary smoke test
     if [[ "${GUI_BUILD_OK}" -eq 1 ]]; then
         if smoke_test_gui_binary; then
-            GUI_SMOKE_OK=1
             mark_result "Smoke: GUI binary" "PASS" "${GUI_SMOKE_DETAILS}"
         else
             mark_result "Smoke: GUI binary" "FAIL" "${GUI_SMOKE_DETAILS}"
@@ -563,7 +664,8 @@ main() {
     if check_translations; then
         mark_result "Translations" "PASS" "${TRANSLATION_DETAILS}"
     else
-        mark_result "Translations" "WARN" "${TRANSLATION_DETAILS}"
+        mark_result "Translations" "FAIL" "${TRANSLATION_DETAILS}"
+        exit_code=1
     fi
 
     # Stage 8 — Unit tests
@@ -574,11 +676,19 @@ main() {
         exit_code=1
     fi
 
+    if [[ "${QUICK}" == true ]]; then
+        mark_result "Full qualification" "SKIP" "explicit --quick diagnostic subset"
+    elif [[ "${CMAKE_BUILD_OK}" -eq 1 ]]; then
+        full_quality_checks || exit_code=1
+    else
+        mark_result "Full qualification" "FAIL" "build unavailable"
+        exit_code=1
+    fi
+
     # Stage 9 — Launch app
     if [[ "${GUI_BUILD_OK}" -eq 1 ]]; then
         if [[ "${RUN_APP}" == true ]]; then
             if launch_application; then
-                LAUNCH_OK=1
                 mark_result "Launch App" "PASS" "qtscrob started (detached)"
             else
                 mark_result "Launch App" "WARN" "Launch skipped or failed (non-fatal)"
@@ -598,6 +708,7 @@ main() {
     fi
 
     print_summary
+    printf '%s\n' "${SUMMARY_LINES[@]}" > "${PIPELINE_LOG_DIR}/summary.txt"
     exit "${exit_code}"
 }
 

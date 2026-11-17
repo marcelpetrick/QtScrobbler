@@ -15,10 +15,10 @@ workflow adds no alternative definition of a passing test suite or coverage scor
 
 ## CI
 
-[ci.yml](.github/workflows/ci.yml) runs on every branch push except version tags,
+[ci.yml](../.github/workflows/ci.yml) runs on every branch push except version tags,
 on pull requests to `main` (and `master` during migration), and on manual dispatch.
 The Ubuntu 24.04 runner installs the required system libraries, checksum-verified
-CMake/CTest 4.5.0, and the Qt 6.12.0 Linux SDK with qtbase, qttools, qttranslations
+CMake/CTest 4.5.0, and the Qt 6.12.0 Linux SDK with qtbase, qtdeclarative, qttools, qttranslations
 and ICU archives. The Qt installer and py7zr versions are explicit.
 The complete Python quality tool resolution in `requirements-quality.txt` is installed
 into an isolated virtual environment for pipeline stages such as coverage. GitHub Actions
@@ -39,13 +39,13 @@ Artifacts are available in the workflow run's **Artifacts** section:
 - `binaries-linux-x86_64`: GUI `qtscrob` and CLI `scrobbler`, uploaded only on success;
   retained 7 days.
 
-The workflow is bounded to 30 minutes. System/compiler packages are currently
+The workflow is bounded to 120 minutes. System/compiler packages are currently
 resolved by Ubuntu apt; the remaining environment lock work is tracked in
-[the dependency inventory](documents/DEPENDENCIES.md).
+[the dependency inventory](DEPENDENCIES.md).
 
 ## Pinned CMake installer
 
-[`tools/install_cmake.py`](tools/install_cmake.py) installs the reviewed Linux x86-64
+[`tools/install_cmake.py`](../tools/install_cmake.py) installs the reviewed Linux x86-64
 CMake 4.5.0 release into a new, explicit directory without changing OS packages:
 
 ```sh
@@ -63,7 +63,7 @@ Update the release URL and reviewed digest together during dependency review.
 
 ## Release qualification
 
-[release.yml](.github/workflows/release.yml) runs when an authorized version tag
+[release.yml](../.github/workflows/release.yml) runs when an authorized version tag
 matching `v[0-9]*` is pushed. Tag creation and release publication remain separate
 owner decisions; ordinary continuous pushes to `main` do not publish a release.
 
@@ -79,8 +79,8 @@ These are dynamically linked Linux executables. **Qt >= 6.12**, its runtime plug
 (including SQLite and a suitable platform plugin), and libmtp must be installed on
 the target machine. An older distro package such as Ubuntu 24.04's default Qt is
 insufficient; use the reviewed SDK or another compatible runtime. Shared libraries
-and Qt plugins are not bundled in the tarball. See [README.md](README.md) and
-[the dependency inventory](documents/DEPENDENCIES.md).
+and Qt plugins are not bundled in the tarball. See [README.md](../README.md) and
+[the dependency inventory](DEPENDENCIES.md).
 
 macOS and Windows are not qualified by these workflows. No Docker build or image
 publication is part of this initiative.

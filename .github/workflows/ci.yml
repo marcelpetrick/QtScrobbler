@@ -19,7 +19,7 @@ jobs:
   build:
     name: Local quality pipeline (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -30,7 +30,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y \
             build-essential pkg-config python3 python3-venv \
-            libgl-dev libmtp-dev zlib1g-dev xvfb
+            libgl-dev libmtp-dev zlib1g-dev libarchive-tools \
+            clazy cppcheck doxygen graphviz shellcheck xvfb
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
@@ -56,6 +57,18 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
           "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install -r requirements-quality.txt
           echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Install qualified native LLVM and Mull
+        run: |
+          python3 tools/install_mutation_toolchain.py --prefix "$RUNNER_TEMP/qtscrobbler-native-tools"
+          echo "$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin" >> "$GITHUB_PATH"
+          {
+            echo "CC=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang-20"
+            echo "CXX=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang++-20"
+            echo "QTSCROBBLER_LLVM_PREFIX=$RUNNER_TEMP/qtscrobbler-native-tools"
+            echo "QTSCROBBLER_MULL_PLUGIN=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/mull-ir-frontend-20"
+            echo "LD_LIBRARY_PATH=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/x86_64-linux-gnu:$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/llvm-20/lib:${LD_LIBRARY_PATH:-}"
+          } >> "$GITHUB_ENV"
 
       - name: Install and test pinned zlib 1.4
         run: |

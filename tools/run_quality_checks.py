@@ -18,9 +18,9 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_DOCS = (
-    "README.md", "AGENTS.md", "plan.md", "visions.md", "examples/README.md",
+    "README.md", "AGENTS.md", "documents/plan.md", "documents/visions.md", "examples/README.md",
     "documents/API.md", "documents/DEPENDENCIES.md", "documents/MUTATION_TESTING.md",
-    "documents/QUALITY.md",
+    "documents/QUALITY.md", "documents/ARCHITECTURE.md", "documents/README.md", "documents/REVIEW.md",
 )
 
 
@@ -49,7 +49,9 @@ def production_commands(build: Path, root: Path = ROOT) -> list[dict]:
 
 def validate_docs(root: Path = ROOT) -> list[str]:
     checked = []
-    for name in REQUIRED_DOCS:
+    names = dict.fromkeys((*REQUIRED_DOCS, *(str(path.relative_to(root))
+                            for path in sorted((root / "documents").rglob("*.md")))))
+    for name in names:
         path = root / name
         content = path.read_text()
         if not re.search(r"(?m)^# ", content):
@@ -151,13 +153,13 @@ class Checks:
 
     def package(self, build: Path):
         members = [build / "qtscrob", build / "scrobbler", ROOT / "LICENSE", ROOT / "README.md",
-                   ROOT / "examples/scrobble.log"]
-        if any(not path.is_file() for path in members):
+                   ROOT / "COPYING", ROOT / "documents", ROOT / "examples/scrobble.log", ROOT / "examples/README.md"]
+        if any(not path.exists() for path in members):
             raise ValueError("required package binaries/documentation/example are missing")
         archive = self.reports / "qtscrobbler-linux.tar.gz"
         with tarfile.open(archive, "w:gz") as stream:
             for member in members:
-                name = f"examples/{member.name}" if member.name == "scrobble.log" else member.name
+                name = f"examples/{member.name}" if member.parent == ROOT / "examples" else member.name
                 stream.add(member, arcname=name)
         with tempfile.TemporaryDirectory(prefix="qtscrobbler-package-") as temporary:
             destination = Path(temporary)

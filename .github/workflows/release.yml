@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ['v[0-9]*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,7 +12,7 @@ jobs:
   build-and-release:
     name: Qualified Linux release (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
@@ -22,7 +23,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y \
             build-essential pkg-config python3 python3-venv \
-            libgl-dev libmtp-dev zlib1g-dev xvfb
+            libgl-dev libmtp-dev zlib1g-dev libarchive-tools \
+            clazy cppcheck doxygen graphviz shellcheck xvfb
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
@@ -49,6 +51,10 @@ jobs:
           TAG="$GITHUB_REF_NAME"
           VER="${TAG#v}"
           SOURCE_VER=$(sed -n 's/^#define CLIENT_VERSION "\([^"]*\)".*/\1/p' src/lib/common.h)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            VER="$SOURCE_VER"
+            TAG="v$VER"
+          fi
           if [ "$VER" != "$SOURCE_VER" ]; then
             echo "Tag $TAG does not match source version $SOURCE_VER" >&2
             exit 1
@@ -64,6 +70,18 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
           "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install -r requirements-quality.txt
           echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Install qualified native LLVM and Mull
+        run: |
+          python3 tools/install_mutation_toolchain.py --prefix "$RUNNER_TEMP/qtscrobbler-native-tools"
+          echo "$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin" >> "$GITHUB_PATH"
+          {
+            echo "CC=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang-20"
+            echo "CXX=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang++-20"
+            echo "QTSCROBBLER_LLVM_PREFIX=$RUNNER_TEMP/qtscrobbler-native-tools"
+            echo "QTSCROBBLER_MULL_PLUGIN=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/mull-ir-frontend-20"
+            echo "LD_LIBRARY_PATH=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/x86_64-linux-gnu:$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/llvm-20/lib:${LD_LIBRARY_PATH:-}"
+          } >> "$GITHUB_ENV"
 
       - name: Install and test pinned zlib 1.4
         run: |
@@ -89,6 +107,7 @@ jobs:
           mkdir -p "dist/$ARCHIVE/examples"
           cp build/qtscrob build/scrobbler README.md LICENSE COPYING "dist/$ARCHIVE/"
           cp examples/scrobble.log examples/README.md "dist/$ARCHIVE/examples/"
+          cp -R documents "dist/$ARCHIVE/"
           tar -C dist -czf "dist/$ARCHIVE.tar.gz" "$ARCHIVE"
           SHA=$(sha256sum "dist/$ARCHIVE.tar.gz" | awk '{print $1}')
           {
@@ -156,7 +175,17 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      - name: Upload qualified archive
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: qualified-linux-release
+          path: dist/*.tar.gz
+          retention-days: 90
+          if-no-files-found: error
+
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.meta.outputs.tag }}

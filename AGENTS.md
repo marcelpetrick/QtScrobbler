@@ -2,12 +2,12 @@
 
 ## Current initiative
 
-Read `plan.md` before changing this repository. The authorized initiative is Qt 6.12,
+Read `documents/plan.md` before changing this repository. The authorized initiative is Qt 6.12,
 dependency review, working CLI/GUI behavior, at least 95% line and branch coverage, and
 native mutation testing. The percentages are targets until reports demonstrate them.
 
 The initial commit contains the plan and this file only. Then execute the plan in atomic
-commits. **Every implementation commit must update `plan.md`**: mark completed checklist
+commits. **Every implementation commit must update `documents/plan.md`**: mark completed checklist
 items, record commands/results and measured numbers, describe what is left, and retain
 blockers. Never mark a package complete on partial evidence. Keep this file current when
 commands or contribution rules change; it need not change in every implementation commit.
@@ -37,11 +37,20 @@ commands or contribution rules change; it need not change in every implementatio
 
 ## Build and test commands
 
-Current gate: `QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 ./localPipeline.sh --noRun`. Missing/failed tests and CLI smoke failures are fatal. This baseline gate does not yet
-enforce the final coverage/mutation targets. Retain evidence with
-`./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports`.
-Use `QTSCROBBLER_JOBS=4` to bound build parallelism and `QTSCROBBLER_BUILD_DIR`
-for an isolated build directory.
+The default complete gate is `./localPipeline.sh --noRun --noOpen --report-dir <new-dir>`.
+Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib prefix using
+`documents/DEPENDENCIES.md`; source the generated native `env.sh` and set
+`QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
+ASan/UBSan, separate 95% line/branch coverage, native 95% mutation and extracted-package
+qualification are mandatory in this command. Missing tools/reports and failed stages fail.
+
+`--quick` is an explicit build/test diagnostic subset for incremental atomic implementation
+commits while quality targets remain open. It never qualifies final completion.
+`--baseline` runs all stages but labels incomplete coverage/mutation as measurements;
+it is not release qualification. Record which mode was actually run in `documents/plan.md`.
+Use `QTSCROBBLER_JOBS=4` to bound parallelism and `QTSCROBBLER_BUILD_DIR` for an isolated
+normal build. Instrumented builds use separate coverage/sanitizer/mutation directories.
+Full reports must start fresh; keep previous reports as historical evidence.
 
 Current direct checks:
 
@@ -97,8 +106,8 @@ SDK requires its ICU archive. The system Qt 6.11 installation is below the new m
 
 ## Owner's final product workflow
 
-- There was no `visions.md` in the initial checkout. Record the explicit requested vision,
-  trace its requirements in `plan.md`, implement them, and audit each against evidence.
+- There was no `documents/visions.md` in the initial checkout. Record the explicit requested vision,
+  trace its requirements in `documents/plan.md`, implement them, and audit each against evidence.
 - Preserve GPLv2. The owner explicitly withdrew the generic instruction to adopt GPLv3.
 - Do not add Docker/GHCR workflows, container checks or Docker documentation. Use native tools.
 - Add real README badges, setup/testing/quality/usage documentation and a screenshot captured

@@ -63,11 +63,13 @@ def passes(covered: int, total: int, minimum: Decimal) -> bool:
 
 
 def fingerprints() -> dict[str, str]:
-    paths = sorted(path for parent in (ROOT / "src", ROOT / "tests", ROOT / "cmake")
-                   for path in parent.rglob("*") if path.is_file()
-                   and path.suffix in {".cpp", ".h", ".cmake", ".txt"})
-    paths += [ROOT / "CMakeLists.txt", ROOT / "tools/run_coverage.py"]
-    return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
+    paths = {path for folder in ("src", "tests", "cmake", "tools")
+             for path in (ROOT / folder).rglob("*") if path.is_file()
+             and "__pycache__" not in path.parts and path.suffix != ".pyc"}
+    paths.update(path for name in ("CMakeLists.txt", "localPipeline.sh", "mull.yml", "Doxyfile",
+                                  "requirements-quality.txt", ".clang-format")
+                 if (path := ROOT / name).is_file())
+    return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(paths)}
 
 
 def main() -> int:
@@ -149,6 +151,8 @@ def main() -> int:
         if fingerprints() != initial_sources:
             raise ValueError("source/test/build definitions changed during coverage run")
         summary = {"source_sha256": initial_sources, "mapping_diagnostics": diagnostics,
+                   "exports_sha256": {name: hashlib.sha256((reports / name).read_bytes()).hexdigest()
+                                      for name in ("coverage.json", "coverage.profdata")},
                    "binaries_sha256": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in ordered},"mode": "baseline" if args.baseline else "gate", "target_percent": str(args.minimum),
                    "branch_semantics": "LLVM explicit source branch regions; implicit exception edges absent",
                    "totals": totals, "production_file_inventory": sorted(inventory),

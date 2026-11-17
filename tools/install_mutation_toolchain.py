@@ -25,6 +25,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import urllib.request
 
 
@@ -60,13 +61,84 @@ ARTIFACTS = [
 ]
 
 
+MANIFEST = "toolchain-manifest.json"
+
+
+def installed_inventory(prefix: Path) -> dict:
+    """Fingerprint installed files and links without following directory symlinks."""
+    inventory = {}
+    for directory, directories, files in os.walk(prefix, followlinks=False):
+        for name in sorted(directories + files):
+            path = Path(directory) / name
+            relative = str(path.relative_to(prefix))
+            if relative == MANIFEST:
+                continue
+            if path.is_symlink():
+                inventory[relative] = {"symlink": os.readlink(path)}
+            elif path.is_dir():
+                inventory[relative] = {"directory": True}
+            elif path.is_file():
+                with path.open("rb") as stream:
+                    inventory[relative] = {"sha256": hashlib.file_digest(stream, "sha256").hexdigest(),
+                                           "mode": path.stat().st_mode & 0o777}
+            else:
+                raise ValueError(f"unsupported installed artifact: {path}")
+    return inventory
+
+
+def verified_install(prefix: Path) -> dict | None:
+    """Reuse only this exact artifact resolution with unchanged installed contents."""
+    manifest_path = prefix / MANIFEST
+    if not manifest_path.is_file() or manifest_path.is_symlink():
+        return None
+    manifest = json.loads(manifest_path.read_text())
+    expected_artifacts = [{"url": url, "sha256": digest} for url, digest in ARTIFACTS]
+    if (not isinstance(manifest, dict) or manifest.get("schema_version") != 2
+            or manifest.get("artifacts") != expected_artifacts
+            or not isinstance(manifest.get("installed_files"), dict)
+            or not manifest["installed_files"]):
+        raise ValueError("unrecognized native toolchain manifest; choose a new empty prefix")
+    if installed_inventory(prefix) != manifest["installed_files"]:
+        raise ValueError("native toolchain installed artifact inventory differs from manifest")
+    for relative in ("env.sh", "usr/bin/clang-20", "usr/bin/mull-runner",
+                     "usr/bin/llvm-cov-20", "usr/bin/llvm-profdata-20"):
+        path = prefix / relative
+        if not path.is_file() or not path.resolve().is_relative_to(prefix):
+            raise ValueError(f"native toolchain required artifact is missing or outside prefix: {relative}")
+    return manifest
+
+
 def install(prefix: Path) -> dict:
+    prefix = prefix.resolve()
+    if (prefix in {Path("/"), Path.home().resolve()}
+            or any(prefix.is_relative_to(Path(root)) for root in ("/usr", "/etc", "/bin", "/lib", "/sbin"))):
+        raise ValueError("choose an isolated user-owned tool prefix")
+    if prefix.exists():
+        if not prefix.is_dir():
+            raise ValueError("native toolchain prefix must be a directory")
+        manifest = verified_install(prefix)
+        if manifest is not None:
+            print(f"Verified existing native toolchain: {prefix}", flush=True)
+            return manifest
+        if any(prefix.iterdir()):
+            raise ValueError("native toolchain prefix must be empty or contain a verified install")
     if platform.system() != "Linux" or platform.machine() not in {"x86_64", "amd64"}:
         raise ValueError("this pinned artifact set supports Linux x86-64 only")
     if not shutil.which("bsdtar"):
         raise ValueError("bsdtar is required to extract Debian package archives")
-    if prefix in {Path("/"), Path("/usr"), Path("/usr/local")}:
-        raise ValueError("choose an isolated user-owned tool prefix")
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".qtscrobbler-native-", dir=prefix.parent) as temporary:
+        staged = Path(temporary) / "prefix"
+        manifest = populate(staged, prefix)
+        # Recheck before publishing: never replace another process's installation.
+        if prefix.exists():
+            prefix.rmdir()
+        staged.rename(prefix)
+    return manifest
+
+
+def populate(prefix: Path, final_prefix: Path) -> dict:
+    """Prepare and qualify an isolated installation before publishing its directory."""
     prefix.mkdir(parents=True, exist_ok=True)
     downloads = prefix / "downloads"
     downloads.mkdir(exist_ok=True)
@@ -100,20 +172,21 @@ def install(prefix: Path) -> dict:
         if required not in output:
             raise ValueError(f"unexpected executable version: {executable}: {output}")
         checks[executable] = output.strip()
-    prefix_quote = shlex.quote(str(prefix))
+    prefix_quote = shlex.quote(str(final_prefix))
+    final_libpath = f"{final_prefix}/usr/lib/x86_64-linux-gnu:{final_prefix}/usr/lib/llvm-20/lib"
     (prefix / "env.sh").write_text(
         "# Generated native LLVM/Mull environment; source this file.\n"
         f"export QTSCROBBLER_LLVM_PREFIX={prefix_quote}\n"
-        f"export QTSCROBBLER_MULL_PLUGIN={shlex.quote(str(prefix / 'usr/lib/mull-ir-frontend-20'))}\n"
-        f"export CC={shlex.quote(str(prefix / 'usr/bin/clang-20'))}\n"
-        f"export CXX={shlex.quote(str(prefix / 'usr/bin/clang++-20'))}\n"
-        f"export PATH={shlex.quote(str(prefix / 'usr/bin'))}:\"$PATH\"\n"
-        f"export LD_LIBRARY_PATH={shlex.quote(libpath)}\"${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}\"\n"
+        f"export QTSCROBBLER_MULL_PLUGIN={shlex.quote(str(final_prefix / 'usr/lib/mull-ir-frontend-20'))}\n"
+        f"export CC={shlex.quote(str(final_prefix / 'usr/bin/clang-20'))}\n"
+        f"export CXX={shlex.quote(str(final_prefix / 'usr/bin/clang++-20'))}\n"
+        f"export PATH={shlex.quote(str(final_prefix / 'usr/bin'))}:\"$PATH\"\n"
+        f"export LD_LIBRARY_PATH={shlex.quote(final_libpath)}\"${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}\"\n"
     )
-    manifest = {"schema_version": 1, "artifacts": [
+    manifest = {"schema_version": 2, "artifacts": [
         {"url": url, "sha256": digest} for url, digest in ARTIFACTS
-    ], "versions": checks}
-    (prefix / "toolchain-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    ], "versions": checks, "installed_files": installed_inventory(prefix)}
+    (prefix / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
 

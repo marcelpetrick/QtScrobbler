@@ -7,6 +7,11 @@ Build first with Clang and QTSCROBBLER_MULL_PLUGIN, then run:
   python3 tools/run_mutation_tests.py --build-dir BUILD --report-dir NEW_REPORT_DIRECTORY
 
 Use --baseline to measure an incomplete suite without claiming the 95% gate passes.
+Mutation builds retain profiling but omit source coverage mapping, so Mull executes all
+generated mutants rather than applying its unreliable LLVM 20 coverage filter. Separate
+LLVM coverage reports remain required; survivors include unexercised mutations until
+classified from trusted coverage evidence.
+
 No dependencies are installed and no container is used. Each report retains raw outcomes,
 commands, binary/source/config hashes and the exact Mull version. Existing nonempty report
 directories are rejected so a stale result cannot pass a fresh campaign.
@@ -79,12 +84,15 @@ def validate_build(build: Path, root: Path, *, require_objects: bool = False) ->
         if not path.is_absolute():
             path = Path(entry["directory"]) / path
         path = path.resolve()
+        command = entry.get("command", " ".join(entry.get("arguments", [])))
+        tokens = entry.get("arguments") or shlex.split(command)
+        if "-fcoverage-mapping" in tokens:
+            raise ValueError(f"mutation build must omit coverage mapping to avoid false uncovered mutants: {path}")
         if path not in expected:
             continue
-        command = entry.get("command", " ".join(entry.get("arguments", [])))
         if f"-fpass-plugin={plugin}" not in command:
             raise ValueError(f"production file lacks mutation instrumentation: {path}")
-        if any(flag not in command for flag in ("-fprofile-instr-generate", "-fcoverage-mapping")):
+        if "-fprofile-instr-generate" not in tokens:
             raise ValueError(f"production file lacks mutation coverage profiling: {path}")
         record = dict(entry)
         if require_objects:
@@ -162,6 +170,8 @@ def main() -> int:
                         help="minimum mutant timeout; Mull uses max(this, 10 times baseline duration)")
     parser.add_argument("--command-timeout", type=int, default=3600)
     parser.add_argument("--baseline", action="store_true")
+    parser.add_argument("--coverage-summary", type=Path,
+                        help="fresh independent LLVM coverage summary for unresolved source-position classification")
     arguments = parser.parse_args()
     try:
         # Validate the threshold even for a baseline invocation.
@@ -190,6 +200,9 @@ def main() -> int:
         raw_profiles.mkdir()
         environment["LLVM_PROFILE_FILE"] = str(raw_profiles / "%m-%p.profraw")
         sources = source_hashes(root)
+        from mutation_coverage import CoverageEvidence, classify_unresolved
+        coverage_evidence = (CoverageEvidence(arguments.coverage_summary, sources)
+                             if arguments.coverage_summary is not None else None)
         run([cmake, "--build", str(build), "--clean-first", "--parallel", str(arguments.jobs)],
             environment=environment, timeout=arguments.command_timeout, log=reports / "rebuild.log")
         provenance = validate_build(build, root, require_objects=True)
@@ -224,10 +237,17 @@ def main() -> int:
             "build_provenance": provenance,
             "runner_sha256": sha256(Path(runner)),
             "source_sha256": sources,
+            "coverage_evidence": coverage_evidence.provenance() if coverage_evidence is not None else None,
             "compiler_cache_sha256": sha256(build / "CMakeCache.txt"),
             "non_native_ctest_tests": non_native,
             "profile_directory": str(raw_profiles),
             "profile_file_pattern": environment["LLVM_PROFILE_FILE"],
+            "coverage_filter": {
+                "enabled": False,
+                "policy": "execute every generated mutant; no coverage-based skipping",
+                "reason": "Mull 0.38.0 misclassifies covered LLVM 20 source regions as uncovered",
+                "survivor_classification": "survivors include unexercised mutations; separate LLVM evidence required",
+            },
             "timeout_policy": {"minimum_mutant_ms": arguments.mutant_timeout_ms,
                                "original_test_limit_ms": arguments.mutant_timeout_ms,
                                "effective_mutant_limit": "max(minimum_mutant_ms, 10 * Mull baseline duration)",
@@ -275,9 +295,11 @@ def main() -> int:
             if sha256(Path(group["executable"])) != group["binary_sha256"]:
                 raise ValueError("a test/application binary changed during the campaign")
         summary = summarize(sqlite_reports)
+        classify_unresolved(summary, sqlite_reports, coverage_evidence)
         summary["target_minimum"] = str(arguments.minimum)
         summary["satisfies_target"] = passes(summary, arguments.minimum)
         summary["mode"] = manifest["mode"]
+        summary["coverage_filter"] = manifest["coverage_filter"]
         (reports / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
         profiles = list(raw_profiles.glob("*.profraw"))
         manifest["raw_profile_count"] = len(profiles)

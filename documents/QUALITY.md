@@ -1,0 +1,83 @@
+# Native quality checks
+
+The quality targets are 95% source line coverage, 95% source branch coverage and
+95% assertion-detected mutation kills. These remain targets until fresh complete
+reports demonstrate them. Historical measurements are recorded in [the execution
+plan](plan.md); mutation accounting is described in [Mutation testing](MUTATION_TESTING.md).
+
+The local pipeline orchestrates native builds, CTest, coverage, sanitizers and mutation
+campaigns. The following additional stages can run independently against a configured
+build with `CMAKE_EXPORT_COMPILE_COMMANDS=ON` and `QTSCROBBLER_MTP=ON`:
+
+```sh
+python3 tools/run_quality_checks.py --stage static --build-dir /tmp/qtscrobbler-build --report-dir /tmp/qtscrobbler-static
+python3 tools/run_quality_checks.py --stage docs --build-dir /tmp/qtscrobbler-build --report-dir /tmp/qtscrobbler-docs
+python3 tools/run_quality_checks.py --stage package --build-dir /tmp/qtscrobbler-build --report-dir /tmp/qtscrobbler-package
+```
+
+Each report directory must be new or empty. Missing tools, missing files, analyzer
+errors, tool failures and timeouts fail the stage. Commands, actual tool versions,
+exit statuses and output logs are retained beside `summary.json`. The default bound
+is 600 seconds per tool command; `--timeout` changes it explicitly. The GUI startup
+observation lasts two seconds, followed by bounded termination and process reaping.
+
+## Static analysis scope
+
+The compilation inventory must contain every maintained Linux production translation
+unit, including the MTP adapter. Qt generated code, tests, system headers, Windows-only
+adapter code and vendored xgetopt are outside the Linux source inventory. Source
+compilation arguments come from the real build.
+
+Clang-tidy enables `clang-analyzer-core.*` and `clang-analyzer-unix.Malloc`, with
+findings treated as errors. Clazy enables `connect-non-signal` and `incorrect-emit`
+with compiler warnings fatal. Cppcheck enables its default error checks and uses its
+Qt library model. Missing system includes are suppressed because Cppcheck cannot model
+the complete compiler SDK; production parse errors and other diagnostics remain fatal.
+These selected checks are incremental and do not constitute all available checks.
+
+Qualified host tools are recorded per report. The initial native host supplies
+clang-tidy/Clazy built on LLVM 23.1.1, Clazy 1.17.1, Cppcheck 2.22.0 and Doxygen 1.18.0.
+These analyzers are separate from the LLVM 20 Mull compiler. Another host must provide
+compatible native tools; the runner never installs or upgrades OS packages. Tool version
+capture is provenance, and does not imply a reproducible toolchain lock on another host.
+
+## Documentation and package evidence
+
+Documentation checks require current instructions, vision, API, dependency, mutation and
+quality documentation; balanced code fences; valid local links; GPLv2 license evidence;
+and the screenshot captured from the real GUI. External links are not fetched by this
+stage. Doxygen runs with warnings fatal and must produce its HTML index. API documentation
+is indexed from the actual source declarations and [API contracts](API.md).
+
+Package checks produce a tar archive, extract it into a disposable directory, check
+both binaries with `ldd`, run both entry-point help commands with exact source-version verification, and observe
+real offscreen GUI startup. HOME and XDG paths are temporary. The narrow allowance for
+`This plugin does not support propagateSizeHints()` reflects Qt's offscreen platform.
+Other GUI diagnostics fail the check. The package uses the selected installed Qt SDK
+and host libraries; it is not a bundled standalone distribution. Import, edit, settings,
+submission and cancellation workflows remain the responsibility of the real Qt Test suite.
+
+## Complete pipeline and diagnostic modes
+
+Install the exact Python requirements, qualified CMake/CTest and native LLVM/Mull
+prefix, then source its `env.sh`. Set `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` to the
+qualified Qt 6.12.0 and zlib 1.4 prefixes. Native Clazy, Cppcheck, Doxygen, Xvfb and
+libX11 must be available. Run:
+
+```sh
+QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /path/to/new-reports
+```
+
+The default gate requires separate 95% raw line/branch thresholds and 95% proven
+assertion kills, alongside every other mandatory stage. `--quick` runs the explicit
+build/test subset while implementation proceeds. `--baseline` runs all stages but
+records subthreshold scores as measurements. Neither diagnostic mode establishes
+complete qualification. CI and tag releases run the default complete gate.
+Manual release workflow dispatch qualifies and uploads an archive; publication
+occurs only for an explicitly pushed version tag.
+
+A native Qt Test wrapper also launches the actual GUI on a private Xvfb display,
+finds its main window with libX11 and requests WM_DELETE_WINDOW. Normal termination
+checks cleanup and flushes subprocess LLVM profiles. Display helpers are rejected
+unless they advertise the window-close protocol. These tests use no existing user
+display, settings, credentials or devices.
