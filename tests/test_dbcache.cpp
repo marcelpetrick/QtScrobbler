@@ -2,6 +2,7 @@
 #include "dbcache.h"
 
 #include <QCoreApplication>
+#include <QProcess>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTemporaryDir>
@@ -38,6 +39,7 @@ class DBCacheTest : public QObject
 private slots:
     void init()
     {
+        QTest::failOnWarning(QRegularExpression(".*"));
         const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
         QVERIFY(!config.isEmpty());
         QVERIFY(QDir(config).removeRecursively());
@@ -116,6 +118,7 @@ private slots:
     {
         QTest::addColumn<qint64>("elapsed");
         QTest::addColumn<int>("expected");
+        QTest::newRow("clock-moved-back") << qint64(-1) << 210;
         QTest::newRow("new") << qint64(0) << 210;
         QTest::newRow("before-boundary") << qint64(MAX_TRACK_LENGTH_AGE - 1) << 210;
         QTest::newRow("exact-boundary") << qint64(MAX_TRACK_LENGTH_AGE) << -1;
@@ -133,6 +136,66 @@ private slots:
         cache.set_track_length("artist", "title", 210);
         now += elapsed;
         QCOMPARE(cache.get_track_length("artist", "title"), expected);
+        cache.set_track_length("artist", "title", 211);
+        QCOMPARE(cache.get_track_length("artist", "title"), 211);
+    }
+
+    void missingSqliteDriverFailsCleanly()
+    {
+        QProcess process;
+        process.start(QCoreApplication::applicationFilePath(), {"--without-sqlite"});
+        QVERIFY(process.waitForStarted(5000));
+        const bool finished = process.waitForFinished(5000);
+        if (!finished) {
+            process.kill();
+            process.waitForFinished(5000);
+        }
+        QVERIFY(finished);
+        QCOMPARE(process.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(process.exitCode(), 0);
+        QCOMPARE(process.readAllStandardOutput(), QByteArray("DB: driver not available\n"));
+        QVERIFY2(process.readAllStandardError().isEmpty(), qPrintable(process.errorString()));
+    }
+
+    void failedOpenCanBeRetried()
+    {
+        QTemporaryDir directory;
+        const QString filename = directory.filePath("qtscrob.db");
+        QVERIFY(QDir().mkdir(filename));
+        DBCache cache(directory.path(), [] { return qint64(42); });
+        QVERIFY(!cache.init());
+        QVERIFY(QDir().rmdir(filename));
+        QVERIFY(cache.init());
+        cache.set_track_length("Recovered Artist", "Recovered Track", 246);
+        QCOMPARE(cache.get_track_length("Recovered Artist", "Recovered Track"), 246);
+    }
+
+    void sqliteLockDoesNotOverwriteExistingCacheEntry()
+    {
+        QTemporaryDir directory;
+        DBCache cache(directory.path(), [] { return qint64(42); });
+        QVERIFY(cache.init());
+        cache.set_track_length("artist", "title", 210);
+        // Use Qt's public connection registry to bound SQLite's busy handling.
+        // Temporary database/query handles are destroyed before cache cleanup.
+        {
+            QSqlQuery timeout(QSqlDatabase::database(QSqlDatabase::connectionNames().first()));
+            QVERIFY(timeout.exec("PRAGMA busy_timeout=1"));
+        }
+        const QString name = "lock_" + QUuid::createUuid().toString();
+        {
+            auto lock = QSqlDatabase::addDatabase("QSQLITE", name);
+            lock.setDatabaseName(directory.filePath("qtscrob.db"));
+            QVERIFY(lock.open());
+            QSqlQuery query(lock);
+            QVERIFY(query.exec("BEGIN EXCLUSIVE"));
+            cache.set_track_length("artist", "title", 999);
+            QCOMPARE(cache.get_track_length("artist", "title"), -1);
+            QVERIFY(query.exec("ROLLBACK"));
+            lock.close();
+        }
+        QSqlDatabase::removeDatabase(name);
+        QCOMPARE(cache.get_track_length("artist", "title"), 210);
         cache.set_track_length("artist", "title", 211);
         QCOMPARE(cache.get_track_length("artist", "title"), 211);
     }
@@ -230,6 +293,16 @@ int main(int argc, char **argv)
     qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
     QCoreApplication application(argc, argv);
     qRegisterMetaType<LOG_LEVEL>();
+    if (application.arguments().contains("--without-sqlite")) {
+        QCoreApplication::setLibraryPaths({});
+        DBCache cache(home.path(), [] { return qint64(1); });
+        QSignalSpy logs(&cache, &DBCache::add_log);
+        if (cache.init() || logs.size() != 1
+                || logs[0][1].toString() != "DB: driver not available")
+            return 1;
+        QTextStream(stdout) << logs[0][1].toString() << Qt::endl;
+        return 0;
+    }
     DBCacheTest tests;
     return QTest::qExec(&tests, argc, argv);
 }

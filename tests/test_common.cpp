@@ -2,6 +2,7 @@
 
 #include <QTemporaryDir>
 #include <QtTest>
+#include <limits>
 
 class CommonTest : public QObject
 {
@@ -14,6 +15,42 @@ class CommonTest : public QObject
     }
 
 private slots:
+    void init() { QTest::failOnWarning(QRegularExpression(".*")); }
+
+    void orderingBoundaries_data()
+    {
+        QTest::addColumn<int>("first");
+        QTest::addColumn<int>("second");
+        QTest::addColumn<bool>("expected");
+        QTest::newRow("minimum-before-maximum") << std::numeric_limits<int>::min()
+                                               << std::numeric_limits<int>::max() << true;
+        QTest::newRow("maximum-after-minimum") << std::numeric_limits<int>::max()
+                                              << std::numeric_limits<int>::min() << false;
+        QTest::newRow("timeless-before-timed") << 0 << 1 << true;
+        QTest::newRow("negative-before-timeless") << -1 << 0 << true;
+        QTest::newRow("equal-timeless") << 0 << 0 << false;
+        QTest::newRow("equal-minimum") << std::numeric_limits<int>::min()
+                                      << std::numeric_limits<int>::min() << false;
+    }
+
+    void orderingBoundaries()
+    {
+        QFETCH(int, first);
+        QFETCH(int, second);
+        QFETCH(bool, expected);
+        scrob_entry left{};
+        scrob_entry right{};
+        left.when = first;
+        right.when = second;
+        left.artist = "Z";
+        right.artist = "A";
+        left.title = "A";
+        right.title = "Z";
+        left.tracknum = 99;
+        right.tracknum = 1;
+        QCOMPARE(entry_less_than(left, right), expected);
+    }
+
     void chronologicalOrdering()
     {
         scrob_entry earlier{};

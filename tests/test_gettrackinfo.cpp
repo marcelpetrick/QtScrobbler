@@ -103,6 +103,8 @@ class GetTrackInfoTest : public QObject
     Q_OBJECT
 
 private slots:
+    void init() { QTest::failOnWarning(QRegularExpression(".*")); }
+
     void exactRequestAndSuccess()
     {
         FakeManager manager;
