@@ -1,6 +1,6 @@
 # Qt 6.12 and quality improvement plan
 
-Status: implementation started; P0 in progress. Updated: 2026-11-17.
+Status: P0 complete; P1–P8 tooling committed in parts; pipeline/CI integration and 95% targets open. Updated: 2026-11-17 13:50.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
@@ -399,3 +399,5 @@ error-path regressions; establish complete coverage accounting and qualify a Lin
 | Native mutation tooling | Hash-checked LLVM 20.1.8 + Mull 0.38.0 installer, `mull.yml`, campaign runner and SQLite score reader counting only proven Qt Test assertion kills (timeouts/crashes/uncovered/invalid/infrastructure retained separately, source-ID dedup, fail-closed on unknown schema) | Score-accounting contract passed; root exact-staged-source Qt 6.12 gate (`--noRun --noOpen`, pre-quality-stage pipeline) passed 17/17 CTests, client 0.13.53. Historical first broad snapshot (client 0.13.30): 83/1,396 assertion-killed = 5.95%, **95% FAIL** | Fresh full campaign on current sources not yet run; survivors remain; pipeline integration follows |
 
 | Static and documentation check tooling | `tools/run_quality_checks.py` (clang-format/clang-tidy/clazy/cppcheck, Doxygen with fatal warnings, required-doc/link/whitespace checks, extracted-package checks) with retained evidence; pinned clang-format 23.1.5 / clang-tidy 23.1.4 wheels; Google-based 4-space/120-column `.clang-format`; Doxyfile; API contract document | Checker contract test passed; root exact-staged-source Qt 6.12 gate (`--noRun --noOpen`, pre-quality-stage pipeline) passed 18/18 CTests, client 0.13.54 | Not yet wired into localPipeline/CI; tree-wide formatting/analyzer results unmeasured in this commit |
+
+| Session checkpoint 13:50 | Split the previously uncommitted work into gated atomic commits (`c46cd8f`…`2464fec`); dropped an order-only tests/CMakeLists diff | Actual Actions run 44085608557 (`4f5d2d3`, cumulative through zlib/Xvfb/i18n) succeeded; later commits pushed, Actions pending at checkpoint | **Still uncommitted, one unit:** `localPipeline.sh` complete/`--quick`/`--baseline` modes, CI/release LLVM/Mull/analyzer provisioning, `tests/test_pipeline.py`, README/AGENTS/DEPENDENCIES/QUALITY/ARCHITECTURE docs. Blocker for committing green: the new default gate enforces 95% coverage and mutation, which are unmet (last mutation snapshot 5.95%); decide CI mode (`--baseline` measurement until targets pass) and run a fresh full baseline before committing |
