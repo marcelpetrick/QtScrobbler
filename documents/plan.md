@@ -30,9 +30,27 @@ qualification rather than bypassing an unfinished gate.
 - [ ] Report the public release URL, actual Actions results, measured quality and
       final clean/pushed repository state. Never substitute targets for results.
 
-Current work: independent full dependency audit and native correction review;
-primary agent integrates and runs the frozen full pipeline. Existing Actions run
-44130632157 remains in progress on observed inspection; no green claim is made.
+Owner requests added 2026-11-17 evening (highest priority with the list above):
+
+- [x] Fix all GitHub issues. Checked with `gh`: **0 open issues** (#1–#4, #6 closed),
+      0 open pull requests, no code-scanning analysis; nothing to fix there yet.
+- [ ] Get **every README badge green**: CI (latest `main` run), Release pipeline
+      (has never run), Latest release (no release exists yet). Static badges
+      (licence, Qt, CMake, C++20, platform, tests, style) only state facts; the
+      coverage badges must match the newest measured report.
+- [ ] **No new public failures**: run the matching local gate before every push,
+      do not push mid-qualification (a push cancels the running CI run), and fix
+      any red run before anything else.
+- [ ] Publish the public GitHub release from a commit whose CI is observed green,
+      by pushing tag `v<CLIENT_VERSION>`; report the actual release URL.
+- [ ] Ask the owner before deleting old failed/cancelled workflow runs; deletion
+      cannot be undone.
+
+Current work: Actions **44161814413** on `c8c4693` (client0.13.65) is running; all
+provisioning steps passed, including the zlib download that failed in 44150860625.
+The full local gate runs on the exact `c8c4693` tree
+(`/tmp/qtscrobbler-65-final-reports`). If both are green, tag `v0.13.65` on
+`c8c4693` for the release; this documentation commit is pushed afterwards.
 
 ## Owner updates and final product requirements
 
