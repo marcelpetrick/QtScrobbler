@@ -22,3 +22,7 @@ Start with the [project overview](../README.md) for the application, screenshot,
 | [Historical TODOs](TODO.md) | Legacy ideas; the execution plan defines current scope |
 
 Contribution and execution rules stay in [AGENTS.md](../AGENTS.md) at the repository root.
+
+- [Fresh dependency review](DEPENDENCY_REVIEW_2026-11-17.md) records the all-tools upstream audit.
+- [Acceptance audit](ACCEPTANCE_AUDIT.md) distinguishes implemented contracts from remaining qualification.
+- [Python toolchain](PYTHON_TOOLCHAIN.md) documents the selected private interpreter and exact source-wheel bootstrap.

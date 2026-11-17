@@ -1,0 +1,7 @@
+# Exact private Python environment bootstrap, reviewed 2026-11-17.
+pip==26.3
+setuptools==84.2.1
+wheel==0.48.0
+packaging==26.3
+setuptools-scm==10.3.4
+vcs-versioning==2.6.0

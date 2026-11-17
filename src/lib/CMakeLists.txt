@@ -38,7 +38,5 @@ target_link_libraries(scrobble
 
 if(HAVE_LIBMTP)
     target_compile_definitions(scrobble PUBLIC HAVE_LIBMTP)
-    target_include_directories(scrobble PRIVATE ${LIBMTP_INCLUDE_DIRS})
-    target_link_libraries(scrobble PRIVATE ${LIBMTP_LIBRARIES})
-    target_compile_options(scrobble PRIVATE ${LIBMTP_CFLAGS_OTHER})
+    target_link_libraries(scrobble PRIVATE PkgConfig::LIBMTP)
 endif()

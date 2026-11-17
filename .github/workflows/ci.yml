@@ -19,11 +19,17 @@ jobs:
   build:
     name: Local quality pipeline (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Python 3.15.2
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15.2'
+          check-latest: false
 
       - name: Install system dependencies (non-Qt)
         run: |
@@ -31,7 +37,12 @@ jobs:
           sudo apt-get install -y \
             build-essential pkg-config python3 python3-venv \
             libgl-dev libmtp-dev zlib1g-dev libarchive-tools \
-            clazy cppcheck doxygen graphviz shellcheck xvfb
+            clazy cppcheck doxygen graphviz shellcheck xvfb bison flex iproute2 util-linux dbus
+
+      - name: Install verified pkgconf and Graphviz
+        run: |
+          python3 tools/install_aux_tools.py --prefix "$RUNNER_TEMP/qtscrobbler-aux-tools"
+          echo "$RUNNER_TEMP/qtscrobbler-aux-tools/bin" >> "$GITHUB_PATH"
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
@@ -55,7 +66,9 @@ jobs:
       - name: Install locked quality tools
         run: |
           python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install -r requirements-quality.txt
+          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --upgrade -r requirements-bootstrap.txt
+          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --no-build-isolation -r requirements-quality.txt
+          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip check
           echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
 
       - name: Install qualified native LLVM and Mull
@@ -70,6 +83,18 @@ jobs:
             echo "LD_LIBRARY_PATH=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/x86_64-linux-gnu:$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/llvm-20/lib:${LD_LIBRARY_PATH:-}"
           } >> "$GITHUB_ENV"
 
+      - name: Install verified native call-removal correction
+        run: |
+          python3 tools/install_mull_callfix.py \
+            --toolchain-prefix "$RUNNER_TEMP/qtscrobbler-native-tools" \
+            --prefix "$RUNNER_TEMP/qtscrobbler-mull-callfix"
+          {
+            echo "CXX=$RUNNER_TEMP/qtscrobbler-mull-callfix/bin/clang++-20-callfix"
+            echo "QTSCROBBLER_MULL_CALLFIX_MANIFEST=$RUNNER_TEMP/qtscrobbler-mull-callfix/mull-callfix-manifest.json"
+            echo "QTSCROBBLER_MULL_CALLFIX_SHIM=$RUNNER_TEMP/qtscrobbler-mull-callfix/lib/libmull-callfix.so"
+            echo "QTSCROBBLER_MULL_CALLFIX_SOURCE=$RUNNER_TEMP/qtscrobbler-mull-callfix/native/void_call_fix.cpp"
+          } >> "$GITHUB_ENV"
+
       - name: Install and test pinned zlib 1.4
         run: |
           python3 tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib"
@@ -82,8 +107,8 @@ jobs:
           QTSCROBBLER_JOBS: '4'
         run: |
           set -o pipefail
-          mkdir -p build-reports
-          ./localPipeline.sh --noRun --noOpen --report-dir build-reports 2>&1 | tee build-reports/pipeline.log
+          trap 'mkdir -p build-reports; cp "$RUNNER_TEMP/pipeline.log" build-reports/pipeline.log' EXIT
+          ./localPipeline.sh --noRun --noOpen --report-dir build-reports 2>&1 | tee "$RUNNER_TEMP/pipeline.log"
 
       - name: Record actual pipeline results
         if: always()
@@ -112,6 +137,8 @@ jobs:
           path: |
             build-report.md
             build-reports/
+            ${{ runner.temp }}/qtscrobbler-zlib-reports/
+            ${{ runner.temp }}/qtscrobbler-aux-tools-reports/
           retention-days: 30
           if-no-files-found: error
 

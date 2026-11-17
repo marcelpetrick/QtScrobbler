@@ -60,7 +60,7 @@ submission and cancellation workflows remain the responsibility of the real Qt T
 ## Complete pipeline and diagnostic modes
 
 Install the exact Python requirements, qualified CMake/CTest and native LLVM/Mull
-prefix, then source its `env.sh`. Set `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` to the
+prefix, install the reviewed private call-removal correction and source its `env.sh`. Set `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` to the
 qualified Qt 6.12.0 and zlib 1.4 prefixes. Native Clazy, Cppcheck, Doxygen, Xvfb and
 libX11 must be available. Run:
 
@@ -111,3 +111,31 @@ signal removals leave the signal intact while removing a destructor instead. The
 are tool defects, not equivalent source mutations or missing signal assertions.
 See [mutation qualification](MUTATION_TESTING.md); publication remains pending the
 corrected native tool and a complete passing campaign.
+
+The complete gate requires a native semantic preflight before mutation: an actual
+Qt signal call must disappear and yield a normal QSignalSpy assertion failure.
+Old or misconfigured native tools fail this stage. The build-only correction and
+its CFG verifier under `tools/native` are outside the application coverage/mutation
+scope; they are qualified with native LLVM invariants, the Qt sentinel and dedicated
+installer/provenance contracts. Their exact source and binary fingerprints are
+retained in each application campaign. No GUI/CLI/library/MTP code is excluded.
+
+## Enforced offline execution
+
+Normal and sanitizer CTest runs, coverage test collection, the complete native Mull
+campaign and extracted-package checks use `tools/run_offline.py`. It creates a
+fresh Linux user/network namespace, enables only loopback and starts a private
+DBus session with no desktop service directories. Descendant GUI/CLI/network tests
+retain their real event loops and loopback fixtures while external routes and
+host desktop service activation are unavailable. Missing namespace support, `ip`,
+`unshare` or `dbus-daemon` fails the stage; there is no host-network fallback.
+Dependency downloads must finish before qualification. Run an individual suite with:
+
+```sh
+python3 tools/run_offline.py -- ctest --test-dir build --output-on-failure --no-tests=error
+```
+
+The wrapper's contracts verify loopback HTTP, absence of an external route, private
+bus activation inventory, exact argument/exit/signal forwarding and direct-child
+cleanup on supervisor death. Whole-project checks must still qualify the final
+integration in the selected local and GitHub runner environments.

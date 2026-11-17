@@ -11,8 +11,8 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | CMake / CTest | >=3.28; local 4.4.4 | 4.5.0 qualified toolchain; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.0) |
 | libmtp | Unversioned pkg-config | 1.1.23 locally | [Upstream releases](https://github.com/libmtp/libmtp/releases); current upstream stable; CI distro package resolution still needs a reproducible pin |
 | Compiler | OS-selected | GCC 16.2.1 locally | Exact CI compiler/environment lock pending |
-| pkg-config implementation | OS-selected | pkgconf 3.0.7 locally | Exact CI environment lock pending |
-| Python | No project tooling dependency | 3.14.7 locally; scripts support 3.12+ | Used for tooling and pipeline contract tests; CI environment pin pending |
+| pkg-config implementation | Host pkgconf 3.0.7 | Private pkgconf 3.0.11 | Checksum-pinned installer and 429 upstream checks; final project qualification pending |
+| Python | Host 3.14.7; scripts support 3.12+ | Private / Actions 3.15.2 | [Private interpreter qualification](PYTHON_TOOLCHAIN.md); exact bootstrap/source backends in requirements-bootstrap.txt |
 | Coverage frontend | Absent | gcovr 8.8 installed for qualification | [PyPI](https://pypi.org/project/gcovr/8.8/); measurement/gate pending |
 | Mutation engine | Absent | Mull 0.38.0 qualified with LLVM 20.1.8 | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.38.0); published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1; native Qt Test mutation spike qualified; full campaign target remains open |
 | checkout Action | v4 | v7.0.1, immutable SHA | CI/release workflows |
@@ -90,3 +90,73 @@ see the native resolution below for the artifact hash.
 The default local pipeline is the complete qualification entry point. `--quick`
 is an explicit incremental build/test subset; `--baseline` measures incomplete
 coverage/mutation and cannot qualify a release. See [quality commands](QUALITY.md).
+
+## Qualified native call-removal correction
+
+The official Mull 0.38.0 plugin mislabels compiler-generated cleanup as source
+void-call removal and misses exception-capable source calls. Use the separate,
+reviewed correction when qualifying mutation; the original toolchain is retained.
+
+```sh
+python3 tools/install_mutation_toolchain.py --prefix /path/to/native-tools
+python3 tools/install_mull_callfix.py --toolchain-prefix /path/to/native-tools --prefix /path/to/mull-callfix
+. /path/to/mull-callfix/env.sh
+```
+
+The correction source is derived from libirm at exact commit
+`dfaf9660867bad1814b0cae8e38f251a106fe858`, archive SHA-256
+`172172e3135b80d40ea0e996f3eabce23c1be54d9ab44cfb52fe699417a7e9a6`.
+LLVM 20.1.8 development headers use the exact matching official Debian package,
+SHA-256 `3c5f27bb70dcea4a7bbf3b10d6c9a72ca4c6acf58719cebcf5cd1c17bf7bc0b8`.
+The installer verifies both archives, stages in a new private prefix, compiles with
+warnings fatal and runs a native LLVM CFG/unwind/PHI verifier before publication.
+A recognized installation is reused only when every installed entry and bound
+compiler/plugin/LLVM input matches its manifest.
+
+The wrapper preloads the correction only when compiling with the selected Mull
+plugin. Application, test, coverage and sanitizer processes do not preload it.
+The full pipeline also requires an actual Qt signal-removal assertion kill; the
+unmodified plugin fails this check. Semantic proof, wrapper/shim/source/CFG inventory,
+loader environment and every production compiler command remain bound and rechecked
+throughout the campaign. Full campaign qualification is separate from tool validation.
+The build-only libirm correction retains Apache 2.0 attribution; application GPLv2 is
+unchanged. See [native mutation details](MUTATION_TESTING.md).
+
+## Refreshed auxiliary tools
+
+The [fresh all-tools audit](DEPENDENCY_REVIEW_2026-11-17.md) verifies the complete
+Python lock, SDK, native tooling, host/runtime inventory and Action SHAs. Install
+updated pkgconf 3.0.11 and Graphviz 16.1.1 without modifying the host:
+
+```sh
+python3 tools/install_aux_tools.py --prefix /path/to/aux-tools
+export PATH=/path/to/aux-tools/bin:$PATH
+```
+
+The helper checks exact source hashes, stages a new private installation, runs all
+429 pkgconf upstream cases, initializes Graphviz's private plugin registry and
+checks real SVG output and isolated package resolution. Reuse requires a matching
+installed inventory and working executables. Graphviz includes native layout/SVG
+support; optional GUI/render integrations and language bindings are disabled.
+The source build requires make, a C/C++ compiler, bison and flex. These bootstrap
+and host/runtime versions remain distinct from the pinned selected tools; the
+fresh audit records current compatibility/environment gaps explicitly.
+
+Local private install/reuse and nine installer contracts passed; the complete
+application gate and actual Actions must qualify the updated selection before
+calling the whole dependency refresh complete.
+
+Offline qualification additionally requires Linux user/network namespaces,
+util-linux `unshare`, iproute2 `ip` and `dbus-daemon`; the workflows explicitly
+install these runner packages. Their exact observed runner/package versions and
+namespace capability remain part of final environment evidence, not the Python
+lock. A private minimal session bus avoids activating the user's desktop services.
+
+The refreshed interpreter selection is Python **3.15.2**, with official
+setup-python **v7.1.0** pinned to
+`6d4fd22b20465ccc0f7354476588e8df7c9ca0e0` in both workflows. See the
+[private Python recipe and qualification](PYTHON_TOOLCHAIN.md). Install exact
+`requirements-bootstrap.txt` before `requirements-quality.txt`; disable pip build
+isolation for the quality resolution so CPython3.15 source wheels use the reviewed
+build backends instead of floating build requirements. The private selected Python
+and native tools do not replace the user's host runtime libraries.

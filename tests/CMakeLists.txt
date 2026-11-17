@@ -58,3 +58,19 @@ set_tests_properties(mutation_coverage_contract PROPERTIES TIMEOUT 20)
 set_tests_properties(cli PROPERTIES LABELS "acceptance;e2e")
 set_tests_properties(gui scrobble translations PROPERTIES LABELS "acceptance;integration")
 set_tests_properties(gui_process PROPERTIES LABELS "acceptance;e2e;smoke")
+
+add_test(NAME mutation_toolchain_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_toolchain.py")
+set_tests_properties(mutation_toolchain_contract PROPERTIES TIMEOUT 30)
+add_test(NAME mull_callfix_installer_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mull_callfix_installer.py")
+set_tests_properties(mull_callfix_installer_contract PROPERTIES TIMEOUT 30)
+add_test(NAME mutation_toolchain_evidence_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_toolchain_evidence.py")
+set_tests_properties(mutation_toolchain_evidence_contract PROPERTIES TIMEOUT 30)
+
+add_test(NAME aux_tools_installer_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_aux_tools_installer.py")
+set_tests_properties(aux_tools_installer_contract PROPERTIES TIMEOUT 30)
+
+add_test(NAME offline_runner_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_offline_runner.py")
+set_tests_properties(offline_runner_contract PROPERTIES TIMEOUT 30)
+
+add_test(NAME mutation_campaign_selection_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_campaign_selection.py")
+set_tests_properties(mutation_campaign_selection_contract PROPERTIES TIMEOUT 30)

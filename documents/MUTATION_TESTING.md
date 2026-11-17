@@ -14,7 +14,8 @@ compiler family without substituting decision coverage for branch coverage.
 
 ```sh
 python3 tools/install_mutation_toolchain.py --prefix /path/to/native-tools
-. /path/to/native-tools/env.sh
+python3 tools/install_mull_callfix.py --toolchain-prefix /path/to/native-tools --prefix /path/to/mull-callfix
+. /path/to/mull-callfix/env.sh
 ```
 
 The installer verifies fixed SHA-256 hashes for 13 official Debian package artifacts
@@ -43,7 +44,7 @@ and put the qualified CMake/CTest installation on PATH. Keep normal, sanitizer,
 coverage and mutation output directories separate.
 
 ```sh
-. /path/to/native-tools/env.sh
+. /path/to/mull-callfix/env.sh
 MULL_CONFIG="$PWD/mull.yml" cmake -S . -B /tmp/qtscrobbler-mutation-build \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64 \
@@ -52,15 +53,23 @@ MULL_CONFIG="$PWD/mull.yml" cmake -S . -B /tmp/qtscrobbler-mutation-build \
 MULL_CONFIG="$PWD/mull.yml" cmake --build /tmp/qtscrobbler-mutation-build --parallel 4
 ctest --test-dir /tmp/qtscrobbler-mutation-build --output-on-failure --no-tests=error
 
+# Prove this exact native toolchain first; a surviving phantom signal fails.
+python3 tools/check_mutation_toolchain.py --report-dir /tmp/qtscrobbler-semantic-proof \
+  --artifact "$QTSCROBBLER_MULL_CALLFIX_MANIFEST" \
+  --artifact "$QTSCROBBLER_MULL_CALLFIX_SHIM" \
+  --artifact "$QTSCROBBLER_MULL_CALLFIX_SOURCE"
+
 # Initial measurement; a command success here does not mean the 95% target passes.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
   --report-dir /tmp/qtscrobbler-mutation-baseline --baseline \
-  --coverage-summary /path/to/fresh-coverage/summary.json
+  --coverage-summary /path/to/fresh-coverage/summary.json \
+  --toolchain-summary /tmp/qtscrobbler-semantic-proof/summary.json
 
 # Enforced score; this exits nonzero when fewer than 95% are assertion-killed.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
   --report-dir /tmp/qtscrobbler-mutation-release \
-  --coverage-summary /path/to/fresh-coverage/summary.json
+  --coverage-summary /path/to/fresh-coverage/summary.json \
+  --toolchain-summary /tmp/qtscrobbler-semantic-proof/summary.json
 ```
 
 The campaign discovers native test executables through CTest JSON. It also mutates
@@ -202,7 +211,7 @@ Primary tool references:
 [reporters](https://mull-project.com/reference/reporters/), and the
 [0.38.0 SQLite reporter implementation](https://github.com/mull-project/mull/blob/0.38.0/rust/mull-reporters/src/sqlite_reporter.rs).
 
-## Open native call-replacement defect
+## Historical native call-replacement defect
 
 The corrected no-filter run on frozen client0.13.59 exposed a second defect.
 Mull/libirm0.38 accepts only LLVM `Call` for void-call removal; exception-capable Qt
@@ -219,3 +228,34 @@ The latest upstream stable/main was rechecked:0.38.0 at
 `b383a52ed56c95a45bd43e7f2aad7f010687c74b`. A reproducible private-prefix correction
 is under investigation. These misreported mutations must not be called equivalents,
 counted as kills, or silently removed to raise the score.
+
+## Qualified call-removal implementation
+
+The separate private-prefix correction now supports actual void `Invoke` calls,
+retains the normal continuation and removes obsolete unwind-PHI predecessors.
+Constructor/destructor cleanup candidates are rejected; these generated calls were
+incorrectly attributed to the source call. Maintained application sources have no
+explicit destructor invocations. No application source file or mutation group is
+excluded to raise the score.
+
+Qualification retained under `/tmp/qtscrobbler-mull-callfix-qualified2` includes
+native LLVM CFG tests for two invokes sharing an unwind block, PHI updates, ordinary
+calls, intrinsic selection and cleanup rejection. The exact Qt signal-removal probe
+passes 1/1 genuine assertion kill. The original plugin fails the same probe. Real
+Parse_Log signal-removal operators at the recorded source locations134/143/145 now
+produce normal assertion failures; original 25/25 rows pass. Both native settings
+fallback operators are likewise generated and killed by the new account-isolation
+contract. These focused probes establish tool semantics, not a project score.
+
+Campaigns require `--toolchain-summary`; the recorded compiler/plugin/runner,
+loader paths, original probe files/report/binary, complete installed correction
+inventory and bound LLVM inputs are verified before rebuilding, after rebuilding,
+and after execution. Cached compiler selections and production commands must match
+the exact proved compiler wrapper. `LD_LIBRARY_PATH`/`LD_PRELOAD` changes invalidate
+the evidence. Missing/changed reports and phantom or duplicate probe mutants fail.
+
+The default pipeline uses four bounded mutation workers and a 7200-second per-command
+bound, with a 360-minute CI job cap. These are execution limits, not assertions that a
+full campaign has completed. Test duration and raw timeout/crash outcomes remain visible.
+Source coverage stays in the separate mapped LLVM build, and independent exact source
+positions classify survivors without changing kills or the denominator.

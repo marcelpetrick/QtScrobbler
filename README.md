@@ -60,8 +60,12 @@ versions. See the tested setup in the [dependency inventory](documents/DEPENDENC
 ### Run the local pipeline
 
 ```sh
+python3 tools/install_cmake.py --prefix /path/to/cmake
+python3 tools/install_aux_tools.py --prefix /path/to/aux-tools
+export PATH=/path/to/cmake/bin:/path/to/aux-tools/bin:$PATH
 python3 tools/install_mutation_toolchain.py --prefix /path/to/native-tools
-. /path/to/native-tools/env.sh
+python3 tools/install_mull_callfix.py --toolchain-prefix /path/to/native-tools --prefix /path/to/mull-callfix
+. /path/to/mull-callfix/env.sh
 python3 tools/install_zlib.py --prefix /path/to/zlib
 export ZLIB_ROOT=/path/to/zlib
 export QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64

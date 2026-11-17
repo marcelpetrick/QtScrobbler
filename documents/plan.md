@@ -17,7 +17,7 @@ qualification rather than bypassing an unfinished gate.
 - [ ] Run `updateDependencies` again for **all tools**: verify upstream releases,
       exact pins, SDK, native compiler/Mull, Python lock and GitHub Actions; record
       any deliberately retained compatibility pin with evidence.
-- [ ] Bump the version and commit the tested work. Prepared 0.13.62 already includes
+- [x] Bump the version and commit the tested work. Prepared 0.13.62 already includes
       the executed version hook; validate that version before its atomic commit.
 - [ ] Push the qualified work and run qualification **on GitHub via Actions**;
       inspect actual job conclusions and artifacts, fix failures and rerun.
@@ -703,3 +703,28 @@ bundled icon path resolves. Incremental `--quick --noRun --noOpen` on the exact
 staged snapshot `/tmp/qtscrobbler-64gui-source` PASS, **20/20 CTests**, reports
 `/tmp/qtscrobbler-64gui-reports`. Actions **44159701792** for `7fee3db` was
 observed in progress; no remote-green claim.
+
+Quality infrastructure/dependency commit (client **0.13.65**). Refreshed
+interpreter and bootstrap qualification: private CPython3.15.2 official source
+hash and recipe in [Python toolchain](PYTHON_TOOLCHAIN.md). Six CPython suites
+PASS (2027 run,92 skips); all31 locked quality packages install, pip check and
+real7-Zip roundtrip PASS; source wheels rebuilt without build isolation against
+six exact latest bootstrap/build backend pins. Project Python contracts
+**123/123 PASS** under selected3.15.2 (`/tmp/qtscrobbler-63-python-contracts.log`).
+Both Actions select exact setup-python7.1.0 SHA and Python3.15.2, install the
+bootstrap lock, then the quality lock without floating build backends.
+
+Independent auxiliary review reproduced host-plugin acceptance via GVBINDIR and
+fixed it before publication: explicit conflicting overrides fail before writes;
+actual private Graphviz loaded paths are checked. **13/13 installer contracts**
+and real reuse/override probes PASS. Network isolation exposed a real
+escaped-grandchild cleanup defect; the final `tools/run_offline.py` wrapper uses
+user/network/PID namespaces, signed exit-status forwarding and kernel subtree
+teardown. **11/11 standalone and 11/11 nested contracts PASS**; CTests PASS
+through private-bus/PID isolation with no host portal activation. These are
+targeted infrastructure checks, not a full application qualification.
+Incremental `--quick --noRun --noOpen` on the exact staged snapshot
+`/tmp/qtscrobbler-65infra-source` under Python3.15.2 PASS, **26/26 CTests**,
+reports `/tmp/qtscrobbler-65infra-reports`. Diagnostic subset only: the full
+final gate (static, sanitizers, coverage, native mutation95%, package) and
+observed green Actions remain open.

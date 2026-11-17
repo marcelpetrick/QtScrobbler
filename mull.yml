@@ -11,5 +11,5 @@ excludePaths:
   - _autogen/
   - /CMakeFiles/
 parallelization:
-  workers: 2
-  executionWorkers: 2
+  workers: 4
+  executionWorkers: 4

@@ -93,9 +93,10 @@ Stages:
   10. Format/static/docs   — native analyzers, fatal Doxygen and documentation checks
   11. Sanitizers           — isolated ASan/UBSan build and complete CTest suite
   12. Coverage             — isolated LLVM build, separate 95% line and branch gates
-  13. Mutation             — isolated native Mull campaign, 95% assertion-killed gate
-  14. Package              — extracted CLI and actual GUI startup, dependency checks
-  15. Summary              — actual stage results (missing tools or reports fail)
+  13. Mutation toolchain   — native Qt signal-removal semantic proof (fail-closed)
+  14. Mutation             — isolated native Mull campaign, 95% assertion-killed gate
+  15. Package              — extracted CLI and actual GUI startup, dependency checks
+  16. Summary              — actual stage results (missing tools or reports fail)
 
 Options:
   --quick   Explicit build/test diagnostic subset; does not qualify final quality
@@ -384,7 +385,7 @@ run_unit_tests() {
     if [[ -f "${BUILD_DIR}/CTestTestfile.cmake" ]]; then
         local test_log="${PIPELINE_LOG_DIR}/ctest.log"
         log "  Running ctest in ${BUILD_DIR}..."
-        if run_with_log "${test_log}" ctest --test-dir "${BUILD_DIR}" --output-on-failure --no-tests=error \
+        if run_with_log "${test_log}" python3 "${ROOT_DIR}/tools/run_offline.py" -- ctest --test-dir "${BUILD_DIR}" --output-on-failure --no-tests=error \
                 --output-junit "${PIPELINE_LOG_DIR}/junit.xml" -j "${JOBS}"; then
             log "  All tests passed."
             return 0
@@ -455,8 +456,9 @@ quality_command() {
 format_check() {
     command -v clang-format >/dev/null || return 1
     local sources=()
-    mapfile -t sources < <(find "${SRC_DIR}/lib" "${SRC_DIR}/cli" "${SRC_DIR}/qt/src" "${ROOT_DIR}/tests" \
-        -type f \( -name '*.cpp' -o -name '*.h' \) | sort)
+    local source_dirs=("${SRC_DIR}/lib" "${SRC_DIR}/cli" "${SRC_DIR}/qt/src" "${ROOT_DIR}/tests")
+    [[ ! -d "${ROOT_DIR}/tools/native" ]] || source_dirs+=("${ROOT_DIR}/tools/native")
+    mapfile -t sources < <(find "${source_dirs[@]}" -type f \( -name '*.cpp' -o -name '*.h' \) | sort)
     [[ "${#sources[@]}" -gt 0 ]] || return 1
     clang-format --dry-run --Werror "${sources[@]}"
 }
@@ -471,26 +473,54 @@ sanitizer_check() {
         -DQTSCROBBLER_COVERAGE=OFF -DQTSCROBBLER_MULL_PLUGIN:FILEPATH= || return 1
     cmake --build "${sanitizer_build}" --parallel "${JOBS}" || return 1
     ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
-        ctest --test-dir "${sanitizer_build}" --output-on-failure --no-tests=error -j "${JOBS}" \
+        python3 "${ROOT_DIR}/tools/run_offline.py" -- ctest --test-dir "${sanitizer_build}" --output-on-failure --no-tests=error -j "${JOBS}" \
         --output-junit "${PIPELINE_LOG_DIR}/sanitizers-junit.xml"
 }
 
-# Invoked through a trap or quality_command.
+# Called from the quality_command callbacks below.
 # shellcheck disable=SC2329
-mutation_check() {
+check_mutation_environment() {
     [[ -n "${QTSCROBBLER_MULL_PLUGIN:-}" && -f "${QTSCROBBLER_MULL_PLUGIN}" ]] || {
         error "Source the qualified native LLVM/Mull env.sh before full qualification"; return 1;
     }
+    if [[ -z "${CC:-}" || -z "${CXX:-}" ]] ||
+            ! command -v "${CC}" >/dev/null 2>&1 || ! command -v "${CXX}" >/dev/null 2>&1; then
+        error "Source the qualified native LLVM/Mull env.sh with executable CC and CXX before mutation checks"
+        return 1
+    fi
+}
+
+# Invoked through quality_command.
+# shellcheck disable=SC2329
+mutation_toolchain_check() {
+    check_mutation_environment || return 1
+    local artifacts=() artifact
+    for artifact in "${QTSCROBBLER_MULL_CALLFIX_MANIFEST:-}" "${QTSCROBBLER_MULL_CALLFIX_SHIM:-}" \
+                    "${QTSCROBBLER_MULL_CALLFIX_SOURCE:-}"; do
+        [[ -z "${artifact}" ]] || artifacts+=(--artifact "${artifact}")
+    done
+    python3 "${ROOT_DIR}/tools/check_mutation_toolchain.py" \
+        --report-dir "${PIPELINE_LOG_DIR}/mutation-toolchain" \
+        --compiler "${CXX}" --plugin "${QTSCROBBLER_MULL_PLUGIN}" \
+        "${artifacts[@]}"
+}
+
+# Invoked through quality_command.
+# shellcheck disable=SC2329
+mutation_check() {
+    check_mutation_environment || return 1
     local mutation_build="${BUILD_DIR}-mutation"
     local measure=()
     [[ "${BASELINE}" == true ]] && measure+=(--baseline)
     MULL_CONFIG="${ROOT_DIR}/mull.yml" cmake -S "${ROOT_DIR}" -B "${mutation_build}" \
         -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${QTSCROBBLER_QT_PREFIX:-}" \
+        -DCMAKE_C_COMPILER="${CC:?}" -DCMAKE_CXX_COMPILER="${CXX:?}" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON -DQTSCROBBLER_MTP=ON \
         -DQTSCROBBLER_MULL_PLUGIN:FILEPATH="${QTSCROBBLER_MULL_PLUGIN}" \
         -DQTSCROBBLER_COVERAGE=OFF -DQTSCROBBLER_SANITIZERS=OFF || return 1
-    python3 "${ROOT_DIR}/tools/run_mutation_tests.py" --build-dir "${mutation_build}" \
-        --report-dir "${PIPELINE_LOG_DIR}/mutation" --jobs "${JOBS}" \
+    python3 "${ROOT_DIR}/tools/run_offline.py" -- python3 "${ROOT_DIR}/tools/run_mutation_tests.py" --build-dir "${mutation_build}" \
+        --report-dir "${PIPELINE_LOG_DIR}/mutation" --jobs "${JOBS}" --workers "${JOBS}" \
+        --command-timeout 7200 --toolchain-summary "${PIPELINE_LOG_DIR}/mutation-toolchain/summary.json" \
         --coverage-summary "${PIPELINE_LOG_DIR}/coverage/summary.json" "${measure[@]}"
 }
 
@@ -507,8 +537,13 @@ full_quality_checks() {
     quality_command Coverage python3 "${ROOT_DIR}/tools/run_coverage.py" \
         --build-dir "${BUILD_DIR}-coverage" --report-dir "${PIPELINE_LOG_DIR}/coverage" \
         --jobs "${JOBS}" "${measure[@]}" || failed=1
-    quality_command Mutation mutation_check || failed=1
-    quality_command Package python3 "${ROOT_DIR}/tools/run_quality_checks.py" \
+    if quality_command MutationToolchain mutation_toolchain_check; then
+        quality_command Mutation mutation_check || failed=1
+    else
+        mark_result Mutation FAIL "native mutation toolchain semantic preflight failed"
+        failed=1
+    fi
+    quality_command Package python3 "${ROOT_DIR}/tools/run_offline.py" -- python3 "${ROOT_DIR}/tools/run_quality_checks.py" \
         --stage package --build-dir "${BUILD_DIR}" --report-dir "${PIPELINE_LOG_DIR}/package" || failed=1
     return "${failed}"
 }
@@ -560,7 +595,12 @@ main() {
         PIPELINE_LOG_DIR="${ROOT_DIR}/quality-reports/$(date -u '+%Y%m%dT%H%M%SZ')-$$"
         KEEP_REPORTS=true
     fi
-    mkdir -p "${PIPELINE_LOG_DIR}"
+    if [[ -e "${PIPELINE_LOG_DIR}" ]] &&
+            { [[ ! -d "${PIPELINE_LOG_DIR}" ]] || [[ -n "$(find "${PIPELINE_LOG_DIR}" -mindepth 1 -print -quit)" ]]; }; then
+        error "Report directory must be new or empty: ${PIPELINE_LOG_DIR}"
+        return 2
+    fi
+    mkdir -p "${PIPELINE_LOG_DIR}" || return 1
 
     log "================================================"
     log " QtScrobbler v${APP_VERSION} — local pipeline"

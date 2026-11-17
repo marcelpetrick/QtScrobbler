@@ -39,7 +39,7 @@ Artifacts are available in the workflow run's **Artifacts** section:
 - `binaries-linux-x86_64`: GUI `qtscrob` and CLI `scrobbler`, uploaded only on success;
   retained 7 days.
 
-The workflow is bounded to 120 minutes. System/compiler packages are currently
+The workflow is bounded to 360 minutes. System/compiler packages are currently
 resolved by Ubuntu apt; the remaining environment lock work is tracked in
 [the dependency inventory](DEPENDENCIES.md).
 

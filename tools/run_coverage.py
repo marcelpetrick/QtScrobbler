@@ -105,7 +105,8 @@ def main() -> int:
              "-DQTSCROBBLER_MULL_PLUGIN:FILEPATH=", "-DQTSCROBBLER_SANITIZERS=OFF"],
             env, reports / "configure.log")
         run([tools["cmake"], "--build", str(build), "--parallel", str(args.jobs)], env, reports / "build.log")
-        run([tools["ctest"], "--test-dir", str(build), "--output-on-failure", "--no-tests=error",
+        run([sys.executable, str(ROOT / "tools/run_offline.py"), "--",
+             tools["ctest"], "--test-dir", str(build), "--output-on-failure", "--no-tests=error",
              "--output-junit", str(reports / "junit.xml"), "-j", str(args.jobs)], env, reports / "tests.log")
         raw = sorted(profiles.glob("*.profraw"))
         if not raw:
@@ -157,7 +158,11 @@ def main() -> int:
                    "branch_semantics": "LLVM explicit source branch regions; implicit exception edges absent",
                    "totals": totals, "production_file_inventory": sorted(inventory),
                    "missing_production_files": missing,
-                   "unmeasured_platform_or_vendored": ["src/lib/parse-mtp-win32.cpp", "src/common/xgetopt.c"]}
+                   "unmeasured_platform_or_vendored": ["src/lib/parse-mtp-win32.cpp", "src/common/xgetopt.c"],
+                   "separately_qualified_native_tooling": {
+                       "sources": ["tools/native/void_call_fix.cpp", "tools/native/callfix_cfg_test.cpp"],
+                       "reason": "build-only compiler correction, not linked into GUI/CLI/library/MTP targets",
+                       "qualification": "native CFG verifier and strict Qt signal-removal semantic preflight"}}
         summary["target_passed"] = not missing and all(
             passes(values["covered"], values["count"], args.minimum) for values in totals.values())
         (reports / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

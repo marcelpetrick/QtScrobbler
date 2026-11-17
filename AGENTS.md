@@ -39,10 +39,13 @@ commands or contribution rules change; it need not change in every implementatio
 
 The default complete gate is `./localPipeline.sh --noRun --noOpen --report-dir <new-dir>`.
 Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib prefix using
-`documents/DEPENDENCIES.md`; source the generated native `env.sh` and set
+`documents/DEPENDENCIES.md`; install the qualified private native call-removal correction, source its generated
+`env.sh`, and set
 `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
 ASan/UBSan, separate 95% line/branch coverage, native 95% mutation and extracted-package
 qualification are mandatory in this command. Missing tools/reports and failed stages fail.
+Test, mutation and package processes run through `tools/run_offline.py`; Linux network
+namespaces, `unshare`, `ip` and `dbus-daemon` are mandatory and fail closed.
 
 `--quick` is an explicit build/test diagnostic subset for incremental atomic implementation
 commits while quality targets remain open. It never qualifies final completion.
