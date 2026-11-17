@@ -186,6 +186,14 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
             && quint64(length - consumed) <= quint64(stream.device()->bytesAvailable());
     };
 
+    // This stream reads an immutable QByteArray through QBuffer. After
+    // block_fits validates status and the complete remaining block size, advancing
+    // within that block cannot encounter file I/O errors or run past the buffer.
+    // Keep the checked skip helper for unvalidated prefixes and Play Counts I/O.
+    const auto advance_block = [&stream](quint32 count) {
+        stream.skipRawData(count);
+    };
+
     bool finished = false;
     while (!stream.atEnd() && !finished)
     {
@@ -201,11 +209,12 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
         {
             case 0x616c686d: // mhla: artist list header
                 stream >> blocklen;
-                if (!block_fits(blocklen, 8) || !skip(blocklen - 8))
+                if (!block_fits(blocklen, 8))
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 8); // mhla header was bounded above.
                 break;
             case 0x6169686d: // mhia: artist record with total block length
                 if (!skip(4))
@@ -214,45 +223,50 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
                     return;
                 }
                 stream >> blocklen;
-                if (!block_fits(blocklen, 12) || !skip(blocklen - 12))
+                if (!block_fits(blocklen, 12))
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 12); // mhia total length includes the 12 consumed bytes.
                 break;
             case 0x6473686d: // mhsd: dataset header
                 stream >> blocklen;
-                if (!block_fits(blocklen, 8) || blocklen < 16 || !skip(blocklen - 8))
+                if (!block_fits(blocklen, 8) || blocklen < 16)
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 8); // Complete dataset header is present.
                 break;
             case 0x746c686d: // mhlt: track list
                 stream >> blocklen >> numtracks;
-                if (!block_fits(blocklen, 12) || !skip(blocklen - 12))
+                if (!block_fits(blocklen, 12))
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 12); // mhlt count and remaining header are bounded.
                 have_track_list = true;
                 break;
             case 0x7469686d: // mhit: track header
             {
                 stream >> blocklen;
-                if (!have_track_list || !block_fits(blocklen, 8) || blocklen < 48 || !skip(32))
+                if (!have_track_list || !block_fits(blocklen, 8) || blocklen < 48)
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(32); // A bounded mhit header has at least 40 bytes left.
                 quint32 tracklen = 0;
                 quint32 tracknum = 0;
                 stream >> tracklen >> tracknum;
-                if (tracknum > quint32(std::numeric_limits<int>::max()) || !skip(blocklen - 48))
+                if (tracknum > quint32(std::numeric_limits<int>::max()))
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 48); // The two fields consumed the next eight bytes.
                 scrob_entry item{};
                 item.length = tracklen / 1000;
                 item.tracknum = tracknum;
@@ -275,11 +289,12 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
                 }
                 if (type == MHOD_TITLE || type == MHOD_ALBUM || type == MHOD_ARTIST)
                 {
-                    if (iTunesTable.isEmpty() || blocklen < 40 || (blocklen - 40) % 2 != 0 || !skip(24))
+                    if (iTunesTable.isEmpty() || blocklen < 40 || (blocklen - 40) % 2 != 0)
                     {
                         invalid_block();
                         return;
                     }
+                    advance_block(24); // Metadata size is bounded and at least 40 bytes.
                     const quint32 length = (blocklen - 40) / sizeof(quint16);
                     QList<char16_t> text;
                     text.reserve(length + 1);
@@ -298,21 +313,19 @@ void Parse_Ipod::parse_db(QString folder_path, int tz, QByteArray &data)
                     else
                         iTunesTable.last().artist = value;
                 }
-                else if (!skip(blocklen - 16))
-                {
-                    invalid_block();
-                    return;
-                }
+                else
+                    advance_block(blocklen - 16); // Unknown metadata retains the same complete-block bound.
                 break;
             }
             case 0x696c686d: // mhli
             case 0x6969686d: // mhii
                 stream >> blocklen;
-                if (!block_fits(blocklen, 8) || !skip(blocklen - 8))
+                if (!block_fits(blocklen, 8))
                 {
                     invalid_block();
                     return;
                 }
+                advance_block(blocklen - 8); // Artwork headers use the same complete-block bound.
                 break;
             case 0x706c686d: // mhlp
             case 0x7079686d: // mhyp

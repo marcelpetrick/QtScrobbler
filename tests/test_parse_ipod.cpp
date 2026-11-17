@@ -349,6 +349,12 @@ private slots:
         compressedTruncated.chop(3);
         QTest::newRow("truncated-compressed") << compressedTruncated << goodCounts << true
                                             << QString("invalid compressed iTunesCDB data");
+        QByteArray emptyStream("mhbd", 4);
+        append32(emptyStream, 12);
+        append32(emptyStream, 8);
+        emptyStream += QByteArray::fromHex("789c030000000001");
+        QTest::newRow("valid-empty-zlib-stream") << emptyStream << goodCounts << true
+                                                << QString("invalid compressed iTunesCDB data");
         QTest::newRow("empty-compressed") << database(QByteArray(), true) << goodCounts << true
                                         << QString("invalid compressed iTunesCDB data");
         add("empty-body", QByteArray());
@@ -373,6 +379,7 @@ private slots:
         set32(badList, 8, 11);
         add("artist-record-short", badList);
         add("dataset-short", block("mhsd", 15));
+        add("dataset-truncated", block("mhsd", 16).left(15));
         add("artwork-short", QByteArray("mhii") + QByteArray(4, '\0'));
         add("metadata-missing-length", payload({}) + QByteArray("mhod"));
         add("metadata-missing-type", payload({track().left(48)}) + QByteArray("mhod0000"));
