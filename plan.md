@@ -260,7 +260,7 @@ Exit: a reproducible full campaign passes score and integrity gates; scores from
 - [ ] Create current/history documentation map, requirements, architecture/state diagrams,
       quality/dependency instructions and an append-only mutation results record.
 - [ ] Add docs checks (required files, links, headings, whitespace, examples, version/source consistency).
-- [ ] `localPipeline.sh --noRun --noOpen --report-dir <path>` becomes CI's quality entry point.
+- [x] `localPipeline.sh --noRun --noOpen --report-dir <path>` becomes CI's quality entry point.
       It checks tools, format, analyzers, translations, docs, build, tests, coverage, packaging,
       optional mutation and optional launch, with actual exit statuses and retained reports.
 - [ ] Exercise deliberate failure in every gate; optional mutation absence must never look like a passed campaign.
@@ -337,7 +337,9 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 | `8c7ab63` parser signal regression fix | Removed duplicate derived signal declarations from log, iPod and MTP parsers so typed base-class connections receive emissions | New base-signal fixture assertion failed on original (0 completions instead of 1), then complete Qt 6.12 pipeline passed 4/4 after fix | GUI workflow, malformed record behavior, coverage/mutation targets still outstanding |
 | Delegation authorization | Updated AGENTS.md to use subagents for independent work with explicit file ownership and primary-agent integration | Owner explicitly requested delegation and this rule commit; documentation diff checked | Parallel CI, mutation-tool and storage-test tasks to begin; GUI tests currently in progress |
 | Updated owner requirements | Main branch, continuous green pushes, semver, no Docker, preserved GPLv2, final review/About/screenshot and vision audit added to plan and rules | Existing license files and source headers inspected; main renamed from master; missing visions.md confirmed | Complete native product/quality initiative and audit; delegated work active |
-| GUI workflow and screenshot | Shared production GUI library, real Qt import/display/edit/settings-reopen/clear/close contract, SQL/runtime Qt checks, real screenshot and capture script | Full Qt 6.12 baseline 5/5 CTest executables passed; targeted screenshot test passed; image visually inspected | More UI/error/cancel coverage, coverage measurements, full mutation campaign and other P2–P9 items remain |
+| `b1b8331` GUI workflow and screenshot | Shared production GUI library, real Qt import/display/edit/settings-reopen/clear/close contract, SQL/runtime Qt checks, real screenshot and capture script | Full Qt 6.12 baseline 5/5 CTest executables passed; targeted screenshot test passed; image visually inspected | More UI/error/cancel coverage, coverage measurements, full mutation campaign and other P2–P9 items remain |
+
+| Unified CI/release pipeline | Both workflows invoke localPipeline; pinned isolated CMake installer, explicit Qt SDK, truthful logs/JUnit, source/tag and extracted artifact checks | Native actionlint/shellcheck and installer positive/negative/idempotency checks passed; initial main push had actual successful Actions | New workflow run and full final gates still required; storage/parser/mutation work continues |
 
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.

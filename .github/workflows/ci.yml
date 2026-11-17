@@ -5,7 +5,11 @@ on:
     branches: ['**']
     tags-ignore: ['v*']
   pull_request:
-    branches: [master]
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,8 +17,9 @@ concurrency:
 
 jobs:
   build:
-    name: Build & smoke test (Ubuntu 24.04 / Qt6)
+    name: Local quality pipeline (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -24,70 +29,73 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
-            cmake build-essential pkg-config \
-            libgl-dev libmtp-dev
+            build-essential pkg-config python3 python3-venv \
+            libgl-dev libmtp-dev zlib1g-dev
+
+      - name: Install verified CMake and CTest 4.5.0
+        run: |
+          python3 tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
+          echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
 
       - name: Install Qt 6.12.0
+        id: qt
         uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         with:
           version: '6.12.0'
           host: linux
           target: desktop
           arch: linux_gcc_64
+          archives: qtbase qttools qttranslations icu
+          aqtversion: '==3.3.0'
+          py7zrversion: '==1.1.4'
+          setup-python: false
           cache: true
 
-      - name: Read version
-        id: meta
+      - name: Install locked quality tools
         run: |
-          VER=$(grep -oP '#define CLIENT_VERSION "\K[^"]+' src/lib/common.h)
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
+          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install -r requirements-quality.txt
+          echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
 
-      - name: CMake configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      - name: Run the local quality pipeline
+        id: pipeline
+        env:
+          QTSCROBBLER_QT_PREFIX: ${{ steps.qt.outputs.qt-root-dir }}
+          QTSCROBBLER_JOBS: '4'
+        run: |
+          set -o pipefail
+          mkdir -p build-reports
+          ./localPipeline.sh --noRun --noOpen --report-dir build-reports 2>&1 | tee build-reports/pipeline.log
 
-      - name: CMake build
-        run: cmake --build build --parallel $(nproc)
-
-      - name: Smoke test — CLI --help
-        run: timeout 5 ./build/scrobbler --help
-
-      - name: Smoke test — GUI binary exists and is executable
-        run: test -x ./build/qtscrob
-
-      - name: Generate build report
+      - name: Record actual pipeline results
         if: always()
         run: |
-          VER="${{ steps.meta.outputs.version }}"
-          DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
-          GUI_SIZE=$(du -sh build/qtscrob    2>/dev/null | awk '{print $1}' || echo 'N/A')
-          CLI_SIZE=$(du -sh build/scrobbler  2>/dev/null | awk '{print $1}' || echo 'N/A')
-          LIB_SIZE=$(du -sh build/libscrobble.a 2>/dev/null | awk '{print $1}' || echo 'N/A')
+          {
+            echo '# QtScrobbler quality pipeline'
+            echo
+            echo "Commit: $GITHUB_SHA"
+            echo
+            if [ -f build-reports/pipeline.log ]; then
+              echo 'The following is the actual local pipeline output, including failures:'
+              echo '```text'
+              tail -n 35 build-reports/pipeline.log
+              echo '```'
+            else
+              echo 'The pipeline did not run; inspect the dependency installation steps.'
+            fi
+          } > build-report.md
+          cat build-report.md >> "$GITHUB_STEP_SUMMARY"
 
-          cat > build-report.md << REPORT
-          # Build Report — QtScrobbler v${VER}
-
-          **Date:** ${DATE}
-          **Ref:** \`${{ github.ref }}\`
-          **Commit:** \`${{ github.sha }}\`
-          **Runner:** ubuntu-24.04
-
-          ## Results
-
-          | Stage | Status | Detail |
-          |---|---|---|
-          | CMake configure | ✅ | |
-          | CMake build | ✅ | lib: ${LIB_SIZE} · qtscrob: ${GUI_SIZE} · scrobbler: ${CLI_SIZE} |
-          | Smoke: CLI \`--help\` | ✅ | exit 0 |
-          | Smoke: GUI binary | ✅ | executable present |
-          REPORT
-
-      - name: Upload build report
+      - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: build-report
-          path: build-report.md
+          name: quality-reports
+          path: |
+            build-report.md
+            build-reports/
           retention-days: 30
+          if-no-files-found: error
 
       - name: Upload binaries
         if: success()
@@ -98,3 +106,4 @@ jobs:
             build/qtscrob
             build/scrobbler
           retention-days: 7
+          if-no-files-found: error

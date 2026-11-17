@@ -1,96 +1,86 @@
 # GitHub Actions — QtScrobbler
 
-Two workflows automate building and publishing QtScrobbler.
-
----
-
-## CI (`ci.yml`)
-
-**Triggers:** every push to any branch (except version tags) and every pull request against `master`.
-
-What it does:
-1. Installs Qt 6, cmake, libmtp on an Ubuntu 24.04 runner
-2. Runs `cmake -B build -S . -DCMAKE_BUILD_TYPE=Release`
-3. Builds with `cmake --build build --parallel`
-4. Smoke-tests `scrobbler --help` (exit 0) and checks `qtscrob` is executable
-5. Uploads two artifacts:
-   - **`build-report`** — markdown table of every stage result (kept 30 days)
-   - **`binaries-linux-x86_64`** — `qtscrob` and `scrobbler` (kept 7 days)
-
-Download artifacts from the **Actions** tab → select the workflow run → **Artifacts** section at the bottom of the run summary page.
-
----
-
-## Release (`release.yml`)
-
-**Trigger:** pushing a tag that matches `v[0-9]*` (e.g. `v0.13.5`).
-
-### How to cut a release
+CI and release use the same quality entry point as local development:
 
 ```sh
-# 1. Make sure the working tree is clean and on master
-git checkout master
-git pull
-
-# 2. Create an annotated tag (use the version from src/lib/common.h)
-git tag -a v0.13.5 -m "Release 0.13.5"
-
-# 3. Push the tag — this triggers the release workflow
-git push origin v0.13.5
+QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
+  ./localPipeline.sh --noRun --noOpen --report-dir build-reports
 ```
 
-The workflow then:
-1. Installs Qt 6 and dependencies
-2. Builds with CMake in Release mode
-3. Smoke-tests the CLI binary
-4. Strips debug symbols from both binaries (`strip --strip-unneeded`)
-5. Packages them as `qtscrobbler-VERSION-linux-x86_64.tar.gz` together with `README.md`
-6. Generates a build report with sizes and SHA-256 of the archive
-7. Creates a GitHub Release with:
-   - The tarball as a downloadable asset
-   - The build report as the release body
-8. Uploads the build report as an Actions artifact (kept 90 days)
+`--noRun` suppresses the optional interactive GUI launch. Automated GUI behavior is
+still exercised by CTest. `--noOpen` leaves reports closed. `--report-dir` retains
+stage logs and `junit.xml`. Mandatory stage failures cause a nonzero pipeline exit.
+The pipeline's current and planned gates are recorded in [plan.md](plan.md); the
+workflow adds no alternative definition of a passing test suite or coverage score.
 
-The release appears at **Releases** on the repository's main page.
+## CI
 
----
+[ci.yml](.github/workflows/ci.yml) runs on every branch push except version tags,
+on pull requests to `main` (and `master` during migration), and on manual dispatch.
+The Ubuntu 24.04 runner installs the required system libraries, checksum-verified
+CMake/CTest 4.5.0, and the Qt 6.12.0 Linux SDK with qtbase, qttools, qttranslations
+and ICU archives. The Qt installer and py7zr versions are explicit.
+The complete Python quality tool resolution in `requirements-quality.txt` is installed
+into an isolated virtual environment for pipeline stages such as coverage. GitHub Actions
+are referenced by immutable commit SHAs.
 
-## Downloading and running a release
+The Qt install action's explicit `qt-root-dir` output selects the SDK for the local
+pipeline. This prevents a system `qmake6` from selecting an older Qt installation.
+CMake and CTest are taken from the same installed prefix.
 
-1. Go to the **Releases** page and pick the version you want.
-2. Download `qtscrobbler-VERSION-linux-x86_64.tar.gz`.
-3. Verify the SHA-256 listed in the release notes:
+The quality step uses `pipefail` while teeing output, so saving its log cannot hide
+a failure. The always-run report includes actual pipeline output, including failures,
+or states that provisioning prevented the pipeline from running. It does not print
+hardcoded successful stage results.
 
-   ```sh
-   sha256sum qtscrobbler-VERSION-linux-x86_64.tar.gz
-   ```
+Artifacts are available in the workflow run's **Artifacts** section:
 
-4. Extract and run:
+- `quality-reports`: pipeline/stage logs, JUnit XML, and build report; retained 30 days.
+- `binaries-linux-x86_64`: GUI `qtscrob` and CLI `scrobbler`, uploaded only on success;
+  retained 7 days.
 
-   ```sh
-   tar -xzf qtscrobbler-VERSION-linux-x86_64.tar.gz
-   cd qtscrobbler-VERSION-linux-x86_64
+The workflow is bounded to 30 minutes. System/compiler packages are currently
+resolved by Ubuntu apt; the remaining environment lock work is tracked in
+[the dependency inventory](documents/DEPENDENCIES.md).
 
-   ./qtscrob          # GUI
-   ./scrobbler --help # CLI
-   ```
+## Pinned CMake installer
 
-### Runtime requirements
-
-The binaries are dynamically linked against Qt 6 and libmtp. Install those on the target machine before running:
+[`tools/install_cmake.py`](tools/install_cmake.py) installs the reviewed Linux x86-64
+CMake 4.5.0 release into a new, explicit directory without changing OS packages:
 
 ```sh
-# Arch / Manjaro
-sudo pacman -S qt6-base libmtp
-
-# Debian / Ubuntu 24.04
-sudo apt-get install qt6-base-dev libmtp9
+python3 tools/install_cmake.py --prefix /path/to/isolated/cmake
+export PATH="/path/to/isolated/cmake/bin:$PATH"
+cmake --version
+ctest --version
 ```
 
----
+It requires Python 3.12+, downloads the official archive, checks the committed SHA-256,
+extracts with Python's safe data filter, and verifies both tool versions before installation.
+Repeated calls reuse only a recognized installation bearing the same archive digest;
+unrelated existing directories are rejected. A checksum mismatch installs nothing.
+Update the release URL and reviewed digest together during dependency review.
 
-## Notes
+## Release qualification
 
-- The `GITHUB_TOKEN` is used automatically by the release workflow — no personal access token needed.
-- CI and release both run on **Linux (Ubuntu 24.04) only**. macOS and Windows are not actively maintained.
-- MTP device support (`libmtp`) is included in the release binaries when `libmtp-dev` is found at build time (it is on the GitHub-hosted runner).
+[release.yml](.github/workflows/release.yml) runs when an authorized version tag
+matching `v[0-9]*` is pushed. Tag creation and release publication remain separate
+owner decisions; ordinary continuous pushes to `main` do not publish a release.
+
+The workflow verifies the tag matches `CLIENT_VERSION` in `src/lib/common.h`, runs
+the full local pipeline, strips both executables, and packages them with README,
+the unchanged GPLv2 `LICENSE`/`COPYING`, and the fictional example log. It extracts
+the archive into a temporary directory and checks the packaged GUI/CLI help entry
+points before publication. Logs and JUnit results are retained for failures as well
+as successful releases. The GitHub release contains the archive, JUnit results,
+pipeline log, and an evidence-based report with archive SHA-256.
+
+These are dynamically linked Linux executables. **Qt >= 6.12**, its runtime plugins
+(including SQLite and a suitable platform plugin), and libmtp must be installed on
+the target machine. An older distro package such as Ubuntu 24.04's default Qt is
+insufficient; use the reviewed SDK or another compatible runtime. Shared libraries
+and Qt plugins are not bundled in the tarball. See [README.md](README.md) and
+[the dependency inventory](documents/DEPENDENCIES.md).
+
+macOS and Windows are not qualified by these workflows. No Docker build or image
+publication is part of this initiative.
