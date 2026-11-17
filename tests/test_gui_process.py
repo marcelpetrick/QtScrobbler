@@ -55,9 +55,17 @@ def main():
             display_name = b':' + os.read(read_fd, 32).strip()
             os.close(read_fd)
             read_fd = -1
-            display = x.XOpenDisplay(display_name)
+            # Xvfb can announce its display shortly before it accepts clients on slow
+            # (sanitizer) runs; retry briefly and keep its log for a real failure.
+            connect_deadline = time.monotonic() + 10
+            while not (display := x.XOpenDisplay(display_name)) and time.monotonic() < connect_deadline:
+                if server.poll() is not None:
+                    break
+                time.sleep(0.1)
             if not display:
-                raise RuntimeError('cannot connect to private X server')
+                server_log.seek(0)
+                raise RuntimeError(f'cannot connect to private X server {display_name.decode()} '
+                                   f'(Xvfb exit status {server.poll()}): ' + server_log.read())
             config = home / 'custom.ini'
             config.touch()
             environment = os.environ.copy()
