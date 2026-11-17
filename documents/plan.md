@@ -683,3 +683,23 @@ digest) in `downloads.json`, report digests in errors and keep an explicit
 `--quick --noRun --noOpen` gate on the exact staged snapshot
 `/tmp/qtscrobbler-63zlib-source` PASS, **20/20 CTests**, reports
 `/tmp/qtscrobbler-63zlib-reports`. Diagnostic subset only; no remote-green claim.
+
+The interrupted .62 whole-scope mutation campaign
+(`/tmp/qtscrobbler-resume-62-qualified-reports`) stopped at 20:29 while running
+its tenth `scrobble` campaign, when the hosting session ended; nine module
+reports exist but there is no summary, so it yields **no** mutation score and
+remains incomplete diagnostic evidence only. Final mutation qualification must
+run on the final tree.
+
+GUI resource fix (client **0.13.64**): new exact main-window assertions (layout,
+table, buttons, icons, menus/actions; MTP entry follows `HAVE_MTP`) exposed a real
+defect. The generated build `qtscrob.qrc` replaced `resources/...` with absolute
+paths without an alias, so every `:/resources/icons/...` fallback and the window
+icon were missing from the shipped GUI (masked only where a desktop icon theme
+supplies `fromTheme`). CMake now keeps the original resource name as an alias.
+Proof: the same test on the unfixed CMake fails at `!control->icon().isNull()`
+(`/tmp/qtscrobbler-64orig-build`); fixed, `test_gui` **44/44 PASS** and every
+bundled icon path resolves. Incremental `--quick --noRun --noOpen` on the exact
+staged snapshot `/tmp/qtscrobbler-64gui-source` PASS, **20/20 CTests**, reports
+`/tmp/qtscrobbler-64gui-reports`. Actions **44159701792** for `7fee3db` was
+observed in progress; no remote-green claim.

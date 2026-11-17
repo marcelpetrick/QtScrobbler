@@ -5,9 +5,15 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
+#include <QFile>
 #include <QFileDialog>
+#include <QFormLayout>
 #include <QGroupBox>
+#include <QHeaderView>
+#include <QIcon>
 #include <QLineEdit>
+#include <QMenu>
+#include <QMenuBar>
 #include <QProcess>
 #include <QProgressBar>
 #include <QPushButton>
@@ -309,6 +315,56 @@ class GuiTest : public QObject {
         QCOMPARE(window.scrob->get_num_tracks(), 0);
     }
 
+    void mainControlsRemainAccessible() {
+        QTScrob window;
+        window.setupWindow();
+        window.show();
+        QCOMPARE(window.windowTitle(), "QTScrobbler");
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table);
+        QVERIFY(table->alternatingRowColors());
+        QCOMPARE(table->selectionBehavior(), QAbstractItemView::SelectRows);
+        for (int column = 0; column < table->columnCount(); ++column)
+            QCOMPARE(table->horizontalHeader()->sectionResizeMode(column), QHeaderView::Stretch);
+        // QTScrob's private centralWidget member hides QMainWindow::centralWidget().
+        QWidget* central = static_cast<QMainWindow&>(window).centralWidget();
+        QVERIFY(central);
+        QVERIFY(central->layout());
+        QVERIFY(central->layout()->indexOf(table) >= 0);
+        for (const QString text : {"Open .scrobbler.log", "Open iTunesDB", "Delete selected item", "Submit"}) {
+            auto* control = button(window, text);
+            QVERIFY(control);
+            QVERIFY(control->isVisible());
+            QVERIFY(!control->icon().isNull());
+            QVERIFY(central->layout()->indexOf(control) >= 0);
+        }
+        // Theme icons can mask a broken bundle, so check the bundled fallbacks directly.
+        for (const QString name :
+             {"16x16/qtscrob.png", "128x128/qtscrob.png", "appointment-new.png", "document-open.png", "edit-clear.png",
+              "help-browser.png", "mail-send-receive.png", "multimedia-player-iriver-s10_16.png",
+              "preferences-system.png", "system-log-out.png"}) {
+            const QString path = ":/resources/icons/" + name;
+            QVERIFY2(QFile::exists(path), qPrintable(path));
+            QVERIFY2(!QIcon(path).isNull(), qPrintable(path));
+        }
+        QStringList menus;
+        for (auto* action : static_cast<QMainWindow&>(window).menuBar()->actions()) menus.append(action->text());
+        QCOMPARE(menus, QStringList({"Global", "Help"}));
+#ifdef HAVE_MTP
+        const QStringList globalActions = {"Open", "Open iTunesDB", "Open MTP Device", "Settings", "", "Exit"};
+#else
+        const QStringList globalActions = {"Open", "Open iTunesDB", "Settings", "", "Exit"};
+#endif
+        const QList<QStringList> expectedActions = {globalActions, {"Help", "Console", "About", "About Qt"}};
+        for (int index = 0; index < expectedActions.size(); ++index) {
+            auto* menu = static_cast<QMainWindow&>(window).menuBar()->actions()[index]->menu();
+            QVERIFY(menu);
+            QStringList actual;
+            for (auto* action : menu->actions()) actual.append(action->text());
+            QCOMPARE(actual, expectedActions[index]);
+        }
+    }
+
     void editAllFieldsAndRejectInvalidValues() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
@@ -333,6 +389,9 @@ class GuiTest : public QObject {
             table->item(0, 3)->setText(value);
             QCOMPARE(window.scrob->get_track(0).tracknum, 12);
         }
+        table->item(0, 3)->setText("0");
+        QCOMPARE(window.scrob->get_track(0).tracknum, 0);
+        table->item(0, 3)->setText("12");
         table->item(0, 3)->setText("");
         QCOMPARE(window.scrob->get_track(0).tracknum, 0);
         table->item(0, 4)->setText("240");
@@ -341,6 +400,9 @@ class GuiTest : public QObject {
             table->item(0, 4)->setText(value);
             QCOMPARE(window.scrob->get_track(0).length, 240);
         }
+        table->item(0, 4)->setText("0");
+        QCOMPARE(window.scrob->get_track(0).length, 0);
+        table->item(0, 4)->setText("240");
         table->item(0, 5)->setText("S");
         QCOMPARE(window.scrob->get_track(0).played, QChar('S'));
         table->item(0, 5)->setText("bad");
@@ -520,23 +582,65 @@ class GuiTest : public QObject {
         window.parse(SCROBBLE_LOG, directory.path());
         auto* edit = window.findChild<QDateTimeEdit*>();
         QVERIFY(edit);
-        edit->setDateTime(QDateTime(QDate(2026, 11, 17), QTime(12, 0)));
+        const QDateTime displayed(QDate(2027, 2, 3), QTime(12, 34, 56));
+        edit->setDateTime(displayed);
+        window.settings();
+        window.settings_close();
+        QCOMPARE(edit->dateTime(), displayed);
         auto* recalc = button(window, "Recalc Date/Time");
         QVERIFY(recalc);
         recalc->click();
         const auto last = window.scrob->get_track(2);
-        QCOMPARE(last.when + last.length, 1794916800);
+        QCOMPARE(last.when + last.length,
+                 QDateTime(displayed.date(), displayed.time(), QTimeZone::utc()).toSecsSinceEpoch());
         QCOMPARE(window.scrob->get_track(1).when + window.scrob->get_track(1).length, last.when);
     }
 
     void settingsSaveCancelAndReopen() {
         QTScrob window;
+        window.scrob->conf->auto_open = false;
+        window.scrob->conf->del_apple_playlist = true;
+        window.scrob->conf->display_utc = true;
+        window.scrob->conf->utc_offset = -19800;
+        window.scrob->conf->tz_override = true;
+        window.scrob->conf->proxy_host = "saved-proxy.invalid";
+        window.scrob->conf->proxy_port = 4321;
+        window.scrob->conf->proxy_user = "saved-proxy-user";
+        window.scrob->conf->proxy_pass = "fictional-proxy-password";
         window.setupWindow();
         window.settings();
         auto* settings = window.findChild<Settings*>();
         QVERIFY(settings);
         auto sites = siteWidgets(*settings);
         QCOMPARE(sites.size(), CONFIG_NUM_SITES);
+        QVERIFY(!settings->findChild<QCheckBox*>("chkAutoOpen")->isChecked());
+        QVERIFY(settings->findChild<QCheckBox*>("chkDelPlayList")->isChecked());
+        QVERIFY(settings->findChild<QCheckBox*>("chkDisplayUTC")->isChecked());
+        QVERIFY(settings->findChild<QGroupBox*>("grpManual")->isChecked());
+        QCOMPARE(settings->findChild<QComboBox*>("cmb_tz_hour")->currentIndex(), 7);
+        QCOMPARE(settings->findChild<QComboBox*>("cmb_tz_min")->currentIndex(), 2);
+        QCOMPARE(settings->findChild<QLineEdit*>("edtProxyHost")->text(), "saved-proxy.invalid");
+        QCOMPARE(settings->findChild<QLineEdit*>("edtProxyPort")->text(), "4321");
+        QCOMPARE(settings->findChild<QLineEdit*>("edtProxyUser")->text(), "saved-proxy-user");
+        QCOMPARE(settings->findChild<QLineEdit*>("edtProxyPass")->text(), "fictional-proxy-password");
+        for (int index = 0; index < sites.size(); ++index) {
+            auto* site = sites[index];
+            auto* form = qobject_cast<QFormLayout*>(static_cast<QWidget*>(site)->layout());
+            QVERIFY(form);
+            const QList<QPair<QWidget*, QString>> fields = {{site->enabled, "Enabled"},
+                                                            {site->name, "Site Name"},
+                                                            {site->host, "Host"},
+                                                            {site->username, "Username"},
+                                                            {site->password, "Password"}};
+            for (const auto& field : fields) {
+                auto* label = qobject_cast<QLabel*>(form->labelForField(field.first));
+                QVERIFY(label);
+                QCOMPARE(label->text(), field.second);
+            }
+            QCOMPARE(site->name->text(), window.scrob->conf->sites[index].conf_name);
+            QCOMPARE(site->host->text(), window.scrob->conf->sites[index].handshake_host);
+            QCOMPARE(site->name->isEnabled(), index == CONFIG_CUSTOM);
+        }
         QVERIFY(!sites[CONFIG_LASTFM]->host->isEnabled());
         QVERIFY(sites[CONFIG_CUSTOM]->host->isEnabled());
         sites[CONFIG_CUSTOM]->enabled->setChecked(true);
@@ -590,9 +694,11 @@ class GuiTest : public QObject {
         window.help();
         auto* help = window.findChild<Help*>();
         QVERIFY(help);
+        QCOMPARE(help->windowTitle(), "QTScrobbler Help");
         auto* helpText = help->findChild<QTextEdit*>();
         QVERIFY(helpText && helpText->isReadOnly());
         QVERIFY(!helpText->toPlainText().isEmpty());
+        QVERIFY(help->layout()->indexOf(helpText) >= 0);
         help->close();
         window.help();
         QCOMPARE(window.findChildren<Help*>().size(), 1);
@@ -610,6 +716,11 @@ class GuiTest : public QObject {
         auto* level = console->findChild<QComboBox*>();
         auto* output = console->findChild<QTextEdit*>();
         QVERIFY(level && output);
+        QCOMPARE(console->windowTitle(), "Console");
+        QVERIFY(output->isReadOnly());
+        QVERIFY(!level->isEditable());
+        QCOMPARE(level->count(), int(LOG_NUM_LEVELS));
+        QCOMPARE(level->currentIndex(), int(LOG_DEFAULT));
         level->setCurrentIndex(LOG_TRACE);
         QVERIFY(output->toPlainText().contains("Detected Timezone"));
         window.scrob->parser_clear();
@@ -626,6 +737,15 @@ class GuiTest : public QObject {
         QVERIFY(missing);
         auto* progress = missing->findChild<QProgressBar*>();
         QVERIFY(progress);
+        QCOMPARE(missing->windowTitle(), "Please wait");
+        QCOMPARE(missing->windowModality(), Qt::WindowModal);
+        QCOMPARE(missing->sizePolicy().horizontalPolicy(), QSizePolicy::Fixed);
+        QCOMPARE(missing->sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
+        auto* label = missing->findChild<QLabel*>();
+        QVERIFY(label);
+        QCOMPARE(label->text(), "Fetching missing track lengths");
+        QVERIFY(static_cast<QWidget*>(missing)->layout()->indexOf(label) >= 0);
+        QVERIFY(static_cast<QWidget*>(missing)->layout()->indexOf(progress) >= 0);
         QCOMPARE(progress->maximum(), 4);
         window.missing_times_progress(2);
         QCOMPARE(progress->value(), 2);
@@ -688,6 +808,10 @@ class GuiTest : public QObject {
         auto* progress = window.findChild<Progress*>();
         QVERIFY(progress);
         QVERIFY(progress->isVisible());
+        QCOMPARE(progress->windowTitle(), "Submission Progress");
+        auto* cancelControl = button(*progress, "Cancel");
+        QVERIFY(cancelControl);
+        QVERIFY(static_cast<QWidget*>(progress)->layout()->indexOf(cancelControl) >= 0);
         QVERIFY(!submit->isEnabled());
         QTRY_VERIFY_WITH_TIMEOUT(!server.requests.isEmpty(), 2000);
         if (outcome == "cancel") {

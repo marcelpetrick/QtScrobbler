@@ -48,6 +48,11 @@ endforeach()
 add_custom_target(translations_qm ALL DEPENDS
     "${TRANSLATION_OUTPUT_DIR}/de.qm" "${TRANSLATION_OUTPUT_DIR}/pl.qm")
 file(READ "${CMAKE_SOURCE_DIR}/src/qt/qtscrob.qrc" QTSCROBBLER_RESOURCE_CONTENT)
+# Absolute source paths change the resource name; keep the relative name as an alias
+# so the code's ":/resources/..." lookups still resolve.
+string(REGEX REPLACE "<file>resources/([^<]*)</file>"
+    "<file alias=\"resources/\\1\">${CMAKE_SOURCE_DIR}/src/qt/resources/\\1</file>"
+    QTSCROBBLER_RESOURCE_CONTENT "${QTSCROBBLER_RESOURCE_CONTENT}")
 string(REPLACE ">resources/" ">${CMAKE_SOURCE_DIR}/src/qt/resources/"
     QTSCROBBLER_RESOURCE_CONTENT "${QTSCROBBLER_RESOURCE_CONTENT}")
 string(REPLACE ">../language/" ">${TRANSLATION_OUTPUT_DIR}/"
