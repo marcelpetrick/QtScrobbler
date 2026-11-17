@@ -72,7 +72,7 @@ void Conf::set_custom_location(QString location)
         return;
     }
 
-    QDir tmp_folder(QFileInfo(location).filePath());
+    QDir tmp_folder(QFileInfo(location).absolutePath());
     if (!tmp_folder.exists())
     {
         emit add_log(LOG_ERROR, tr("Conf: Custom config parent folder does not exist"));
@@ -127,7 +127,7 @@ bool Conf::load_config()
     status();
 
 
-    return true;
+    return settings->status() == QSettings::NoError;
 }
 
 bool Conf::save_config()
@@ -164,7 +164,7 @@ bool Conf::save_config()
     settings->sync();
     status();
 
-    return true;
+    return settings->status() == QSettings::NoError;
 }
 
 bool Conf::upgrade_from_0_10()

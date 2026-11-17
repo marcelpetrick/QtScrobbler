@@ -343,6 +343,8 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 
 | Clean CI translation dependency fix | Include qtdeclarative SDK runtime required by Qt Linguist; document clean-generation requirement | Actual CI cedda6a failed when clean lrelease could not load libQt6Qml.so.6; local cached .qm had masked this | Verify clean lrelease plus full local gate and replacement Actions run; no claim that failed CI was green |
 
+| Configuration contracts | Custom-path and truthful load/save fixes; isolated defaults, full settings roundtrip, migration and error tests | Agent reproduced four failures on original and passed 12/12 Qt Test rows on fixed code; root Qt 6.12 pipeline passed 6/6 CTest executables | Database, iPod, Scrobble, networking and final quality targets continue independently |
+
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.
 For subsequent exact-version gates, execute the version hook before validation, then commit
