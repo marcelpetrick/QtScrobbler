@@ -1,7 +1,10 @@
 # Native mutation testing
 
-The target is **95% assertion-killed mutants**, independently of line and branch
-coverage. A small successful compatibility spike is evidence that the tools work;
+The goal is **95% assertion-killed mutants**, independently of line and branch
+coverage. Until it is reached, the pipeline gates on a ratchet (`MUTATION_MINIMUM` in
+`localPipeline.sh`, currently 67%, just under the measured score) so the score cannot
+drop; raise it whenever new tests kill more mutants. Releases do not run mutation
+testing; they require a green CI run, which includes it. A small successful compatibility spike is evidence that the tools work;
 it is not a project-wide score. `plan.md` tracks the remaining test and gate work.
 
 ## Toolchain
@@ -173,6 +176,7 @@ This section is append-only. New evidence adds a dated row and preserves old res
 | --- | --- | --- | --- |
 | 2026-11-17 | Compatibility spike: real `CommonTest` plus `src/lib/common.cpp`, `<` to `<=` and `<` to `>=` | 2 generated, 2 assertion-killed; original passes; no timeouts/crashes | Proves native Clang 20.1.8/Mull 0.38.0/Qt 6.12.0 compatibility; deliberately limited scope, **not** the full project baseline |
 | 2026-11-17 | First broad native source snapshot, client version 0.13.30; all configured native tests and both application executables; MTP enabled | **83 / 1,396 unique mutants assertion-killed (5.945558739255014326647564470%); 95% target FAIL** | Initial baseline, not completion. Snapshot has 5 CTests and predates added storage/iPod tests. 112 raw timeouts counted against detection; no infrastructure errors or equivalent exclusions |
+| 2026-11-17 | Complete native campaign, client 0.13.69 (`d07b90e`); all CTests, GUI and CLI executables, MTP enabled, corrected call-removal plugin | **1195 / 1766 assertion-killed (67.667%) locally; 1193 / 1766 (67.554%) in Actions run 44167982834** | First complete qualified score. 95% goal FAIL; owner chose a 67% ratchet gate. 571 mutants not assertion-killed remain the work list |
 
 The spike's exact failures were `chronologicalOrdering`: reversal made
 `entry_less_than(earlier, later)` false; an inclusive comparison made equal timestamps

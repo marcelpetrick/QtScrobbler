@@ -28,6 +28,10 @@ RUN_APP=true
 QUICK=false
 BASELINE=false
 FORCE_FULL=false
+# Mutation ratchet (owner decision 2026-11-17): the gate fails below the measured
+# 67.55-67.67% (1193-1195/1766) so the score cannot drop. Raise it as tests kill
+# more mutants; 95% remains the documented goal. Coverage keeps its 95% gates.
+MUTATION_MINIMUM=67
 
 # Detail strings
 QT6_DETAILS=""
@@ -94,7 +98,8 @@ Stages:
   11. Sanitizers           — isolated ASan/UBSan build and complete CTest suite
   12. Coverage             — isolated LLVM build, separate 95% line and branch gates
   13. Mutation toolchain   — native Qt signal-removal semantic proof (fail-closed)
-  14. Mutation             — isolated native Mull campaign, 95% assertion-killed gate
+  14. Mutation             — isolated native Mull campaign, assertion-killed ratchet gate
+                            (MUTATION_MINIMUM; goal 95%)
   15. Package              — extracted CLI and actual GUI startup, dependency checks
   16. Summary              — actual stage results (missing tools or reports fail)
 
@@ -521,7 +526,7 @@ mutation_check() {
     python3 "${ROOT_DIR}/tools/run_offline.py" -- python3 "${ROOT_DIR}/tools/run_mutation_tests.py" --build-dir "${mutation_build}" \
         --report-dir "${PIPELINE_LOG_DIR}/mutation" --jobs "${JOBS}" --workers "${JOBS}" \
         --command-timeout 7200 --toolchain-summary "${PIPELINE_LOG_DIR}/mutation-toolchain/summary.json" \
-        --coverage-summary "${PIPELINE_LOG_DIR}/coverage/summary.json" "${measure[@]}"
+        --coverage-summary "${PIPELINE_LOG_DIR}/coverage/summary.json" --minimum "${MUTATION_MINIMUM}" "${measure[@]}"
 }
 
 full_quality_checks() {

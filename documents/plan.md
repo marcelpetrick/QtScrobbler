@@ -50,10 +50,9 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
       reports and duplicate toolchains in `/tmp` and `~/.cache`; kept only the
       in-use source snapshot and toolchains. Full runs now use
       `~/.cache/qtscrobbler-runs/<version>` on disk.
-- [ ] Check that all documents are current: CHANGELOG gained the 0.13.69 entry;
-      AGENTS and GitHub Actions updated. Pending: README status paragraph, branch
-      badge (95.67% → measured 96.61%) and QUALITY/ACCEPTANCE_AUDIT results, once
-      the local 0.13.69 mutation score is in.
+- [x] Check that all documents are current: CHANGELOG 0.13.69 entry; AGENTS,
+      GitHub Actions, README (status, branch badge 96.61%, mutation badge), QUALITY
+      and MUTATION_TESTING updated with the 0.13.69 measurements and the ratchet.
 - [x] Release without mutation testing (owner: "too much overhead"): a separate,
       small release pipeline that publishes only commits pretested by green CI.
       `release.yml` now requires a successful CI run on the tagged commit, then only
@@ -73,7 +72,18 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
       CLI. Fixes found on the way: CRLF desktop file, linuxdeploy's old `strip`
       (`NO_STRIP=1`). linuxdeploy-plugin-qt has no upstream digest; its SHA-256 was
       measured on download. The `[x]` waits for the first published release.
-- [ ] Publish `v0.13.69`. Its tag was pushed on `d07b90e` before this change, so the
+- [x] Owner decision on the mutation gap: CI measured **1193/1766 (67.554%)** in
+      Actions 44167982834 and the local full gate **1195/1766 (67.667%)** against the
+      95% gate. Owner chose a **ratchet at 67%** (`MUTATION_MINIMUM` in
+      `localPipeline.sh`): CI fails if the score drops; 95% stays the goal and the
+      ratchet rises as tests kill more of the 571 remaining mutants. Gate function
+      check: both results PASS at 67 and FAIL at 68.
+- [x] Fix the CI-only sanitizer failure: `gui_process` connected to Xvfb right after
+      it announced the display and failed on the slower sanitizer run. The test now
+      retries for up to 10 s and reports Xvfb's log/exit status on a real failure.
+- [ ] Publish a release. `v0.13.69` (`d07b90e`) cannot be released: its CI failed
+      (mutation 67.55% < 95%, Xvfb race), and its old-style release run 44169110976
+      failed the same gate. The next green CI commit gets the first release. Its tag was pushed on `d07b90e` before this change, so the
       old full release workflow (run **44169110976**) is qualifying it in parallel with
       CI run **44167982834**; later releases use the lean workflow.
 

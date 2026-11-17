@@ -77,8 +77,8 @@ The workflow is deliberately small (minutes instead of the full gate's hours):
 
 1. Check out the tag and require it to equal `CLIENT_VERSION` in `src/lib/common.h`.
 2. Require a **successful CI run on that exact commit**; otherwise stop. CI on `main`
-   is the full gate: static analysis, sanitizers, 95% coverage and native mutation
-   testing. The release does not repeat them; mutation testing is never run per release.
+   is the full gate: static analysis, sanitizers, 95% coverage and the native mutation
+   ratchet. The release does not repeat them; mutation testing is never run per release.
 3. Build and run all unit tests with `./localPipeline.sh --quick` (GCC, pinned Qt,
    CMake and zlib, network-isolated CTest).
 4. Strip both executables and package them with README, the unchanged GPLv2

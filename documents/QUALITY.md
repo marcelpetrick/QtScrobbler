@@ -1,8 +1,9 @@
 # Native quality checks
 
-The quality targets are 95% source line coverage, 95% source branch coverage and
-95% assertion-detected mutation kills. These remain targets until fresh complete
-reports demonstrate them. Historical measurements are recorded in [the execution
+Coverage gates are 95% source line and 95% source branch coverage. Mutation testing
+gates on a ratchet (`MUTATION_MINIMUM` in `localPipeline.sh`, currently 67%; owner
+decision 2026-11-17) so the assertion-killed score cannot drop; 95% remains the goal
+and the ratchet is raised as tests kill more mutants. Historical measurements are recorded in [the execution
 plan](plan.md); mutation accounting is described in [Mutation testing](MUTATION_TESTING.md).
 
 The local pipeline orchestrates native builds, CTest, coverage, sanitizers and mutation
@@ -87,6 +88,23 @@ display, settings, credentials or devices.
 
 ## Measured results
 
+Commit `d07b90e` / client `0.13.69`, measured on 2026-11-17 with Qt6.12.0,
+Clang/LLVM20.1.8, MTP enabled and pinned zlib1.4, by the complete local gate
+(`~/.cache/qtscrobbler-runs/69/reports`) and Actions run 44167982834:
+
+| Check | Observed result |
+| --- | --- |
+| Source lines | 2722 /2749, 99.017824663514%; 95% gate PASS (local and CI) |
+| Source branches | 1027 /1063, 96.61335841956726%; 95% gate PASS (local and CI) |
+| Missing production files | None; library, CLI, GUI, and Linux MTP included |
+| Normal CTest | 26 /26 PASS (local and CI) |
+| ASan/UBSan/leak CTest | 26 /26 PASS locally; CI failed only the Xvfb connect race, fixed in 0.13.72 |
+| Format, static, documentation | PASS (local and CI) |
+| Extracted package checks | PASS (local and CI) |
+| Native mutation | 1195 /1766 assertion-killed, 67.667% locally; 1193 /1766, 67.554% on CI; ratchet 67% PASS, 95% goal open |
+
+Earlier measurement:
+
 Frozen commit `20bd7f8` / client `0.13.59`, measured on 2026-11-17 with Qt6.12.0,
 Clang/LLVM20.1.8, MTP enabled, and pinned zlib1.4:
 
@@ -104,9 +122,8 @@ Clang/LLVM20.1.8, MTP enabled, and pinned zlib1.4:
 Coverage reports: `/tmp/qtscrobbler-frozen-59-full-reports/coverage/summary.json`,
 with hashed exports, raw profiles, HTML, JUnit, source/test/tool inventories, and no
 missing production files. Package evidence: `/tmp/qtscrobbler-frozen-59-package`.
-README badges display these measured coverage values truncated to two decimals;
-passing uses integer totals. They do not imply a passing mutation campaign or a
-qualified release. Historical measurements remain associated with their own commit.
+README badges display the newest measured values truncated to two decimals;
+passing uses integer totals. Historical measurements remain associated with their own commit.
 
 The mutation investigation found both false-uncovered filtering and invalid native
 void-call replacements around C++ exception cleanup. LLVM IR shows that some advertised

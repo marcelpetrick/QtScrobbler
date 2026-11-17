@@ -26,7 +26,7 @@ LABELS = {
     "Sanitizers": "AddressSanitizer / UndefinedBehaviorSanitizer / leak checks",
     "Coverage": "Line and branch coverage gate (95%)",
     "MutationToolchain": "Mutation tool semantic preflight",
-    "Mutation": "Native mutation testing gate (95% assertion-killed)",
+    "Mutation": "Native mutation testing gate",
     "Package": "Extracted package checks",
 }
 SUMMARY_LINE = re.compile(r"^(?P<stage>[A-Za-z][A-Za-z :]*?)\s+: (?P<status>PASS|FAIL|SKIP|WARN)\b")
@@ -81,7 +81,7 @@ def verification(reports: Path) -> list[str]:
                            f"({percent(branches['covered'], branches['count'])})")
     mutation = json.loads((reports / "mutation/summary.json").read_text())
     details["Mutation"] = (f"{mutation['assertion_killed']}/{mutation['unique_mutants']} mutants killed "
-                           f"({mutation['score_percent'][:5]}%)")
+                           f"({mutation['score_percent'][:5]}%; gate {mutation['target_minimum']}%, goal 95%)")
     return [f"- ✅ {LABELS[stage]}" + (f": {details[stage]}" if stage in details else "")
             for stage in REQUIRED_STAGES]
 

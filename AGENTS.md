@@ -42,8 +42,10 @@ Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib pr
 `documents/DEPENDENCIES.md`; install the qualified private native call-removal correction, source its generated
 `env.sh`, and set
 `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
-ASan/UBSan, separate 95% line/branch coverage, native 95% mutation and extracted-package
-qualification are mandatory in this command. Missing tools/reports and failed stages fail.
+ASan/UBSan, separate 95% line/branch coverage, the native mutation ratchet
+(`MUTATION_MINIMUM`, currently 67%; goal 95%) and extracted-package qualification are
+mandatory in this command. Raise the ratchet when tests kill more mutants; never lower
+it without the owner's decision. Missing tools/reports and failed stages fail.
 Test, mutation and package processes run through `tools/run_offline.py`; Linux network
 namespaces, `unshare`, `ip` and `dbus-daemon` are mandatory and fail closed.
 

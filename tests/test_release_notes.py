@@ -39,7 +39,8 @@ class ReleaseNotesTest(unittest.TestCase):
         (self.reports / "coverage/summary.json").write_text(json.dumps(
             {"totals": {"lines": {"count": 2749, "covered": 2722}, "branches": {"count": 1063, "covered": 1027}}}))
         (self.reports / "mutation/summary.json").write_text(json.dumps(
-            {"assertion_killed": 1900, "unique_mutants": 1990, "score_percent": "95.47738693467336"}))
+            {"assertion_killed": 1900, "unique_mutants": 1990, "score_percent": "95.47738693467336",
+             "target_minimum": "67"}))
         self.changelog = self.root / "CHANGELOG"
         self.changelog.write_text("* version 1.2.3 (2026-11-17)\n- Fix one\n- Fix two\n\n"
                                   "* version 1.2.2 (2026-11-01)\n- Older\n")
@@ -63,7 +64,7 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertIn("Full CI gate on commit `abc123`: https://ci/run/1", notes)
         self.assertIn("26 CTest suites, 0 failures", notes)
         self.assertIn("lines 2722/2749 (99.01%), branches 1027/1063 (96.61%)", notes)
-        self.assertIn("1900/1990 mutants killed (95.47%)", notes)
+        self.assertIn("1900/1990 mutants killed (95.47%; gate 67%, goal 95%)", notes)
         self.assertIn("Release build: 26/26 CTest suites PASS", notes)
         self.assertIn(f"{hashlib.sha256(b'appimage bytes').hexdigest()}  {asset.name}", notes)
         self.assertEqual(notes.count("- ✅"), len(NOTES.REQUIRED_STAGES) + 1)

@@ -183,6 +183,8 @@ class PipelineTests(unittest.TestCase):
                         if any("run_mutation_tests.py" in argument for argument in call))
         self.assertEqual(campaign[campaign.index("--workers") + 1], "1")
         self.assertEqual(campaign[campaign.index("--command-timeout") + 1], "7200")
+        # Ratchet: the pipeline passes the measured floor explicitly instead of the 95% goal.
+        self.assertEqual(campaign[campaign.index("--minimum") + 1], "67")
         self.assertTrue(campaign[campaign.index("--toolchain-summary") + 1].endswith(
             "/mutation-toolchain/summary.json"))
         preflight = next(call for call in result.tool_calls
