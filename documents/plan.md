@@ -471,3 +471,15 @@ Conf rebuilt after format-only adjustment and its CTest PASS; documentation/Doxy
 stage PASS (/tmp/qtscrobbler-boundary-60-docs). Independent read-only review found no
 verified finding. Existing sourceversion hook was already run before the20-test gate;
 commit invocation disables only that already-executed hook.
+
+| README-first and acceptance audit (prepared0.13.61) | Owner requested finishing README first, then pushing, and checking acceptance/E2E. Retained reference-style badges and actual screenshot; corrected exactzlib/qualifiedcompiler/private-prefix setup. Added acceptance/E2E labels and scenario/evidence map distinguishing real CLI processes, real GUI display smoke, in-process widget workflows and unperformed live/device checks | Prior20-test .60 gate PASS. Added missing QSignalSpy size assertions so removed signals yield ordinary test failures instead of later QList crashes; fixed native tool proves exact Parse_Log :134/:143/:145 mutants assertion-killed, original25/25PASS. Fresh .61 quick/acceptance/E2E/docs/package runs pending | Push README/test work after green diagnostic checks as requested; full mutation gate remains open and actual Actions must be inspected, with no complete-green claim until the corrected native dependency and threshold pass |
+
+Prepared0.13.61 validation: incremental pipeline20/20 PASS
+(/tmp/qtscrobbler-readme-61-reports); acceptance label5/5 PASS (7.32s),
+process E2E label2/2 PASS (0.79s), with separate JUnit files
+/tmp/qtscrobbler-readme-61-acceptance.xml and -e2e.xml. Documentation/Doxygen
+PASS (/tmp/qtscrobbler-readme-61-docs); extracted-package version/dependency/
+CLI/GUI startup PASS (/tmp/qtscrobbler-readme-61-package). Parse_Log formatting and
+CRLF-aware whitespace checks PASS. Owner explicitly requested pushing the README-first
+work now; these are green diagnostic checks, not full mutation qualification. The next
+actual Actions run must be inspected and any full-gate failure remains open until fixed.

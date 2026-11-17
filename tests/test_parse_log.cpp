@@ -239,6 +239,7 @@ class ParseLogTest : public QObject {
         QCOMPARE(completed[0][1].toString(), "Parsing failed - no valid log entries");
         QCOMPARE(emitted, 0);
         parser.clear();
+        QCOMPARE(cleared.size(), 1);
         QVERIFY(!cleared[0][0].toBool());
         QVERIFY(QFile::exists(directory.filePath(".scrobbler.log")));
     }
@@ -263,6 +264,7 @@ class ParseLogTest : public QObject {
         QSignalSpy completed(&parser, &Parse::open_finished);
         QSignalSpy cleared(&parser, &Parse::clear_finished);
         parser.open(directory.path(), 0);
+        QCOMPARE(completed.size(), 1);
         QVERIFY(completed[0][0].toBool());
         QVERIFY(QFile::remove(file));
         QVERIFY(QDir().mkdir(file));

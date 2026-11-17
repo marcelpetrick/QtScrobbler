@@ -38,6 +38,7 @@ mutation-tool qualification remains open. See the
 
 [Build and dependencies](documents/DEPENDENCIES.md) ·
 [Testing and quality](documents/QUALITY.md) ·
+[Acceptance and E2E](documents/ACCEPTANCE.md) ·
 [Architecture](documents/ARCHITECTURE.md) ·
 [All documentation](documents/README.md) ·
 [Report an issue](https://github.com/marcelpetrick/QtScrobbler/issues)
@@ -46,12 +47,11 @@ mutation-tool qualification remains open. See the
 
 - Qt >= 6.12 (qualified build: Qt 6.12.0)
 - CMake >= 3.28
-- A C++20 capable compiler (GCC 12+ or Clang 14+)
-- `cmake`, `pkg-config`, libmtp and zlib (qualified native prefix: zlib 1.4)
+- A C++20 compiler (qualified native toolchain: Clang 20.1.8)
+- `cmake`, `pkg-config`, libmtp and exactly zlib 1.4
 
-On Arch/Manjaro all of the above are available via `pacman`.  
-On Debian/Ubuntu, distribution Qt packages may be older than 6.12. Install the pinned
-Qt SDK separately; see [dependency inventory](documents/DEPENDENCIES.md).
+Use private Qt SDK and zlib prefixes; distribution packages may be below these
+versions. See the tested setup in the [dependency inventory](documents/DEPENDENCIES.md).
 
 ---
 
@@ -87,7 +87,8 @@ A [fictional example log](examples/README.md) is provided for safe imports from 
 ### Full build (out-of-tree, all targets)
 
 ```sh
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64 -DZLIB_ROOT=/path/to/zlib
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure --no-tests=error
 ```
@@ -95,6 +96,21 @@ ctest --test-dir build --output-on-failure --no-tests=error
 Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
 
 ---
+
+## Acceptance and end-to-end tests
+
+The suite includes a real CLI import/upload process against a loopback service,
+GUI import/edit/settings/submit/cancel acceptance workflows, and the actual GUI
+process starting and closing on a private Xvfb display. All use disposable data.
+
+```sh
+ctest --test-dir build --label-regex acceptance --output-on-failure --no-tests=error
+ctest --test-dir build --label-regex e2e --output-on-failure --no-tests=error
+```
+
+See the [scenario and evidence map](documents/ACCEPTANCE.md) for the exact checks,
+packaged-app smoke commands, and the distinction between widget integration,
+process end-to-end tests, and unperformed physical-device/live-service checks.
 
 ## How to run
 

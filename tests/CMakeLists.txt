@@ -53,3 +53,8 @@ add_test(NAME mutation_installer_contract COMMAND "${Python3_EXECUTABLE}" "${CMA
 set_tests_properties(mutation_installer_contract PROPERTIES TIMEOUT 30)
 add_test(NAME mutation_coverage_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_mutation_coverage.py")
 set_tests_properties(mutation_coverage_contract PROPERTIES TIMEOUT 20)
+
+# Acceptance workflows use real production code; process E2E cases launch binaries.
+set_tests_properties(cli PROPERTIES LABELS "acceptance;e2e")
+set_tests_properties(gui scrobble translations PROPERTIES LABELS "acceptance;integration")
+set_tests_properties(gui_process PROPERTIES LABELS "acceptance;e2e;smoke")

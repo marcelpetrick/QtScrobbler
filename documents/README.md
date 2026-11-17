@@ -6,6 +6,7 @@ Start with the [project overview](../README.md) for the application, screenshot,
 | --- | --- |
 | [Dependencies and setup](DEPENDENCIES.md) | Exact SDK/tool selections and native provisioning |
 | [Testing and quality](QUALITY.md) | Full pipeline, diagnostic modes, reports, and package checks |
+| [Acceptance and end-to-end](ACCEPTANCE.md) | User workflows, real-process checks, scope, and commands |
 | [Architecture](ARCHITECTURE.md) | CLI, GUI, library, storage, network, and device boundaries |
 | [API contracts](API.md) | Maintained C++ behavior and generated API documentation |
 | [Mutation testing](MUTATION_TESTING.md) | Native Mull campaigns and outcome accounting |
