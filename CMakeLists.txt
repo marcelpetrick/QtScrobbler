@@ -17,7 +17,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Qt6
-find_package(Qt6 6.8 REQUIRED COMPONENTS Core Network Sql Xml Widgets)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Core Network Sql Xml Widgets)
 
 # Optional MTP support via libmtp (pkg-config)
 find_package(PkgConfig QUIET)
@@ -65,6 +65,6 @@ add_subdirectory(src/cli)
 
 include(CTest)
 if(BUILD_TESTING)
-    find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+    find_package(Qt6 6.12 REQUIRED COMPONENTS Test)
     add_subdirectory(tests)
 endif()

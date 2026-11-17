@@ -18,42 +18,37 @@ sudo pacman -S libmtp pkgconf                # Arch/Manjaro
 
 ## Requirements
 
-- Qt >= 6.8 (tested with Qt 6.11.1)
+- Qt >= 6.12 (qualified build: Qt 6.12.0)
 - CMake >= 3.28
 - A C++20 capable compiler (GCC 12+ or Clang 14+)
 - `cmake` and `pkg-config`
 
 On Arch/Manjaro all of the above are available via `pacman`.  
-On Debian/Ubuntu 22.04+ install `qt6-base-dev qt6-tools-dev qt6-tools-dev-tools cmake`.
+On Debian/Ubuntu, distribution Qt packages may be older than 6.12. Install the pinned
+Qt SDK separately; see [dependency inventory](documents/DEPENDENCIES.md).
 
 ---
 
 ## How to build
 
-### most simple: run localPipeline.sh
+### Run the local pipeline
 
 ```sh
-./localPipeline.sh --noRun
-============ Local Pipeline Summary ============
- QtScrobbler v0.13.12
-Qt6 Check              : PASS Qt 6.11.1 at /usr/bin/qmake6
-Build Tools            : PASS cmake, g++, pkg-config present; 20 compile jobs
-CMake configure        : PASS configured in /path/to/QtScrobbler/build
-CMake build            : PASS libscrobble.a (556K); qtscrob; scrobbler
-Build: GUI             : PASS qtscrob (584K)
-Build: CLI             : PASS scrobbler (340K)
-Smoke: CLI             : PASS --help exited 0 — usage text printed
-Smoke: GUI binary      : PASS /path/to/QtScrobbler/build/qtscrob — 584K
-Translations           : PASS de: 79/0 untranslated;  pl: 79/0 untranslated — total: 158 strings, 0 untranslated
-Unit Tests             : SKIP No QTest suite — add src/tests/ to enable
-Launch App             : SKIP Suppressed by --noRun
-================================================
+QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
+QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
 ```
+
+The pipeline builds the library, GUI and CLI, checks translations, runs the CLI help
+smoke test and offline Qt Test/CTest suite, and retains logs and JUnit results.
+Missing/failed tests or failed CLI smoke tests cause failure. Coverage and mutation
+work toward the 95% targets is tracked in [plan.md](plan.md).
+
+A [fictional example log](examples/README.md) is provided for safe imports from a temporary copy.
 
 ### Full build (out-of-tree, all targets)
 
 ```sh
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64
 cmake --build build --parallel $(nproc)
 ```
 
@@ -66,7 +61,7 @@ Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
 ### GUI
 
 ```sh
-./src/qt/qtscrob
+./build/qtscrob
 # Optional flags:
 #   -c PATH   path to configuration file
 #   -v LEVEL  verbosity (0=error … 3=trace)
@@ -75,8 +70,8 @@ Binaries are written to `build/` (GUI: `build/qtscrob`, CLI: `build/scrobbler`).
 ### CLI
 
 ```sh
-./src/cli/scrobbler --help
-./src/cli/scrobbler -f /path/to/.scrobbler.log
+./build/scrobbler --help
+./build/scrobbler -f /path/to/.scrobbler.log
 ```
 
 ---

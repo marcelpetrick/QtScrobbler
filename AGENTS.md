@@ -30,7 +30,7 @@ commands or contribution rules change; it need not change in every implementatio
 
 ## Build and test commands
 
-Current gate: `./localPipeline.sh --noRun`. Missing/failed tests and CLI smoke failures are fatal. This baseline gate does not yet
+Current gate: `QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 ./localPipeline.sh --noRun`. Missing/failed tests and CLI smoke failures are fatal. This baseline gate does not yet
 enforce the final coverage/mutation targets. Retain evidence with
 `./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports`.
 Use `QTSCROBBLER_JOBS=4` to bound build parallelism and `QTSCROBBLER_BUILD_DIR`
@@ -39,7 +39,7 @@ for an isolated build directory.
 Current direct checks:
 
 ```sh
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure --no-tests=error
 timeout 5 ./build/scrobbler --help
@@ -83,3 +83,7 @@ implemented behavior. Historical reports remain historical; append new measured 
 Do not claim green CI, Qt 6.12 runtime, device compatibility, 95% coverage, or mutation success
 without actually observing the corresponding checks. Final completion includes package and
 GUI/CLI workflow evidence, not just compilation.
+
+The exact Python tooling resolution is in `requirements-quality.txt`; upstream version
+review and SDK provisioning are documented in `documents/DEPENDENCIES.md`. The Linux Qt
+SDK requires its ICU archive. The system Qt 6.11 installation is below the new minimum.

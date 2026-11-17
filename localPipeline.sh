@@ -110,6 +110,9 @@ check_qt6() {
 
     # Prefer the explicit Qt6 binary; fall back to plain qmake only when it is Qt6.
     local candidates=("qmake6" "qmake6-qt6" "qmake")
+    if [[ -n "${QTSCROBBLER_QT_PREFIX:-}" ]]; then
+        candidates=("${QTSCROBBLER_QT_PREFIX}/bin/qmake")
+    fi
     local qmake_bin="" qt_version="" major=""
 
     for candidate in "${candidates[@]}"; do
@@ -117,7 +120,13 @@ check_qt6() {
         bin="$(command -v "${candidate}" 2>/dev/null)" || continue
         qt_version="$("${bin}" --version 2>&1 | grep -oP 'Qt version \K[0-9]+\.[0-9]+\.[0-9]+')"
         major="${qt_version%%.*}"
-        if [[ "${major}" == "6" ]]; then
+        if [[ "${major}" == "6" && "${qt_version#6.}" != "${qt_version}" ]]; then
+            local minor="${qt_version#6.}"
+            minor="${minor%%.*}"
+            if [[ "${minor}" -lt 12 ]]; then
+                log "  ${bin}: Qt ${qt_version} — Qt >= 6.12 required"
+                continue
+            fi
             qmake_bin="${bin}"
             break
         fi
@@ -125,7 +134,7 @@ check_qt6() {
     done
 
     if [[ -z "${qmake_bin}" ]]; then
-        QT6_DETAILS="No Qt 6 qmake found (tried: ${candidates[*]})"
+        QT6_DETAILS="No Qt >= 6.12 qmake found (tried: ${candidates[*]})"
         error "  ${QT6_DETAILS}"
         return 1
     fi
@@ -188,6 +197,7 @@ cmake_configure() {
             -B "${BUILD_DIR}" \
             -S "${ROOT_DIR}" \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${QTSCROBBLER_QT_PREFIX:-${CMAKE_PREFIX_PATH:-}}" \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
         CMAKE_CONFIG_DETAILS="configured in ${BUILD_DIR}"
         log "  Configure PASS"

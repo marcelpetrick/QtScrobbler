@@ -18,7 +18,7 @@ example_dir=$(mktemp -d)
 cp examples/scrobble.log "$example_dir/.scrobbler.log"
 ```
 
-In the GUI, open that copied `.scrobbler.log` through the log-file dialog. Do not press
+In the GUI, choose Open and select the temporary directory containing `.scrobbler.log`. Do not press
 Submit with a real account configured. Automated parser tests import the copy without
 network access or credentials. The CLI performs submission as part of its normal file
 workflow, so this example is not a safe live CLI command until a fake endpoint is set up.

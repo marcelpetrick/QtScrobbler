@@ -25,7 +25,7 @@ class PipelineTests(unittest.TestCase):
                 path.write_text(f"#!{sys.executable}\n" + body)
                 path.chmod(0o755)
 
-            executable("qmake6", 'print("QMake version 3.1\\nUsing Qt version 6.11.2 in /fake")\n')
+            executable("qmake6", 'print("QMake version 3.1\\nUsing Qt version 6.12.0 in /fake")\n')
             executable("g++", 'print("fake compiler")\n')
             executable("pkg-config", 'print("1.1.23")\n')
             executable(
@@ -47,6 +47,7 @@ class PipelineTests(unittest.TestCase):
                 f"sys.exit({ctest_status})\n",
             )
             environment = os.environ.copy()
+            environment.pop("QTSCROBBLER_QT_PREFIX", None)
             environment["PATH"] = str(tools) + os.pathsep + environment["PATH"]
             environment["QTSCROBBLER_BUILD_DIR"] = str(build)
             environment["QTSCROBBLER_JOBS"] = "1"

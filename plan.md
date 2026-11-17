@@ -104,7 +104,7 @@ upgrade, and behavioral change. Each implementation commit updates the execution
 
 - [x] Add a fictional, credential-free `examples/scrobble.log` accepted by the real parser.
       Explain timestamp units, tabs, format headers, and safe use on a copy; test fixture import.
-- [ ] Preserve initial baseline outputs and build from current sources, not pre-existing binaries.
+- [x] Preserve initial baseline outputs and build from current sources, not pre-existing binaries.
 - [x] Make CLI timeout, nonzero exit, and absent/failed unit suite fatal; preserve exact exit codes.
 - [x] Use CTest `--no-tests=error`, bounded per-test timeouts, and truthful PASS/FAIL/SKIP summaries.
 - [x] Add meaningful gate regression checks proving a failed test and timed-out command fail the pipeline.
@@ -117,12 +117,12 @@ Exit: at least one real parser test and one process test pass; deliberate failur
 
 - [ ] Complete upstream inventory, patch availability, installer and compiler/Mull compatibility spike.
 - [ ] Provision and lock toolchain; record hashes and exact resolved transitive dependencies.
-- [ ] Upgrade all used Qt modules/tools together; select prefix explicitly and verify runtime Qt version.
+- [x] Upgrade all used Qt modules/tools together; select prefix explicitly and verify runtime Qt version.
 - [ ] Add CMake presets or equivalent separate release/debug/coverage/sanitizer/mutation directories.
 - [ ] Add explicit optional-MTP selection; require dependency discovery when ON and test ON/OFF.
 - [ ] Resolve Qt 6.12 compile/runtime regressions using characterization tests before fixes.
 - [ ] Update CI and release dependency provisioning and immutable Action references.
-- [ ] Correct install instructions and Qt minimum claims; characterize or retire duplicate qmake path explicitly.
+- [ ] Correct install instructions and Qt minimum claims (CMake/SDK instructions updated); characterize or retire duplicate qmake path explicitly.
 
 Exit: clean Qt 6.12 release build plus passing P0 tests, isolated GUI startup/close, translations,
 SQL plugin loading, and library dependencies verified on the actual requested Qt version.
@@ -310,9 +310,11 @@ Checked 2026-11-17; recheck patch/tool versions when implementing rather than tr
 
 | Strict local gate | Fatal missing/failed CTest, fatal CLI error/timeout, preserved exit status, retained logs/JUnit, configurable build directory/jobs, noOpen flag | Full pipeline passed 4/4 CTest executables (6.38 s); 5 black-box pipeline tests deliberately exercise failures | CI still needs unified invocation; dependency qualification and further tests remain |
 
+| Qt 6.12 dependency upgrade | Raised CMake Qt floor to 6.12, pinned CI/release Qt 6.12.0 and four Action SHAs, resolved Python tooling lock, documented inventory; qualified CMake 4.5.0 | Official Qt SDK + ICU provisioned outside repo; full pipeline 4/4 passed on Qt 6.12.0/CMake 4.5.0; ldd resolves Qt to selected prefix; isolated GUI survived offscreen startup | CI not run; full environment/runtime-library pins, Mull-compatible Linux compiler and packaging still pending; GUI startup is not yet a full workflow test |
+
 Discovered repository-local pre-commit hook auto-bumps `CLIENT_VERSION` on every commit.
 The planning commit was amended without that hook to preserve its documentation-only scope.
 Implementation commits retain the existing hook; verify source/runtime versions after rebuilding.
 
-Next action: add and validate the example log, register initial Qt Test
-contracts, and fix pipeline failure propagation in separate atomic commits, updating this record each time.
+Next actions: unify CI on the strict pipeline; add actual GUI import/close contracts and parser
+error-path regressions; establish complete coverage accounting and qualify a Linux Mull toolchain.

@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install system dependencies (non-Qt)
         run: |
@@ -23,10 +23,10 @@ jobs:
             cmake build-essential pkg-config \
             libgl-dev libmtp-dev
 
-      - name: Install Qt 6.8
-        uses: jurplel/install-qt-action@v3
+      - name: Install Qt 6.12.0
+        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         with:
-          version: '6.8.*'
+          version: '6.12.0'
           host: linux
           target: desktop
           arch: linux_gcc_64
@@ -125,14 +125,14 @@ jobs:
 
       - name: Upload build report artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-report-${{ steps.meta.outputs.version }}
           path: build-report.md
           retention-days: 90
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: QtScrobbler ${{ steps.meta.outputs.version }}
