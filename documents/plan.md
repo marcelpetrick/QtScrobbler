@@ -43,14 +43,34 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
       any red run before anything else.
 - [ ] Publish the public GitHub release from a commit whose CI is observed green,
       by pushing tag `v<CLIENT_VERSION>`; report the actual release URL.
-- [ ] Ask the owner before deleting old failed/cancelled workflow runs; deletion
-      cannot be undone.
+- [x] Ask the owner before deleting old failed/cancelled workflow runs. Approved;
+      23 runs deleted (10 failed, 13 cancelled, all CI); 21 successful runs remain.
+- [x] Clean our own temporary leftovers so full runs have space: `/tmp` (16 GB tmpfs)
+      had filled and aborted the 0.13.69 full gate. Removed superseded builds,
+      reports and duplicate toolchains in `/tmp` and `~/.cache`; kept only the
+      in-use source snapshot and toolchains. Full runs now use
+      `~/.cache/qtscrobbler-runs/<version>` on disk.
+- [ ] Check that all documents are current: CHANGELOG gained the 0.13.69 entry;
+      AGENTS and GitHub Actions updated. Pending: README status paragraph, branch
+      badge (95.67% → measured 96.61%) and QUALITY/ACCEPTANCE_AUDIT results, once
+      the local 0.13.69 mutation score is in.
+- [x] Release without mutation testing (owner: "too much overhead"): a separate,
+      small release pipeline that publishes only commits pretested by green CI.
+      `release.yml` now requires a successful CI run on the tagged commit, then only
+      builds, runs unit tests (`--quick`), packages, smoke-tests and publishes.
+      Mutation stays mandatory in CI and the local full gate. Verified locally with
+      GCC and no LLVM/Mull on PATH: quick gate **26/26 CTests PASS**.
+- [ ] Publish `v0.13.69`. Its tag was pushed on `d07b90e` before this change, so the
+      old full release workflow (run **44169110976**) is qualifying it in parallel with
+      CI run **44167982834**; later releases use the lean workflow.
 
-Current work: Actions **44161814413** on `c8c4693` (client0.13.65) is running; all
-provisioning steps passed, including the zlib download that failed in 44150860625.
-The full local gate runs on the exact `c8c4693` tree
-(`/tmp/qtscrobbler-65-final-reports`). If both are green, tag `v0.13.65` on
-`c8c4693` for the release; this documentation commit is pushed afterwards.
+Current work (0.13.69, `d07b90e`): local full gate in
+`~/.cache/qtscrobbler-runs/69` PASS through format, static, docs, sanitizers
+(26/26) and coverage (lines 2722/2749 = 99.017824663514%, branches 1027/1063 =
+96.61335841956726%); native mutation is running. CI **44167982834** and the old
+full release run **44169110976** for tag `v0.13.69` are in progress. The
+lean-release and documentation commit is held locally until CI finishes, because
+a push to `main` cancels the running CI.
 
 ## Owner updates and final product requirements
 

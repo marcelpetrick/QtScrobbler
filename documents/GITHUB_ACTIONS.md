@@ -1,6 +1,6 @@
 # GitHub Actions — QtScrobbler
 
-CI and release use the same quality entry point as local development:
+CI uses the same quality entry point as local development:
 
 ```sh
 QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
@@ -67,19 +67,28 @@ Repeated calls reuse only a recognized installation bearing the same archive dig
 unrelated existing directories are rejected. A checksum mismatch installs nothing.
 Update the release URL and reviewed digest together during dependency review.
 
-## Release qualification
+## Releases
 
-[release.yml](../.github/workflows/release.yml) runs when an authorized version tag
-matching `v[0-9]*` is pushed. Tag creation and release publication remain separate
-owner decisions; ordinary continuous pushes to `main` do not publish a release.
+[release.yml](../.github/workflows/release.yml) publishes only commits that CI already
+qualified. Push a version tag matching `v[0-9]*`, or run the workflow manually with an
+existing tag. Ordinary pushes to `main` never publish a release.
 
-The workflow verifies the tag matches `CLIENT_VERSION` in `src/lib/common.h`, runs
-the full local pipeline, strips both executables, and packages them with README,
-the unchanged GPLv2 `LICENSE`/`COPYING`, and the fictional example log. It extracts
-the archive into a temporary directory and checks the packaged GUI/CLI help entry
-points before publication. Logs and JUnit results are retained for failures as well
-as successful releases. The GitHub release contains the archive, JUnit results,
-pipeline log, and an evidence-based report with archive SHA-256.
+The workflow is deliberately small (about 15 minutes instead of the full gate's hours):
+
+1. Check out the tag and require it to equal `CLIENT_VERSION` in `src/lib/common.h`.
+2. Require a **successful CI run on that exact commit**; otherwise stop. CI on `main`
+   is the full gate: static analysis, sanitizers, 95% coverage and native mutation
+   testing. The release does not repeat them; mutation testing is never run per release.
+3. Build and run all unit tests with `./localPipeline.sh --quick` (GCC, pinned Qt,
+   CMake and zlib, network-isolated CTest).
+4. Strip both executables and package them with README, the unchanged GPLv2
+   `LICENSE`/`COPYING`, documents and the fictional example log; write a `.sha256`.
+5. Extract the archive and run the packaged GUI/CLI `--help` entry points.
+6. Publish the GitHub release with the archive, its checksum, the changelog entry,
+   the qualifying CI run URL and the archive SHA-256. Logs are kept as an artifact.
+
+Release flow: push to `main`, wait for green CI, then
+`git tag -a vX.Y.Z <commit> && git push origin vX.Y.Z`.
 
 These are dynamically linked Linux executables. **Qt >= 6.12**, its runtime plugins
 (including SQLite and a suitable platform plugin), and libmtp must be installed on

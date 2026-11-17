@@ -1,22 +1,66 @@
 name: Release
 
+# Releases only publish commits that CI already qualified. The complete quality gate
+# (static analysis, sanitizers, coverage and native mutation testing) runs in CI on
+# main; this workflow repeats only the build, unit tests, packaging and smoke checks.
 on:
   push:
     tags: ['v[0-9]*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish, e.g. v0.13.69'
+        required: true
 
 permissions:
   contents: write
+  actions: read
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-release:
-    name: Qualified Linux release (Ubuntu 24.04 / Qt 6.12.0)
+  release:
+    name: Linux release (Ubuntu 24.04 / Qt 6.12.0)
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout
+      - name: Checkout the release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Verify tag, source version and passed CI
+        id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          case "$TAG" in v[0-9]*) ;; *) echo "Not a release tag: $TAG" >&2; exit 1 ;; esac
+          VER="${TAG#v}"
+          SOURCE_VER=$(sed -n 's/^#define CLIENT_VERSION "\([^"]*\)".*/\1/p' src/lib/common.h)
+          if [ "$VER" != "$SOURCE_VER" ]; then
+            echo "Tag $TAG does not match source version $SOURCE_VER" >&2
+            exit 1
+          fi
+          SHA=$(git rev-parse HEAD)
+          # The CI workflow on main is the full quality gate; require its success here.
+          RUN=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=1" \
+            --jq '.workflow_runs[0].html_url // empty')
+          if [ -z "$RUN" ]; then
+            echo "No successful CI run for $SHA; release only commits that passed CI on main." >&2
+            exit 1
+          fi
+          echo "Qualified by $RUN"
+          {
+            echo "tag=$TAG"
+            echo "version=$VER"
+            echo "sha=$SHA"
+            echo "ci_run=$RUN"
+            echo "archive=qtscrobbler-${VER}-linux-x86_64"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install Python 3.15.2
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -28,14 +72,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
-            build-essential pkg-config python3 python3-venv \
-            libgl-dev libmtp-dev zlib1g-dev libarchive-tools libstdc++-13-dev \
-            clazy cppcheck doxygen graphviz shellcheck xvfb bison flex iproute2 util-linux dbus
-
-      - name: Install verified pkgconf and Graphviz
-        run: |
-          python3 tools/install_aux_tools.py --prefix "$RUNNER_TEMP/qtscrobbler-aux-tools"
-          echo "$RUNNER_TEMP/qtscrobbler-aux-tools/bin" >> "$GITHUB_PATH"
+            build-essential pkg-config libgl-dev libmtp-dev xvfb iproute2 util-linux dbus
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
@@ -56,58 +93,6 @@ jobs:
           setup-python: false
           cache: true
 
-      - name: Verify source version matches release tag
-        id: meta
-        run: |
-          TAG="$GITHUB_REF_NAME"
-          VER="${TAG#v}"
-          SOURCE_VER=$(sed -n 's/^#define CLIENT_VERSION "\([^"]*\)".*/\1/p' src/lib/common.h)
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            VER="$SOURCE_VER"
-            TAG="v$VER"
-          fi
-          if [ "$VER" != "$SOURCE_VER" ]; then
-            echo "Tag $TAG does not match source version $SOURCE_VER" >&2
-            exit 1
-          fi
-          {
-            echo "tag=$TAG"
-            echo "version=$VER"
-            echo "archive=qtscrobbler-${VER}-linux-x86_64"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Install locked quality tools
-        run: |
-          python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --upgrade -r requirements-bootstrap.txt
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --no-build-isolation -r requirements-quality.txt
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip check
-          echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
-
-      - name: Install qualified native LLVM and Mull
-        run: |
-          python3 tools/install_mutation_toolchain.py --prefix "$RUNNER_TEMP/qtscrobbler-native-tools"
-          echo "$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin" >> "$GITHUB_PATH"
-          {
-            echo "CC=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang-20"
-            echo "CXX=$RUNNER_TEMP/qtscrobbler-native-tools/usr/bin/clang++-20"
-            echo "QTSCROBBLER_LLVM_PREFIX=$RUNNER_TEMP/qtscrobbler-native-tools"
-            echo "QTSCROBBLER_MULL_PLUGIN=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/mull-ir-frontend-20"
-            echo "LD_LIBRARY_PATH=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/x86_64-linux-gnu:$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/llvm-20/lib:${LD_LIBRARY_PATH:-}"
-          } >> "$GITHUB_ENV"
-
-      - name: Install verified native call-removal correction
-        run: |
-          python3 tools/install_mull_callfix.py \
-            --toolchain-prefix "$RUNNER_TEMP/qtscrobbler-native-tools" \
-            --prefix "$RUNNER_TEMP/qtscrobbler-mull-callfix"
-          {
-            echo "CXX=$RUNNER_TEMP/qtscrobbler-mull-callfix/bin/clang++-20-callfix"
-            echo "QTSCROBBLER_MULL_CALLFIX_MANIFEST=$RUNNER_TEMP/qtscrobbler-mull-callfix/mull-callfix-manifest.json"
-            echo "QTSCROBBLER_MULL_CALLFIX_SHIM=$RUNNER_TEMP/qtscrobbler-mull-callfix/lib/libmull-callfix.so"
-            echo "QTSCROBBLER_MULL_CALLFIX_SOURCE=$RUNNER_TEMP/qtscrobbler-mull-callfix/native/void_call_fix.cpp"
-          } >> "$GITHUB_ENV"
-
       - name: Install and test pinned zlib 1.4
         run: |
           python3 tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib"
@@ -120,19 +105,15 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           unshare --user --map-root-user --net --pid --fork --mount-proc true
 
-      - name: Run the local quality pipeline
+      - name: Build and run the unit tests
         id: pipeline
         env:
           QTSCROBBLER_QT_PREFIX: ${{ steps.qt.outputs.qt-root-dir }}
           QTSCROBBLER_JOBS: '4'
-          # Ubuntu's clazy 1.11 (Clang 15) cannot parse GCC 14 libstdc++; analyze against GCC 13.
-          QTSCROBBLER_CLAZY_EXTRA_ARGS: >-
-            -nostdinc++ -isystem /usr/include/c++/13
-            -isystem /usr/include/x86_64-linux-gnu/c++/13 -isystem /usr/include/c++/13/backward
         run: |
           set -o pipefail
           trap 'mkdir -p build-reports; cp "$RUNNER_TEMP/pipeline.log" build-reports/pipeline.log' EXIT
-          ./localPipeline.sh --noRun --noOpen --report-dir build-reports 2>&1 | tee "$RUNNER_TEMP/pipeline.log"
+          ./localPipeline.sh --quick --noRun --noOpen --report-dir build-reports 2>&1 | tee "$RUNNER_TEMP/pipeline.log"
 
       - name: Strip and package release binaries
         id: pkg
@@ -146,13 +127,13 @@ jobs:
           cp -R documents "dist/$ARCHIVE/"
           tar -C dist -czf "dist/$ARCHIVE.tar.gz" "$ARCHIVE"
           SHA=$(sha256sum "dist/$ARCHIVE.tar.gz" | awk '{print $1}')
+          echo "$SHA  $ARCHIVE.tar.gz" > "dist/$ARCHIVE.tar.gz.sha256"
           {
             echo "archive_path=dist/$ARCHIVE.tar.gz"
             echo "sha256=$SHA"
           } >> "$GITHUB_OUTPUT"
 
       - name: Check extracted release entry points
-        id: package_check
         env:
           ARCHIVE: ${{ steps.meta.outputs.archive }}
           QT_QPA_PLATFORM: offscreen
@@ -165,72 +146,45 @@ jobs:
           test -s "$PACKAGE_DIR/$ARCHIVE/LICENSE"
           test -s "$PACKAGE_DIR/$ARCHIVE/examples/scrobble.log"
 
-      - name: Record actual pipeline and package results
-        if: always()
+      - name: Write release notes
         env:
-          PIPELINE_OUTCOME: ${{ steps.pipeline.outcome }}
-          PACKAGE_OUTCOME: ${{ steps.pkg.outcome }}
-          PACKAGE_CHECK_OUTCOME: ${{ steps.package_check.outcome }}
-          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          CI_RUN: ${{ steps.meta.outputs.ci_run }}
           ARCHIVE_SHA256: ${{ steps.pkg.outputs.sha256 }}
         run: |
           {
-            echo "# QtScrobbler $RELEASE_VERSION release qualification"
+            echo "# QtScrobbler $VERSION"
             echo
-            echo "Commit: $GITHUB_SHA"
-            echo "Pipeline step: $PIPELINE_OUTCOME"
-            echo "Package step: $PACKAGE_OUTCOME"
-            echo "Extracted entry-point checks: $PACKAGE_CHECK_OUTCOME"
+            awk 'NR > 1 && /^\* version/ { exit } NR > 1 { print }' documents/CHANGELOG
             echo
-            if [ -n "$ARCHIVE_SHA256" ]; then
-              echo "Archive SHA-256: $ARCHIVE_SHA256"
-              echo
-            fi
-            if [ -f build-reports/pipeline.log ]; then
-              echo 'Actual local pipeline output:'
-              echo '```text'
-              tail -n 35 build-reports/pipeline.log
-              echo '```'
-            else
-              echo 'The pipeline did not run; inspect the dependency and version verification steps.'
-            fi
+            echo "Commit \`$SHA\`, qualified by the full CI gate: $CI_RUN"
             echo
-            echo 'The binaries require Qt >= 6.12 and libmtp at runtime. Qt plugins and shared libraries are not bundled.'
-            echo 'See the dependency inventory and README for SDK provisioning; older distribution Qt packages are insufficient.'
-          } > build-report.md
-          cat build-report.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload quality reports
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-quality-reports
-          path: |
-            build-report.md
-            build-reports/
-            ${{ runner.temp }}/qtscrobbler-zlib-reports/
-            ${{ runner.temp }}/qtscrobbler-aux-tools-reports/
-          retention-days: 90
-          if-no-files-found: error
-
-      - name: Upload qualified archive
-        if: success()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: qualified-linux-release
-          path: dist/*.tar.gz
-          retention-days: 90
-          if-no-files-found: error
+            echo "Archive SHA-256: \`$ARCHIVE_SHA256\`"
+            echo
+            echo 'The Linux x86-64 binaries require Qt >= 6.12 and libmtp at runtime; Qt is not bundled.'
+            echo 'See README and documents/DEPENDENCIES.md for SDK setup.'
+          } > release-notes.md
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: QtScrobbler ${{ steps.meta.outputs.version }}
-          body_path: build-report.md
+          body_path: release-notes.md
           files: |
             ${{ steps.pkg.outputs.archive_path }}
-            build-reports/junit.xml
-            build-reports/pipeline.log
+            ${{ steps.pkg.outputs.archive_path }}.sha256
           fail_on_unmatched_files: true
+
+      - name: Upload release logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-logs
+          path: |
+            build-reports/
+            release-notes.md
+          retention-days: 30
+          if-no-files-found: warn

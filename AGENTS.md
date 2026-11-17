@@ -79,9 +79,17 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   `gh run view <id> --log-failed`, fix the cause, and confirm the next run passes.
 - README badges must be green from real results: CI on `main`, the Release workflow,
   the latest release and the measured coverage values from the newest report.
-- Releases: tag `v<CLIENT_VERSION>` on a commit whose CI was observed green; the
-  Release workflow checks that the tag matches `src/lib/common.h` and publishes.
+- Releases: only publish commits whose CI run on `main` passed (pretested). Tag
+  `v<CLIENT_VERSION>` on that commit; `release.yml` refuses a tag without a successful
+  CI run on its commit or a tag that differs from `src/lib/common.h`. It only builds,
+  runs the unit tests, packages, smoke-tests and publishes. Mutation testing and the
+  other full-gate stages stay in CI and local qualification; never add them to the
+  release workflow (owner decision: too much overhead per release).
 - Deleting workflow runs or releases cannot be undone; ask the owner first.
+- `/tmp` on the development host is a 16 GB RAM-backed tmpfs. Put complete-gate
+  build, report and `TMPDIR` directories on disk (for example
+  `~/.cache/qtscrobbler-runs/<version>`); a full run filled `/tmp` and aborted.
+  Remove superseded build directories when a newer snapshot replaces them.
 - Put `/path/to/cmake-4.5.0/bin` first on `PATH`; `~/.local/bin/ctest` is a broken
   wrapper on the development host and fails the CTest stage.
 

@@ -1,3 +1,21 @@
+* version 0.13.69 (2026-11-17)
+- Require and qualify Qt 6.12.0 with CMake 4.5.0 and C++20; pin every tool,
+  SDK archive, Python package and GitHub Action to an exact, checked version
+- Fix imports: iPod databases are rejected before any track is replaced when
+  corrupt, track identity survives metadata lookups, pending lookups cancel safely
+- Fix submission: bounded retries, failed requests always complete, network
+  teardown waits for Qt callbacks, source cleanup survives failed retries
+- Fix settings: custom config paths are honoured, failed writes keep migrations,
+  site state is initialized and settings errors are reported
+- Fix the database cache: isolated connections and validated schemas
+- Fix MTP: device lists are released on errors
+- Fix the GUI: bundled fallback icons and the window icon load again; settings
+  and modal network completion are preserved
+- Restore the German and Polish translations
+- Add Qt Test suites for library, CLI, GUI and MTP code, measured at 99.01%
+  line and 96.61% branch coverage, plus sanitizer, native mutation, package and
+  offline (network-isolated) qualification in one local pipeline used by CI
+
 * version 0.13.0 (2026-05-27)
 - Port to Qt 6 (Qt 5 no longer supported)
 - Replace all removed Qt5 APIs: toTime_t→toSecsSinceEpoch, qSort→std::sort,
