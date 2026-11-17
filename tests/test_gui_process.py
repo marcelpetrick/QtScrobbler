@@ -48,8 +48,10 @@ def main():
         child = None
         display = None
         try:
-            if not select.select([read_fd], [], [], 5)[0]:
-                raise RuntimeError('private X server did not start')
+            # Shared CI runners can need several seconds before Xvfb reports its display.
+            if not select.select([read_fd], [], [], 20)[0]:
+                server_log.seek(0)
+                raise RuntimeError('private X server did not start: ' + server_log.read())
             display_name = b':' + os.read(read_fd, 32).strip()
             os.close(read_fd)
             read_fd = -1
