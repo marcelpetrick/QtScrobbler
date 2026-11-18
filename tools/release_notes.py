@@ -24,7 +24,7 @@ LABELS = {
     "static": "Static analysis (clang-tidy, Clazy, Cppcheck)",
     "docs": "Documentation and Doxygen checks",
     "Sanitizers": "AddressSanitizer / UndefinedBehaviorSanitizer / leak checks",
-    "Coverage": "Line and branch coverage gate (95%)",
+    "Coverage": "Line and branch coverage gate",
     "MutationToolchain": "Mutation tool semantic preflight",
     "Mutation": "Native mutation testing gate",
     "Package": "Extracted package checks",
@@ -74,11 +74,17 @@ def verification(reports: Path) -> list[str]:
         text = junit.read_text()
         if match := re.search(r'<testsuite[^>]*\btests="(\d+)"[^>]*\bfailures="(\d+)"', text):
             details["Unit Tests"] = f"{match[1]} CTest suites, {match[2]} failures"
-    totals = json.loads((reports / "coverage/summary.json").read_text())["totals"]
+    coverage = json.loads((reports / "coverage/summary.json").read_text())
+    totals = coverage["totals"]
     lines, branches = totals["lines"], totals["branches"]
     details["Coverage"] = (f"lines {lines['covered']}/{lines['count']} ({percent(lines['covered'], lines['count'])}), "
                            f"branches {branches['covered']}/{branches['count']} "
                            f"({percent(branches['covered'], branches['count'])})")
+    targets = coverage.get("target_percent")
+    if isinstance(targets, str):  # Historical reports used one threshold for both metrics.
+        targets = {"lines": targets, "branches": targets}
+    if targets is not None:
+        details["Coverage"] += f"; gates {targets['lines']}% lines and {targets['branches']}% branches"
     mutation = json.loads((reports / "mutation/summary.json").read_text())
     details["Mutation"] = (f"{mutation['assertion_killed']}/{mutation['unique_mutants']} mutants killed "
                            f"({mutation['score_percent'][:5]}%; gate {mutation['target_minimum']}%, goal 95%)")

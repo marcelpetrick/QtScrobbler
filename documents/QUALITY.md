@@ -1,8 +1,7 @@
 # Native quality checks
 
 Coverage gates are 99% source line and 95% source branch coverage. Mutation testing
-gates on a ratchet (`MUTATION_MINIMUM` in `localPipeline.sh`, currently 67%) above the owner’s 65% absolute floor. The 95% mutation goal remains
-and the ratchet is raised as tests kill more mutants. Historical measurements are recorded in [the execution
+gates on a ratchet (`MUTATION_MINIMUM` in `localPipeline.sh`, currently 77%) above the owner’s 65% absolute floor. The mutation goal stays at 95%, and measured improvements raise the ratchet. Historical measurements are recorded in [the execution
 plan](plan.md); mutation accounting is described in [Mutation testing](MUTATION_TESTING.md).
 
 The local pipeline orchestrates native builds, CTest, coverage, sanitizers and mutation
@@ -74,7 +73,7 @@ QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /path/to/new
 ```
 
 The default gate requires separate 99% raw line and 95% raw branch thresholds and the current
-67% native mutation ratchet, alongside every other mandatory stage. The mutation
+77% native mutation ratchet, alongside every other mandatory stage. The mutation
 goal is 95% proven assertion kills. `--quick` runs the explicit
 build/test subset while implementation proceeds. `--baseline` runs all stages but
 records subthreshold scores as measurements. Neither diagnostic mode establishes
@@ -90,6 +89,19 @@ unless they advertise the window-close protocol. These tests use no existing use
 display, settings, credentials or devices.
 
 ## Measured results
+
+| Snapshot | Lines | Branches | Assertion-killed mutants | Complete gate |
+| --- | ---: | ---: | ---: | --- |
+| 0.14.0 C++23, exact local | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1385/1775 (78.028%) | PASS |
+| 0.13.85, exact local | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1384/1775 (77.971%) | PASS |
+| 0.13.85, [main CI](https://github.com/marcelpetrick/QtScrobbler/actions/runs/44278965577) | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1381/1775 (77.802%) | PASS |
+
+Both local gates ran 27 normal and sanitizer CTests and qualified the extracted
+package. The coverage exports report no missing production files. The 0.14.0
+GCC quick run also passed 27 CTests, and the GCC tarball and AppImage passed
+checksums and offline GUI/CLI smoke checks. See [the plan](plan.md) for paths.
+
+Historical baseline:
 
 Commit `d07b90e` / client `0.13.69`, measured on 2026-11-17 with Qt6.12.0,
 Clang/LLVM20.1.8, MTP enabled and pinned zlib1.4, by the complete local gate

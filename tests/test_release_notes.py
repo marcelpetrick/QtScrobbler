@@ -37,7 +37,8 @@ class ReleaseNotesTest(unittest.TestCase):
         (self.reports / "summary.txt").write_text(SUMMARY)
         (self.reports / "junit.xml").write_text('<testsuite name="x"\n\ttests="26"\n\tfailures="0">\n</testsuite>')
         (self.reports / "coverage/summary.json").write_text(json.dumps(
-            {"totals": {"lines": {"count": 2749, "covered": 2722}, "branches": {"count": 1063, "covered": 1027}}}))
+            {"target_percent": {"lines": "99", "branches": "95"},
+             "totals": {"lines": {"count": 2749, "covered": 2722}, "branches": {"count": 1063, "covered": 1027}}}))
         (self.reports / "mutation/summary.json").write_text(json.dumps(
             {"assertion_killed": 1900, "unique_mutants": 1990, "score_percent": "95.47738693467336",
              "target_minimum": "67"}))
@@ -64,10 +65,18 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertIn("Full CI gate on commit `abc123`: https://ci/run/1", notes)
         self.assertIn("26 CTest suites, 0 failures", notes)
         self.assertIn("lines 2722/2749 (99.01%), branches 1027/1063 (96.61%)", notes)
+        self.assertIn("gates 99% lines and 95% branches", notes)
         self.assertIn("1900/1990 mutants killed (95.47%; gate 67%, goal 95%)", notes)
         self.assertIn("Release build: 26/26 CTest suites PASS", notes)
         self.assertIn(f"{hashlib.sha256(b'appimage bytes').hexdigest()}  {asset.name}", notes)
         self.assertEqual(notes.count("- ✅"), len(NOTES.REQUIRED_STAGES) + 1)
+
+    def test_historical_single_threshold_remains_readable(self):
+        report = self.reports / "coverage/summary.json"
+        contents = json.loads(report.read_text())
+        contents["target_percent"] = "95"
+        report.write_text(json.dumps(contents))
+        self.assertIn("gates 95% lines and 95% branches", self.write())
 
     def test_percent_truncates_instead_of_rounding_up(self):
         self.assertEqual(NOTES.percent(9499, 10000), "94.99%")

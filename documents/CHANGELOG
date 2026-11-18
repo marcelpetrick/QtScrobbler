@@ -1,3 +1,9 @@
+* version 0.14.1 (2026-11-18)
+- Raise the native mutation ratchet to 77% after measured campaigns killed
+  77.80-78.02% of mutants; the 95% goal remains open.
+- Report the separate 99% line and 95% branch coverage gates in release notes.
+- Show the measured 0.14.0 coverage and mutation results in the README.
+
 * version 0.14.0 (2026-11-18)
 - Require C++23 for the maintained GUI, CLI, and native test build.
 - Use C++23-capable Clazy and Cppcheck builds in GitHub Actions and verify all

@@ -43,7 +43,7 @@ Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib pr
 `env.sh`, and set
 `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
 ASan/UBSan, separate 99% line and 95% branch coverage, the native mutation ratchet
-(`MUTATION_MINIMUM`, currently 67%, owner floor 65%, goal 95%) and extracted-package qualification are
+(`MUTATION_MINIMUM`, currently 77%, owner floor 65%, goal 95%) and extracted-package qualification are
 mandatory in this command. Raise the ratchet when tests kill more mutants; never lower
 it without the owner's decision. Missing tools/reports and failed stages fail.
 Test, mutation and package processes run through `tools/run_offline.py`; Linux network
@@ -97,19 +97,19 @@ Replace these instructions with the qualified preset/pipeline commands as they a
 
 ## Resuming a session or switching agents
 
-- Read the "Live handoff" and "Owner priorities" sections of `documents/plan.md`
-  first. They record active local gate directories, the prepared index and the
+- Read the newest handoff section at the top of `documents/plan.md` first.
+  It records active local gate directories, the prepared index and the
   release order. Check `git status --short --branch`, `git log origin/main..`
   and `gh run list --workflow CI --branch main --limit 5`. Update both handoff
   files when priorities, exact evidence, or resume commands change.
-- Current release order: preserve CI run 44264412011 on `ab41f20` and inspect
-  its result. The exact 0.13.76 gate failed the X11 sanitizer test. See the
-  Latest continuation in the plan for the C++20 replacement with the fix,
-  revised quality gates and current reports. Publish it after the complete
-  local gate and exact-commit main CI pass. The owner authorized the first
-  C++23 release as **0.14.0**. Keep that build and dependency change separate,
-  verify its changelog, and qualify its exact release commit. Never push
-  while a qualifying main CI run is active.
+- Run long complete gates detached (`setsid nohup <run_dir>/run.sh`) with a
+  `run.sh` that records the environment and appends `EXIT=<status>` to the log.
+  Gates attached to an agent session die with it and yield no evidence.
+- Current release order: runner fix `0b5cf5f` (0.14.0) is on main. Publish
+  `v0.13.85` (tag on `9bab0d9`, green CI 44278965577) through a Release
+  dispatch from main, then tag `v0.14.0` on `0b5cf5f` after its exact main CI
+  and complete local gate pass. 0.14.1 (77% ratchet, badges) follows after
+  its own complete gate. Never push while a qualifying main CI run is active.
 - On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
   are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
   `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib

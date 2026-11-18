@@ -10,9 +10,9 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![CMake 4.5.0](https://img.shields.io/badge/CMake-4.5.0-064f8c.svg)](documents/DEPENDENCIES.md)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599c.svg)](CMakeLists.txt)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
-[![Measured 0.13.80 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/plan.md#live-handoff--2026-11-18)
-[![Measured 0.13.80 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/plan.md#live-handoff--2026-11-18)
-[![Measured 0.13.69 mutation score: 67.66%](https://img.shields.io/badge/mutants_killed-67.66%25_(ratchet_67%25)-yellow.svg)](documents/MUTATION_TESTING.md#measured-results)
+[![Measured 0.14.0 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
+[![Measured 0.14.0 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
+[![Measured 0.14.0 mutation score: 78.02%](https://img.shields.io/badge/mutants_killed-78.02%25_(ratchet_77%25)-brightgreen.svg)](documents/MUTATION_TESTING.md#measured-results)
 [![Tests: Qt Test](https://img.shields.io/badge/tests-Qt_Test-41cd52.svg)](tests/CMakeLists.txt)
 [![Code style: clang-format](https://img.shields.io/badge/code%20style-clang--format-4c566a.svg)](.clang-format)
 
@@ -32,12 +32,10 @@ The screenshot comes from the running application after importing the
 [fictional example log](examples/README.md). Recreate it with
 `tools/capture_screenshot.sh /path/to/build`; the capture uses temporary settings and a log copy.
 
-The local 0.13.80 coverage run exercised 2,748 of 2,775 lines (99.02%) and 1,037 of
-1,073 branches (96.64%). That snapshot failed the sanitizer GUI-process test, so
-the figures record coverage only. [Execution record](documents/plan.md)
-
-In the latest complete local native mutation campaign (0.13.69), test assertions
-killed 1,195 of 1,766 mutants (67.66%). [Mutation results](documents/MUTATION_TESTING.md#measured-results)
+The complete local 0.14.0 gate covered 2,748 of 2,775 lines (99.02%) and
+1,037 of 1,073 branches (96.64%). Test assertions killed 1,385 of 1,775
+native mutants (78.02%). The 0.13.85 CI run measured the same coverage and
+killed 1,381 of 1,775 mutants (77.80%). [Measured results](documents/QUALITY.md#measured-results)
 
 [Build and dependencies](documents/DEPENDENCIES.md) ·
 [Testing and quality](documents/QUALITY.md) ·
@@ -94,7 +92,7 @@ static analysis, fatal Doxygen/docs checks, isolated ASan/UBSan, LLVM coverage,
 native Mull mutation and extracted-package CLI/GUI checks. Missing tools, failed
 checks and scores below the configured quality thresholds fail the complete gate.
 The qualification requirements are 99% line coverage and 95% branch coverage.
-The native mutation policy sets a 65% floor, with the existing 67% ratchet enforced
+The native mutation policy sets a 65% floor, with a 77% ratchet enforced
 by `MUTATION_MINIMUM` in `localPipeline.sh`. The mutation goal remains 95%.
 Retained reports include actual statuses and tool versions.
 

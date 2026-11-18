@@ -2,7 +2,7 @@
 
 The goal is **95% assertion-killed mutants**, independently of line and branch
 coverage. Until it is reached, the pipeline gates on a ratchet (`MUTATION_MINIMUM` in
-`localPipeline.sh`, currently 67%, just under the measured score) so the score cannot
+`localPipeline.sh`, currently 77%, above the 65% absolute floor) so the score cannot
 drop; raise it whenever new tests kill more mutants. Releases do not run mutation
 testing; they require a green CI run, which includes it. A small successful compatibility spike is evidence that the tools work;
 it is not a project-wide score. `plan.md` tracks the remaining test and gate work.
@@ -169,6 +169,12 @@ equivalent mutants require a reviewed reason and a separate exclusion count; non
 are currently approved. Never remove a high-risk module to improve the score.
 
 ## Measured results
+
+On 2026-11-18, the complete 0.13.85 local run killed 1,384 of 1,775 mutants
+(77.9718%) and [its main CI](https://github.com/marcelpetrick/QtScrobbler/actions/runs/44278965577)
+killed 1,381 of 1,775 (77.8028%). The complete local 0.14.0 C++23 run killed
+1,385 of 1,775 (78.0281%). The lower of these measured scores supports the
+new 77% ratchet. Timeouts remain separate from assertion kills.
 
 This section is append-only. New evidence adds a dated row and preserves old results.
 

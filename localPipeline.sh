@@ -28,10 +28,10 @@ RUN_APP=true
 QUICK=false
 BASELINE=false
 FORCE_FULL=false
-# Mutation ratchet (owner decision 2026-11-17): the gate fails below the measured
-# 67.55-67.67% (1193-1195/1766) so the score cannot drop. Raise it as tests kill
-# more mutants; 95% remains the documented goal. Coverage requires 99% lines and 95% branches.
-MUTATION_MINIMUM=67
+# Exact 0.13.85 CI killed 1381/1775 mutants (77.80%). The two complete
+# local gates measured 77.97% and 78.02%. Enforce a 77% ratchet and
+# retain 95% as the goal. Coverage requires 99% lines and 95% branches.
+MUTATION_MINIMUM=77
 
 # Detail strings
 QT6_DETAILS=""
