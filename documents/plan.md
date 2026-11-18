@@ -24,6 +24,15 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
       version updates, and activate GitHub security checks for the public repo.
       Record effective settings, supported dependency scopes, and observed scan
       or workflow results. Keep this separate from the release-candidate fix.
+      Dependabot alerts were already enabled with **0 open alerts**. Enabled and
+      read back security updates, secret scanning and push protection. The first
+      GitHub-managed CodeQL scan was started as run 44267841867. Actions and
+      Python jobs passed on initial inspection; the C/C++ job was still
+      running. The scheduled version-update configuration checks pip and
+      GitHub Actions weekly and limits each to one open version-update PR.
+      The PR-only Dependency Review action is pinned to v5.0.1. Both YAML
+      files parse successfully. Verify default-branch updater jobs and the
+      first PR check after push.
 - [ ] Enable C++23 in the maintained native build. Prove it with the pinned
       Clang/LLVM 20.1.8 and the release GCC toolchain, including C++23 language
       or library usage and analyzer compatibility. Update README and build
@@ -175,7 +184,9 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   `TMPDIR` and removes the generated bus configuration. The long-path regression
   fails on the original with exit 126 and passes with the fix. All **13/13**
   runner contracts pass directly and inside another offline namespace.
-  Complete post-fix qualification remains open.
+  The exact staged `--quick` run passed **27/27 CTests** using the long
+  `TMPDIR` under `~/.cache/qtscrobbler-runs/77q-long-offline`. Commit
+  `ad83e91` contains the runner fix. Complete post-fix qualification remains open.
 
 State when the session paused (the owner is switching agents):
 

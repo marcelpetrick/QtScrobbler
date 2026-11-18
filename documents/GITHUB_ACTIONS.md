@@ -49,6 +49,19 @@ The workflow is bounded to 360 minutes. System/compiler packages are currently
 resolved by Ubuntu apt; the remaining environment lock work is tracked in
 [the dependency inventory](DEPENDENCIES.md).
 
+## Repository security
+
+Dependabot alerts and automatic security-update pull requests are enabled in the
+repository settings. [Dependabot configuration](../.github/dependabot.yml)
+also requests weekly version checks for the Python pins and GitHub Actions.
+Review changes to native SDKs, distribution packages and checksum-pinned tools
+through the [dependency inventory](DEPENDENCIES.md).
+
+[Dependency Review](../.github/workflows/dependency-review.yml) checks dependency
+changes in pull requests targeting main. GitHub-managed CodeQL scans C/C++,
+Python and Actions separately from the native pipeline. Secret scanning and
+push protection are enabled in the repository settings.
+
 ## Pinned CMake installer
 
 [`tools/install_cmake.py`](../tools/install_cmake.py) installs the reviewed Linux x86-64
