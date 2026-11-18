@@ -193,6 +193,17 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   the original (**3 regressions**) and the complete offline Submit suite passes
   **44/44** with the fix. The focused rows passed ten repeated runs. Evidence
   lives in `~/.cache/qtscrobbler-runs/submit-response.l7PNco`.
+  The prepared index passed **27/27 CTests** in `--quick`
+  (`~/.cache/qs-79q/reports`) and became `ae923ae`.
+- Prepared 0.13.80 strengthens diagnostic, lifecycle, and displayed-progress
+  assertions on the same targeted native mutant inventories. Metadata is
+  **18/18 newly killed**, controller is **20/22 newly killed** (18 were whole
+  campaign survivors), and GUI console and progress improves **10/40 to
+  26/40** with zero losses. Unmutated Qt suites pass **45/45**, **65/65**, and
+  **45/45**, respectively. Raw SQLite and comparison evidence lives beneath
+  `~/.cache/qtscrobbler-runs/gettrackinfo-kU3Gbu` and
+  `~/.cache/qtscrobbler-runs/gui-survivors.woRbQZ`. These are targeted results.
+  The whole campaign must be rerun before changing the mutation ratchet.
 
 State when the session paused (the owner is switching agents):
 

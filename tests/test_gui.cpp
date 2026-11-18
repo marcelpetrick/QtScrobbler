@@ -287,10 +287,73 @@ class GuiTest : public QObject {
         QCOMPARE(QApplication::clipboard()->text(), copied);
         Progress empty(&window);
         QSignalSpy finished(window.scrob, &Scrobble::submission_finished);
+        empty.show();
+        QVERIFY(empty.isVisible());
         empty.cancel();
+        QVERIFY(!empty.isVisible());
         QCOMPARE(finished.count(), 0);
         empty.update_progress(-1, 1, 2);  // Unknown site does not dereference a missing widget.
         QVERIFY(empty.findChildren<QProgressBar*>().isEmpty());
+    }
+
+    void consoleDisplaysOnlyNewLogsAtTheSelectedLevel() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString logPath = directory.filePath(".scrobbler.log");
+        QFile log(logPath);
+        QVERIFY(log.open(QIODevice::WriteOnly));
+        const QByteArray malformed = "#AUDIOSCROBBLER/1.1\n#TZ/UTC\ninvalid client header\nignored\n";
+        QCOMPARE(log.write(malformed), malformed.size());
+        log.close();
+
+        QTScrob window;
+        window.scrob->clear_log();
+        window.scrob->parser_clear();
+        Console console(&window);
+        QCOMPARE(console.size(), QSize(800, 600));
+
+        auto* output = console.findChild<QTextEdit*>();
+        auto* level = console.findChild<QComboBox*>();
+        auto* label = console.findChild<QLabel*>();
+        auto* copy = button(console, "Copy to clipboard");
+        QVERIFY(output && level && label && copy);
+        auto* layout = console.layout();
+        QVERIFY(layout);
+        QCOMPARE(layout->contentsMargins(), QMargins());
+        QCOMPARE(layout->count(), 2);
+        QCOMPARE(layout->itemAt(0)->widget(), output);
+        auto* controls = layout->itemAt(1)->layout();
+        QVERIFY(controls);
+        QCOMPARE(controls->count(), 4);
+        QCOMPARE(controls->itemAt(0)->widget(), label);
+        QCOMPARE(label->text(), "Log Level:");
+        QCOMPARE(controls->itemAt(1)->widget(), level);
+        QVERIFY(controls->itemAt(2)->spacerItem());
+        QCOMPARE(controls->itemAt(3)->widget(), copy);
+
+        const QString initial = "ERROR : Parser: asked to clear without a live object";
+        QCOMPARE(output->toPlainText(), initial);
+        window.scrob->conf->tz_override = true;
+        window.scrob->conf->utc_offset = 0;
+        QVERIFY(window.scrob->parse(SCROBBLE_LOG, directory.path()));
+        const QString opened = "\nINFO  : Opening log file: " + logPath + "\nINFO  : UTC Offset: 0";
+        const QString rejected =
+            "\nINFO  : Overriding detected timezone\nERROR : Parsing failed - missing #CLIENT header";
+        const QString updated = initial + opened + rejected;
+        QTRY_COMPARE_WITH_TIMEOUT(output->toPlainText(), updated, 1000);
+        QSignalSpy changes(output, &QTextEdit::textChanged);
+        // A full 250 ms polling interval with no new logs must leave the existing text alone.
+        QVERIFY(!changes.wait(400));
+        QCOMPARE(output->toPlainText(), updated);
+
+        level->setCurrentIndex(LOG_DEBUG);
+        QCOMPARE(output->toPlainText(),
+                 initial + opened + "\nDEBUG : Log version: 1.1\nDEBUG : Log TZ: UTC" + rejected);
+        window.scrob->clear_log();
+        QTRY_VERIFY_WITH_TIMEOUT(output->toPlainText().isEmpty(), 1000);
+        QVERIFY(!window.scrob->parse(SCROBBLE_NONE, directory.path()));
+        QTRY_COMPARE_WITH_TIMEOUT(output->toPlainText(), QString("ERROR : Error - asked to use an unknown Parser!"),
+                                  1000);
     }
 
     void settingsDaylightTimezoneProbe() {
@@ -811,7 +874,30 @@ class GuiTest : public QObject {
         QCOMPARE(progress->windowTitle(), "Submission Progress");
         auto* cancelControl = button(*progress, "Cancel");
         QVERIFY(cancelControl);
-        QVERIFY(static_cast<QWidget*>(progress)->layout()->indexOf(cancelControl) >= 0);
+        const auto rows = progress->findChildren<Progress_UI*>();
+        QCOMPARE(rows.size(), 1);
+        auto* row = rows.first();
+        QCOMPARE(row->name->text(), "Custom");
+        QCOMPARE(row->progress->minimumWidth(), 200);
+        QCOMPARE(row->progress->maximumWidth(), 200);
+        QCOMPARE(row->layout->rowCount(), 1);
+        QCOMPARE(row->layout->itemAt(0, QFormLayout::LabelRole)->widget(), row->name);
+        QCOMPARE(row->layout->itemAt(0, QFormLayout::FieldRole)->widget(), row->progress);
+        auto* layout = static_cast<QWidget*>(progress)->layout();
+        QCOMPARE(layout->count(), 3);
+        QCOMPARE(layout->itemAt(0)->widget(), row);
+        QCOMPARE(layout->itemAt(0)->alignment(), Qt::AlignRight);
+        QVERIFY(layout->itemAt(1)->spacerItem());
+        QCOMPARE(layout->itemAt(1)->sizeHint().height(), 10);
+        QCOMPARE(layout->itemAt(2)->widget(), cancelControl);
+
+        progress->update_progress(CONFIG_CUSTOM, 2, 7);
+        QCOMPARE(row->progress->maximum(), 7);
+        QCOMPARE(row->progress->value(), 2);
+        progress->update_progress(-1, 1, 3);
+        QCOMPARE(row->progress->maximum(), 7);
+        QCOMPARE(row->progress->value(), 2);
+        QSignalSpy sentProgress(row->progress, &QProgressBar::valueChanged);
         QVERIFY(!submit->isEnabled());
         QTRY_VERIFY_WITH_TIMEOUT(!server.requests.isEmpty(), 2000);
         if (outcome == "cancel") {
@@ -820,6 +906,8 @@ class GuiTest : public QObject {
             cancel->click();
         }
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
+        QCOMPARE(sentProgress.size(), outcome == "cancel" ? 0 : 1);
+        if (outcome != "cancel") QCOMPARE(sentProgress.first().first().toInt(), 3);
         QCOMPARE(finished.first().at(0).toBool(), outcome == "success");
         QTRY_VERIFY_WITH_TIMEOUT(!window.findChild<Progress*>(), 2000);
         QVERIFY(submit->isEnabled());

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright (C) 2026 Marcel Petrick
 
+#include <QElapsedTimer>
 #include <QPointer>
 #include <QSignalSpy>
 #include <QtTest>
@@ -87,11 +88,19 @@ class GetTrackInfoTest : public QObject {
     void init() { QTest::failOnWarning(QRegularExpression(".*")); }
 
     void exactRequestAndSuccess() {
+        QList<QString> traces;
         FakeManager manager;
         const QUrl endpoint("https://example.invalid/track-info?contract=1");
         GetTrackInfo client(&manager, endpoint);
         QSignalSpy finished(&client, &GetTrackInfo::finished);
+        connect(&client, &GetTrackInfo::add_log, this, [&](LOG_LEVEL level, const QString& message) {
+            if (level == LOG_TRACE) traces.append(message);
+        });
+        QElapsedTimer beforeRequest;
+        beforeRequest.start();
         client.get(7, track(), 0);
+        QElapsedTimer afterRequest;
+        afterRequest.start();
         QCOMPARE(manager.requests.size(), 1);
         const auto& sent = manager.requests.first();
         QCOMPARE(sent.operation, QNetworkAccessManager::PostOperation);
@@ -102,12 +111,20 @@ class GetTrackInfoTest : public QObject {
         QCOMPARE(sent.body,
                  QByteArray("method=track.getinfo&api_key=") + API_KEY +
                      "&artist=Bj%C3%B6rk%20%26%20%3F&track=Song%20%2F%20%2B%20%3F%20%E6%B8%AC%E8%A9%A6&autocorrect=1");
+        QCOMPARE(traces, QList<QString>{QString::fromUtf8("API: Fetching time for 7 (Song / + ? 測試 by Björk & ?)")});
+        QTRY_VERIFY_WITH_TIMEOUT(afterRequest.elapsed() >= 50, 1000);
+        const auto earliestElapsed = afterRequest.elapsed();
         manager.replies.first()->complete(durationXml("210999"));
+        const auto latestElapsed = beforeRequest.elapsed();
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
         QCOMPARE(finished.first().at(0).toInt(), 7);
         QCOMPARE(finished.first().at(1).toBool(), true);
         QCOMPARE(finished.first().at(2).toInt(), 210);
-        QVERIFY(finished.first().at(3).toInt() >= 0);
+        const int elapsed = finished.first().at(3).toInt();
+        QVERIFY(elapsed >= earliestElapsed);
+        QVERIFY(elapsed <= latestElapsed);
+        QCOMPARE(traces.size(), 2);
+        QCOMPARE(traces.last(), QString("API: 7 is 210, took %1").arg(elapsed / 1000.0));
         flushDeletes();
         QVERIFY(manager.replies.first().isNull());
     }
@@ -172,6 +189,9 @@ class GetTrackInfoTest : public QObject {
         QTest::newRow("duplicate-track") << QByteArray(
             "<lfm "
             "status=\"ok\"><track><duration>1000</duration></track><track><duration>2000</duration></track></lfm>");
+        QTest::newRow("duplicate-track-with-one-duration") << QByteArray(
+            "<lfm status=\"ok\"><track><name>First</name></track>"
+            "<track><duration>1000</duration></track></lfm>");
         QTest::newRow("junk-after-document") << durationXml("1000") + "junk";
         QTest::newRow("two-documents") << durationXml("1000") + durationXml("2000");
     }
@@ -284,18 +304,38 @@ class GetTrackInfoTest : public QObject {
     }
 
     void externalManagerAndReplyLifetimes() {
+        QList<QString> errors;
         auto manager = std::make_unique<FakeManager>();
         GetTrackInfo client(manager.get(), QUrl("https://example.invalid/"));
         QSignalSpy finished(&client, &GetTrackInfo::finished);
+        connect(&client, &GetTrackInfo::add_log, this, [&](LOG_LEVEL level, const QString& message) {
+            if (level == LOG_ERROR) errors.append(message);
+        });
+        QElapsedTimer beforeRequest;
+        beforeRequest.start();
         client.get(27, track(), 0);
+        QElapsedTimer afterRequest;
+        afterRequest.start();
+        QTRY_VERIFY_WITH_TIMEOUT(afterRequest.elapsed() >= 50, 1000);
+        const auto earliestElapsed = afterRequest.elapsed();
         manager.reset();
+        const auto latestElapsed = beforeRequest.elapsed();
         QCOMPARE(finished.size(), 1);
         QCOMPARE(finished.first().at(0).toInt(), 27);
         QCOMPARE(finished.first().at(1).toBool(), false);
+        QCOMPARE(finished.first().at(2).toInt(), 0);
+        const int elapsed = finished.first().at(3).toInt();
+        QVERIFY(elapsed >= earliestElapsed);
+        QVERIFY(elapsed <= latestElapsed);
+        QCOMPARE(errors, QList<QString>{"API: Track request was destroyed before completion"});
         client.get(28, track(), 0);
         QCOMPARE(finished.size(), 2);
         QCOMPARE(finished.last().at(0).toInt(), 28);
         QCOMPARE(finished.last().at(1).toBool(), false);
+        QCOMPARE(finished.last().at(2).toInt(), 0);
+        QCOMPARE(finished.last().at(3).toInt(), 0);
+        QCOMPARE(errors.size(), 2);
+        QCOMPARE(errors.last(), "API: Network manager is unavailable");
     }
 
     void destructionAbortsOnlyOwnedRequests() {

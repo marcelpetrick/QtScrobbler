@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QPointer>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -213,6 +214,9 @@ class ScrobbleTest : public QObject {
                            {{"Later", "C", 40, 300}, {"Earlier", "A", 60, 100}, {"Middle", "B", 80, 200}}));
         QCOMPARE(parsed.count(), 1);
         QVERIFY(parsed.first().at(0).toBool());
+        const auto openedLog = scrobble.get_log(scrobble.get_num_logs() - 1);
+        QCOMPARE(openedLog.level, LOG_INFO);
+        QCOMPARE(openedLog.msg, "Successfully parsed 3 log entries");
         QCOMPARE(scrobble.get_num_tracks(), 3);
         QCOMPARE(scrobble.get_track(0).title, "A");
         QCOMPARE(scrobble.get_track(1).title, "B");
@@ -245,6 +249,9 @@ class ScrobbleTest : public QObject {
         scrobble.parser_clear();
         QCOMPARE(cleared.count(), 1);
         QVERIFY(cleared.first().at(0).toBool());
+        const auto clearedLog = scrobble.get_log(scrobble.get_num_logs() - 1);
+        QCOMPARE(clearedLog.level, LOG_INFO);
+        QCOMPARE(clearedLog.msg, "Deleted log file " + directory.filePath(".scrobbler.log"));
         QVERIFY(!scrobble.get_parser_busy());
         QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
     }
@@ -259,6 +266,9 @@ class ScrobbleTest : public QObject {
         QVERIFY(scrobble.parse(SCROBBLE_LOG, directory.path()));
         QCOMPARE(parsed.count(), 1);
         QCOMPARE(parsed.first().at(0).toBool(), false);
+        const auto failedLog = scrobble.get_log(scrobble.get_num_logs() - 1);
+        QCOMPARE(failedLog.level, LOG_ERROR);
+        QCOMPARE(failedLog.msg, "Parsing failed - could not find a logfile at " + directory.path() + " to open");
         QVERIFY(!scrobble.get_parser_busy());
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Recovered", 180, 1700000000}}));
         QCOMPARE(parsed.count(), 2);
@@ -287,7 +297,10 @@ class ScrobbleTest : public QObject {
         QCOMPARE(cleared.first().at(0).toBool(), false);
         QVERIFY(!scrobble.get_parser_busy());
         QCOMPARE(scrobble.get_num_tracks(), 1);
-        QVERIFY(scrobble.get_error_str().startsWith("Failed to remove log file"));
+        const auto failedLog = scrobble.get_log(scrobble.get_num_logs() - 1);
+        QCOMPARE(failedLog.level, LOG_ERROR);
+        QCOMPARE(failedLog.msg, "Failed to remove log file " + directory.filePath(".scrobbler.log"));
+        QCOMPARE(scrobble.get_error_str(), failedLog.msg);
     }
 
     void deletingAllTracksAllowsNewImport() {
@@ -345,7 +358,11 @@ class ScrobbleTest : public QObject {
         Scrobble scrobble;
         QTemporaryDir directory;
         QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Ancient", 180, 1}}));
+        scrobble.clear_log();
         QVERIFY(scrobble.check_age());
+        QCOMPARE(scrobble.get_num_logs(), 1);
+        QCOMPARE(scrobble.get_log(0).level, LOG_INFO);
+        QCOMPARE(scrobble.get_log(0).msg, "Track too old: Artist Ancient");
         QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
         QVERIFY(!scrobble.submit());
         QCOMPARE(finished.count(), 1);
@@ -593,13 +610,30 @@ class ScrobbleTest : public QObject {
         Scrobble scrobble;
         QTemporaryDir directory;
         QSignalSpy started(&scrobble, &Scrobble::missing_times_start);
+        QSignalSpy requested(&scrobble, &Scrobble::missing_times_get);
         QSignalSpy progress(&scrobble, &Scrobble::missing_times_progress);
         QSignalSpy finished(&scrobble, &Scrobble::missing_times_finished);
         QVERIFY(loadTracks(scrobble, directory.path(),
                            {{"Artist", "Missing one", 0, 1700000000}, {"Artist", "Missing two", 0, 1700000010}}));
         QCOMPARE(started.count(), 1);
         QCOMPARE(started.first().at(0).toInt(), 2);
+        const auto fetchingLog = scrobble.get_log(scrobble.get_num_logs() - 2);
+        QCOMPARE(fetchingLog.level, LOG_INFO);
+        QCOMPARE(fetchingLog.msg, "Fetching missing track lengths from last.fm...");
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 3000);
+        QCOMPARE(requested.count(), 2);
+        QCOMPARE(requested[0][0].toInt(), 0);
+        QCOMPARE(requested[0][2].toInt(), 0);
+        QCOMPARE(requested[1][0].toInt(), 1);
+        const QRegularExpression timing(R"(^API: 0 is 235, took (\d+(?:\.\d+)?)$)");
+        QRegularExpressionMatch firstResponse;
+        for (int i = 0; i < scrobble.get_num_logs(); ++i) {
+            firstResponse = timing.match(scrobble.get_log(i).msg);
+            if (firstResponse.hasMatch()) break;
+        }
+        QVERIFY(firstResponse.hasMatch());
+        const int elapsed = qRound(firstResponse.captured(1).toDouble() * 1000);
+        QCOMPARE(requested[1][2].toInt(), qMax(0, 200 - elapsed));
         QCOMPARE(progress.count(), 1);
         QCOMPARE(progress.first().at(0).toInt(), 1);
         QCOMPARE(service.requests.size(), 2);
@@ -864,21 +898,40 @@ class ScrobbleTest : public QObject {
         Scrobble scrobble;
         service.configure(scrobble);
         QTemporaryDir directory;
-        QVERIFY(loadTracks(scrobble, directory.path(),
-                           {{"Artist", "Sent", 180, static_cast<int>(scrobble.get_gmt()) - 60}}));
+        const int recent = static_cast<int>(scrobble.get_gmt()) - 60;
+        QVERIFY(
+            loadTracks(scrobble, directory.path(),
+                       {{"Artist", "Initially First", 180, recent - 60}, {"Artist", "Initially Second", 240, recent}}));
+        auto moved = scrobble.get_track(0);
+        moved.when = recent + 1;
+        scrobble.update_track(moved, 0);
+        scrobble.clear_log();
         QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
         QVERIFY(scrobble.submit());
+        const QPointer<Submit> pending = scrobble.submissions.value(CONFIG_LASTFM);
+        QVERIFY(pending);
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
         QCOMPARE(finished.first().at(0).toBool(), true);
         QCOMPARE(service.requests.size(), 2);
         QVERIFY(service.requests[0].startsWith("GET /?hs=true"));
         QVERIFY(service.requests[1].startsWith("POST /submit "));
         QVERIFY(service.requests[1].contains("a[0]=Artist"));
-        QVERIFY(service.requests[1].contains("t[0]=Sent"));
+        QVERIFY(service.requests[1].contains("t[0]=Initially%20Second"));
+        QVERIFY(service.requests[1].contains("t[1]=Initially%20First"));
         QCOMPARE(scrobble.get_num_tracks(), 0);
         QVERIFY(!scrobble.get_parser_busy());
         QVERIFY(!QFile::exists(directory.filePath(".scrobbler.log")));
         QVERIFY(scrobble.submissions.isEmpty());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(pending.isNull());
+        QStringList controllerLog;
+        for (int i = 0; i < scrobble.get_num_logs(); ++i) {
+            const auto event = scrobble.get_log(i);
+            if (event.level == LOG_INFO &&
+                (event.msg.startsWith("Scrobble::submit()") || event.msg.startsWith("Submit()")))
+                controllerLog.append(event.msg);
+        }
+        QCOMPARE(controllerLog, (QStringList{"Scrobble::submit() finished", "Submit() complete"}));
     }
 
     void failedSubmissionRetainsSource() {
@@ -1224,15 +1277,34 @@ int main(int argc, char** argv) {
     qputenv("TZ", zone.isEmpty() ? QByteArray("UTC") : zone);
     QCoreApplication application(argc, argv);
     if (argc == 2 && QByteArray(argv[1]) == "--timezone-probe") {
+        const auto before = QDateTime::currentSecsSinceEpoch();
         Scrobble scrobble;
         const auto now = QDateTime::currentDateTime();
         QTextStream output(stdout);
         output << "Observed offset " << scrobble.get_gmt_offset() << ", DST " << scrobble.get_dst() << ", zone "
                << scrobble.get_zonename() << "; expected " << now.offsetFromUtc() << ", " << now.isDaylightTime()
                << ", " << now.timeZoneAbbreviation() << Qt::endl;
+        const QString expectedOffset = "UTC " + now.toString("ttt");
         const bool correct = scrobble.get_gmt_offset() == now.offsetFromUtc() &&
                              scrobble.get_dst() == static_cast<int>(now.isDaylightTime()) &&
-                             scrobble.get_zonename() == now.timeZoneAbbreviation();
+                             scrobble.get_zonename() == now.timeZoneAbbreviation() &&
+                             scrobble.offset_str() == expectedOffset;
+        const QStringList expectedLogs{"Detected Timezone: " + now.timeZoneAbbreviation(),
+                                       QString("Detected DST: %1").arg(now.isDaylightTime()),
+                                       "Detected Offset: " + expectedOffset};
+        const int firstTimezoneLog = scrobble.get_num_logs() - 4;
+        if (firstTimezoneLog < 0) return 1;
+        for (int i = 0; i < expectedLogs.size(); ++i) {
+            const auto event = scrobble.get_log(firstTimezoneLog + i);
+            output << event.msg << Qt::endl;
+            if (event.level != LOG_DEBUG || event.msg != expectedLogs[i]) return 1;
+        }
+        const auto gmtLog = scrobble.get_log(firstTimezoneLog + 3);
+        const auto gmtMatch = QRegularExpression(R"(^Detected GMT: (\d+)$)").match(gmtLog.msg);
+        output << gmtLog.msg << Qt::endl;
+        if (gmtLog.level != LOG_DEBUG || !gmtMatch.hasMatch()) return 1;
+        const auto gmt = gmtMatch.captured(1).toLongLong();
+        if (gmt < before || gmt > now.toSecsSinceEpoch()) return 1;
         return correct ? 0 : 1;
     }
     ScrobbleTest tests;
