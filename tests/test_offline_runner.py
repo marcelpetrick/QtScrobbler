@@ -12,6 +12,7 @@ import select
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from unittest import mock
@@ -24,9 +25,9 @@ SPEC.loader.exec_module(offline)
 
 
 class OfflineRunnerTest(unittest.TestCase):
-    def invoke(self, *arguments):
+    def invoke(self, *arguments, env=None):
         return subprocess.run([sys.executable, str(RUNNER), "--", *arguments],
-                              capture_output=True, text=True, timeout=10, check=False)
+                              capture_output=True, text=True, timeout=10, check=False, env=env)
 
     def invoke_helper(self, ip, bus):
         read_fd, write_fd = os.pipe()
@@ -178,6 +179,18 @@ class OfflineRunnerTest(unittest.TestCase):
         self.assertEqual(pid, proc_self)
         self.assertEqual(has_task, "True")
 
+    def test_real_namespace_preserves_long_tmpdir_and_removes_bus_config(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            tmpdir = Path(temporary) / ("deep-report-directory-" * 6)
+            tmpdir.mkdir()
+            result = self.invoke(
+                sys.executable, "-c", "import tempfile; print(tempfile.gettempdir())",
+                env=dict(os.environ, TMPDIR=str(tmpdir)),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), str(tmpdir))
+            self.assertEqual(list(tmpdir.iterdir()), [])
+
     def test_real_namespace_has_loopback_http_and_no_external_route(self):
         probe = r'''import errno,http.server,json,os,socket,subprocess,sys,threading,urllib.request
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -220,11 +233,9 @@ print(json.dumps({'net': os.readlink('/proc/self/ns/net'),
         self.assertNotEqual(proof["user"], os.readlink("/proc/self/ns/user"))
         self.assertEqual(proof["http"], "isolated loopback")
         self.assertEqual(proof["blocked_errno"], errno.ENETUNREACH)
-        self.assertIn("qtscrobbler-offline-bus-", proof["bus"])
+        self.assertEqual(proof["bus"].split(",", 1)[0], "unix:abstract=qtscrobbler-offline-bus")
         self.assertEqual(proof["activatable"].count('string "'), 1)
         self.assertIn('string "org.freedesktop.DBus"', proof["activatable"])
-        address = proof["bus"].split("unix:path=", 1)[1].split(",", 1)[0]
-        self.assertFalse(Path(address).parent.exists(), "private bus directory was not removed")
 
 
 if __name__ == "__main__":

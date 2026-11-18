@@ -37,9 +37,12 @@ try:
     if result.returncode:
         print('Offline runner: could not enable isolated loopback', file=sys.stderr)
         raise RuntimeError('isolated loopback setup failed')
+    # The abstract socket is private to this network namespace and its name
+    # does not depend on the length of the caller's TMPDIR.
+    bus_address = 'unix:abstract=qtscrobbler-offline-bus'
     with tempfile.TemporaryDirectory(prefix='qtscrobbler-offline-bus-') as temporary:
         config = Path(temporary) / 'session.conf'
-        config.write_text('<busconfig><type>session</type><listen>unix:tmpdir=' + temporary +
+        config.write_text('<busconfig><type>session</type><listen>' + bus_address +
                           '</listen><auth>EXTERNAL</auth><policy context="default">'
                           '<allow user="*"/><allow send_destination="*"/>'
                           '<allow receive_sender="*"/><allow own="*"/></policy></busconfig>')
@@ -49,7 +52,7 @@ try:
             if not select.select([daemon.stdout], [], [], 5)[0]:
                 raise RuntimeError('private session bus did not provide an address')
             address = daemon.stdout.readline(4096).decode().strip()
-            if not address.startswith('unix:') or daemon.poll() is not None:
+            if address.split(',', 1)[0] != bus_address or daemon.poll() is not None:
                 raise RuntimeError('private session bus did not start')
             environment = os.environ.copy()
             for name in ('DBUS_SESSION_BUS_PID', 'DBUS_STARTER_ADDRESS', 'DBUS_STARTER_BUS_TYPE'):

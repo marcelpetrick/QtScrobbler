@@ -6,6 +6,36 @@ This is the living execution record. Every implementation commit must update thi
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
 commit contained only this plan and `AGENTS.md`; implementation has started.
 
+## Owner priorities — 2026-11-18
+
+- [ ] Fix public CI first. The README CI badge reports failing and the Release
+      badge reports no status. The last failed main run, 44193926851, failed
+      sanitizer `gui_process` after Xvfb could not write to its closed display
+      pipe. `ab41f20` changes Xvfb reset and pipe lifetime. CI 44264412011 is
+      qualifying that fix. Inspect its actual result and logs. Keep main stable
+      until it concludes, then advance the qualified release candidate.
+- [ ] Publish a public release from a green main commit and check the real
+      Release and Latest release badges, asset checksums and release notes.
+      Candidate `534e642` (0.13.76) passed exact-snapshot quick qualification
+      and the local Xvfb AppImage launch. Full local qualification is running.
+      Refresh the measured line, branch and mutation badges from the newest
+      complete reports and confirm the build and license badge metadata.
+- [ ] Enable Dependabot alerts and security updates, add scheduled dependency
+      version updates, and activate GitHub security checks for the public repo.
+      Record effective settings, supported dependency scopes, and observed scan
+      or workflow results. Keep this separate from the release-candidate fix.
+- [ ] Enable C++23 in the maintained native build. Prove it with the pinned
+      Clang/LLVM 20.1.8 and the release GCC toolchain, including C++23 language
+      or library usage and analyzer compatibility. Update README and build
+      documentation to match the verified configuration.
+- [x] Inventory current end-to-end and acceptance tests. The CLI suite launches
+      the real process and uploads the fixture to loopback. GUI acceptance tests
+      run real widgets for import, editing, submission and cancellation. The
+      standalone GUI process test covers display-backed startup and orderly
+      close. Three randomized runs passed **27/27 CTests each**. See
+      [acceptance and end-to-end checks](ACCEPTANCE.md) for the coverage boundary
+      and the unperformed real-device and live-service checks.
+
 
 ## Highest priority owner requests — 2026-11-17 continuation
 
@@ -132,6 +162,20 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   runs package smoke tests in the offline namespace. An AppImage process error
   propagates through the output capture pipe. The native application gate is
   running under `~/.cache/qs-76full`; release workflow and public assets remain open.
+- The exact prepared `0.13.76` index passed `--quick` with **27/27 CTests**
+  (`~/.cache/qs-76q/reports`), then became release candidate `534e642`.
+  A locally stripped AppImage from the same application source printed
+  `QTScrob (v0.13.76)` under Xvfb with the bundled xcb plugin and no external Qt
+  library/plugin path (`~/.cache/qs-76pkg/appimage-xcb.txt`). The exact
+  `0.13.75` suite also passed three randomized runs, **27/27 each**.
+  Once the previous main run concludes, push this candidate independently of
+  later improvements so it receives its own qualifying CI result.
+- In `0.13.77`, the offline runner binds its session bus to an abstract Unix
+  socket inside the network namespace. It preserves the caller's disk-backed
+  `TMPDIR` and removes the generated bus configuration. The long-path regression
+  fails on the original with exit 126 and passes with the fix. All **13/13**
+  runner contracts pass directly and inside another offline namespace.
+  Complete post-fix qualification remains open.
 
 State when the session paused (the owner is switching agents):
 
