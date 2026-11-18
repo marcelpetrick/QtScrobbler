@@ -1,10 +1,82 @@
 # Qt 6.12 and quality improvement plan
 
-Status: P0 and broad behavior suites implemented; complete pipeline integration and final measured qualification remain open. Updated: 2026-11-17.
+P0 and the broad behavior suites are implemented. Public CI, releases, C++23
+qualification, and the 95% mutation goal remain open. Updated 2026-11-18.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
 commit contained only this plan and `AGENTS.md`; implementation has started.
+
+## Latest continuation — 2026-11-18
+
+- Main CI 44264412011 on ab41f20 is still running. Preserve it and inspect the
+  conclusion before pushing. GitHub has no published release.
+- Exact 0.13.76 (534e642) and 0.13.80 (80af9d0) both failed sanitizer CTest
+  gui_process (26/27). Xvfb reported BadWindow on X_SendEvent after the test
+  resent WM_DELETE_WINDOW while the process was still in teardown. Both
+  local runs stopped during mutation and lack final summaries. Preserve
+  reports in ~/.cache/qs-76exact and ~/.cache/qs-80full. The supplemental
+  0.13.76 run passed sanitizers but also stopped during mutation. Keep the
+  failed exact candidate untagged. Verify the single-close fix with repeated
+  sanitized GUI runs and qualify its replacement on the full local gate and
+  exact-commit main CI before tagging. Keep that C++20 fix separate from 0.14.0.
+- The exact staged 0.13.83 checkpoint tree 21d4b91 passed 27/27 with
+  `./localPipeline.sh --quick --noRun --noOpen --report-dir <new-dir>`.
+  Reports and logs: ~/.cache/qs-83q.90wr. Full qualification was skipped
+  by the diagnostic mode. C++23 build and dependency changes are separate.
+- Monitor the five-hour usage window using the session's rate-limit metadata.
+  If less than 5% remains, record the measured balance and reset time,
+  active reports and processes, staged snapshot, remote CI, and next actions
+  here and in AGENTS.md before the session is interrupted.
+
+## Live handoff — 2026-11-18
+
+- **Public CI has first priority.** `origin/main` is `ab41f20` (0.13.74).
+  [CI run 44264412011](https://github.com/marcelpetrick/QtScrobbler/actions/runs/44264412011)
+  has finished provisioning and is running the complete pipeline. The last
+  completed main CI, 44193926851, failed the sanitizer Xvfb startup check.
+  The public CI badge still reports failing, the Release badge has no status
+  and GitHub has no published release. Preserve the active run. Inspect
+  `gh run view 44264412011 --log-failed` first if it fails.
+- **First release candidate.** `534e642` (0.13.76) has a matching changelog
+  entry, requires a successful exact-commit CI run on main, and passes
+  **27/27 CTests** on the exact quick snapshot. The local stripped tarball and
+  AppImage pass entry-point and SHA-256 checks. The exact complete gate uses
+  `~/.cache/qs-76exact/reports` and is running; the earlier application-source
+  gate in `~/.cache/qs-76full` is supplemental. After the active CI concludes,
+  push `534e642:refs/heads/main` if main is still at the reviewed ancestor and
+  the prior run requires no additional fix. Verify the candidate’s own green CI
+  and complete local gate before tagging `v0.13.76`. Verify the Release workflow,
+  notes, published files, checksums, and live README badges.
+- **Local work.** HEAD is `d2642a3` (0.13.82), ahead of origin by eight
+  commits at this checkpoint. The GUI, database, and configuration tranche
+  passed its exact quick gate with **27/27 CTests** in `~/.cache/qs-82q`.
+  The 0.13.83 documentation checkpoint records this handoff and the updated
+  operating instructions. The 0.13.80 complete campaign runs in `~/.cache/qs-80full`.
+  It has passed raw coverage at **2748/2775 lines and 1037/1073 branches**.
+  Keep the 67% mutation ratchet until a complete campaign supports a higher
+  one. Focused tests and whole-campaign scores are tracked separately below.
+- **C++23 release preparation.** The working tree holds the separate build and
+  dependency changes for 0.14.0. CMake and the native sentinel select C++23.
+  Private Clang 20.1.8 and GCC 16.2.1 quick gates each passed **27/27 CTests**.
+  Both compiled and executed `if consteval` and `std::to_underlying`. Private
+  Clazy 1.17.1 with LLVM 20.1.8 and Cppcheck 2.22.0 handled C++23. Qt SDK
+  provisioning verifies five archives using the locked Python environment.
+  ShellCheck and actionlint passed on the composed workflows. After finishing
+  the documentation checkpoint, prepare `CLIENT_VERSION` **0.14.0** and run
+  its fresh exact complete gate before committing or pushing it. Use the
+  analyzers in `~/.cache/qtscrobbler-cpp23-patch.h2zoA5/run/installed-clazy/bin`
+  and `~/.cache/qtscrobbler-cpp23-patch.h2zoA5/run/installed-cppcheck/bin`.
+  Source the qualified LLVM environment, then run Clazy with the same resource
+  directory selected by `"$CC" --print-resource-dir`. The 0.14.0 release
+  requires green CI on its commit and successful release packaging.
+- **GitHub settings.** Dependabot security updates, secret scanning, and
+  push protection are enabled. [Initial CodeQL](https://github.com/marcelpetrick/QtScrobbler/actions/runs/44267841867)
+  passed for C/C++, Python, and Actions. Dependabot version updates and
+  PR dependency review are committed in `1debb51` and await a safe main push.
+  The public About description and ten topics were updated and read back.
+  The description identifies the independent SourceForge fork, the Qt 5 and
+  Qt 6.12 ports, and Linux maintenance.
 
 ## Owner priorities — 2026-11-18
 

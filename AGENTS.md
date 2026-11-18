@@ -97,28 +97,45 @@ Replace these instructions with the qualified preset/pipeline commands as they a
 
 ## Resuming a session or switching agents
 
-- Start with the "Session handoff" section of `documents/plan.md`: it names the
-  current commit, the CI run to check and the next steps. Then `git status`,
-  `git log origin/main..` and `gh run list --limit 5`. Never push while a CI run
-  on `main` is in progress.
+- Read the "Live handoff" and "Owner priorities" sections of `documents/plan.md`
+  first. They record active local gate directories, the prepared index and the
+  release order. Check `git status --short --branch`, `git log origin/main..`
+  and `gh run list --workflow CI --branch main --limit 5`. Update both handoff
+  files when priorities, exact evidence, or resume commands change.
+- Current release order: preserve CI run 44264412011 on `ab41f20` and inspect
+  its result. Fix any confirmed failure before advancing main. Qualify
+  `534e642` as 0.13.76 and publish it only after its complete local gate and
+  exact-commit main CI pass. The owner authorized the first C++23 release
+  as **0.14.0**. Keep its build/dependency tranche separate from the test
+  changes, verify its matching changelog, and qualify the exact release commit.
+  Never push while a qualifying main CI run is active.
 - On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
   are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
   `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib
   `/tmp/qtscrobbler-zlib-1.4-qualified`, LLVM/Mull correction
   `/tmp/qtscrobbler-mull-callfix-qualified2/env.sh`. If any is missing, provision it
   again following `documents/DEPENDENCIES.md`.
-- Exact-snapshot quick gate used before pushes:
+- For the 0.14.0 qualification, use the private C++23-capable Clazy 1.17.1 and
+  Cppcheck 2.22.0 prefixes listed in the plan and dependency documentation.
+  For Clazy, set `QTSCROBBLER_CLAZY_EXTRA_ARGS="-resource-dir=$("$CC" --print-resource-dir)"`
+  after sourcing the qualified LLVM environment. Keep its loader paths.
+- Exact staged or committed snapshot gate. Use a new directory each time and
+  keep the source, temporary data, reports, and instrumented builds on disk.
+  On this host the original runner used by 0.13.76 needs a short `TMPDIR`.
+  Remove `--quick` for the complete release qualification.
 
   ```sh
-  git archive HEAD | tar -x -C /tmp/qtscrobbler-<ver>-source
+  snapshot=$(git write-tree)  # Use a commit SHA to qualify a committed tree.
+  run_dir=$(mktemp -d "$HOME/.cache/qs-gate.XXXXXX")
+  mkdir "$run_dir/source" "$run_dir/tmp"
+  git archive "$snapshot" | tar -x -C "$run_dir/source"
   . /tmp/qtscrobbler-mull-callfix-qualified2/env.sh
-  export PATH=/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin:$PATH
+  export PATH="/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin:/tmp/qtscrobbler-aux-tools-current/bin:$HOME/.cache/qtscrobbler-python-probe-3152/quality-tools/bin:$PATH"
   export QTSCROBBLER_QT_PREFIX=/tmp/qtscrobbler-qt/6.12.0/gcc_64
   export ZLIB_ROOT=/tmp/qtscrobbler-zlib-1.4-qualified QTSCROBBLER_JOBS=4
-  R=~/.cache/qtscrobbler-runs/<ver>q; mkdir -p $R/tmp
-  export QTSCROBBLER_BUILD_DIR=$R/build TMPDIR=$R/tmp
-  cd /tmp/qtscrobbler-<ver>-source
-  ./localPipeline.sh --quick --noRun --noOpen --report-dir $R/reports > $R/log 2>&1
+  export QTSCROBBLER_BUILD_DIR="$run_dir/build" TMPDIR="$run_dir/tmp"
+  cd "$run_dir/source"
+  ./localPipeline.sh --quick --noRun --noOpen --report-dir "$run_dir/reports" > "$run_dir/log" 2>&1
   ```
 
 ## Testing and measurement policy
