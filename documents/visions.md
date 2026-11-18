@@ -10,10 +10,10 @@ The owner's requested initiative is to:
 - Review dependencies and record exact tested versions and reproducible provisioning.
 - Preserve working GUI and CLI import, edit, timestamp, settings, submit and cancel flows.
 - Provide deterministic offline tests without credentials or real-device access.
-- Demonstrate at least 95% line coverage and 95% raw branch coverage separately over
+- Demonstrate at least 99% line coverage and 95% raw branch coverage separately over
   maintained first-party Linux production code, including CLI, GUI and MTP.
-- Qualify native mutation testing, retain all outcomes and demonstrate a 95%
-  assertion-killed score; unexplained crashes and timeouts do not count as kills.
+- Qualify native mutation testing, retain all outcomes and maintain at least 65%
+  assertion kills with the current 67% ratchet and pursue the 95% goal; unexplained crashes and timeouts do not count as kills.
 - Run the same complete native quality pipeline locally and in GitHub Actions, with
   release packaging and extracted-artifact qualification. Missing checks must fail.
 - Keep setup, usage, architecture, API, dependency and quality documentation current,

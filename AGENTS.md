@@ -3,7 +3,7 @@
 ## Current initiative
 
 Read `documents/plan.md` before changing this repository. The authorized initiative is Qt 6.12,
-dependency review, working CLI/GUI behavior, at least 95% line and branch coverage, and
+dependency review, working CLI/GUI behavior, at least 99% line and 95% branch coverage, and
 native mutation testing. The percentages are targets until reports demonstrate them.
 
 The initial commit contains the plan and this file only. Then execute the plan in atomic
@@ -42,8 +42,8 @@ Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib pr
 `documents/DEPENDENCIES.md`; install the qualified private native call-removal correction, source its generated
 `env.sh`, and set
 `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
-ASan/UBSan, separate 95% line/branch coverage, the native mutation ratchet
-(`MUTATION_MINIMUM`, currently 67%; goal 95%) and extracted-package qualification are
+ASan/UBSan, separate 99% line and 95% branch coverage, the native mutation ratchet
+(`MUTATION_MINIMUM`, currently 67%, owner floor 65%, goal 95%) and extracted-package qualification are
 mandatory in this command. Raise the ratchet when tests kill more mutants; never lower
 it without the owner's decision. Missing tools/reports and failed stages fail.
 Test, mutation and package processes run through `tools/run_offline.py`; Linux network
@@ -103,12 +103,13 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   and `gh run list --workflow CI --branch main --limit 5`. Update both handoff
   files when priorities, exact evidence, or resume commands change.
 - Current release order: preserve CI run 44264412011 on `ab41f20` and inspect
-  its result. Fix any confirmed failure before advancing main. Qualify
-  `534e642` as 0.13.76 and publish it only after its complete local gate and
-  exact-commit main CI pass. The owner authorized the first C++23 release
-  as **0.14.0**. Keep its build/dependency tranche separate from the test
-  changes, verify its matching changelog, and qualify the exact release commit.
-  Never push while a qualifying main CI run is active.
+  its result. The exact 0.13.76 gate failed the X11 sanitizer test. See the
+  Latest continuation in the plan for the C++20 replacement with the fix,
+  revised quality gates and current reports. Publish it after the complete
+  local gate and exact-commit main CI pass. The owner authorized the first
+  C++23 release as **0.14.0**. Keep that build and dependency change separate,
+  verify its changelog, and qualify its exact release commit. Never push
+  while a qualifying main CI run is active.
 - On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
   are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
   `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib
@@ -150,7 +151,7 @@ Replace these instructions with the qualified preset/pipeline commands as they a
 - Join workers, drain deferred deletion and release SQL/network resources. Repeat lifecycle tests.
 - Treat unexpected Qt warnings/crashes as failures; document narrow platform allowances.
 - Cover maintained first-party production GUI/CLI/library/MTP code. Publish the denominator,
-  unexecuted files, raw branch semantics and exclusions. Do not game 95% with broad exclusions,
+  unexecuted files, raw branch semantics and exclusions. Do not game thresholds with broad exclusions,
   rounding, hidden files, or replacement of branch coverage by a different metric.
 - Mutation reports must distinguish kills, survivors, uncovered mutants, invalid mutants,
   timeouts, crashes and infrastructure errors. Do not count unexplained timeouts/crashes as kills.
@@ -168,7 +169,7 @@ scenario, file/line evidence, and concrete fix. Resolve findings and give a supp
 
 Keep README, dependency inventory, architecture, API and quality documentation aligned with
 implemented behavior. Historical reports remain historical; append new measured results.
-Do not claim green CI, Qt 6.12 runtime, device compatibility, 95% coverage, or mutation success
+Do not claim green CI, Qt 6.12 runtime, device compatibility, coverage, or mutation success
 without actually observing the corresponding checks. Final completion includes package and
 GUI/CLI workflow evidence, not just compilation.
 
@@ -185,7 +186,7 @@ SDK requires its ICU archive. The system Qt 6.11 installation is below the new m
 - Add real README badges, setup/testing/quality/usage documentation and a screenshot captured
   from the running Qt UI. Never use a mockup as product evidence.
 - Run `reviewBranch`, fix verified findings, then run `githubAbout` before completion.
-- Completion requires the whole vision, 95% line and branch coverage, mutation evidence,
+- Completion requires the whole vision, 99% line and 95% branch coverage, mutation evidence,
   complete native pipeline, actual green Actions, pushed work and a clean working tree.
 - If there is a genuine external blocker, document precise evidence and continue independent
   tasks; do not claim that an unavailable check passed or quietly drop a requirement.

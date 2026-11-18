@@ -1,3 +1,7 @@
+* version 0.13.85 (2026-11-18)
+- Require 99% line and 95% branch coverage while retaining the 67% mutation ratchet.
+- Bind the release workflow to the exact tag and its successful main CI run.
+
 * version 0.13.84 (2026-11-18)
 - Make the display-backed GUI test close the mapped window once and verify
   orderly exit, including under sanitizers.

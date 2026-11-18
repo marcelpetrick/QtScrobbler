@@ -6,7 +6,7 @@ Usage: source the installed native LLVM toolchain's env.sh, set
 QTSCROBBLER_QT_PREFIX to the Qt 6.12 SDK, then run:
   python3 tools/run_coverage.py --build-dir BUILD --report-dir NEW_REPORT_DIR
 
-The default gate requires 95 percent lines AND branches from integer counts. Use
+The default gate requires 99 percent line and 95 percent branch coverage from integer counts. Use
 --baseline to record incomplete coverage explicitly without claiming that gate passed.
 LLVM branch regions measure explicit source conditions; implicit C++ exception edges
 are not branch regions. No production-file or logging exclusions are applied. Generated
@@ -60,20 +60,39 @@ def run(command: list[str], environment: dict[str, str], log: Path, *, json_outp
 
 def passes(covered: int, total: int, minimum: Decimal) -> bool:
     """Compare raw counts, never display-rounded percentages; zero denominators fail."""
-    return total > 0 and Decimal(covered) * 100 >= minimum * total
+    numerator, denominator = minimum.as_integer_ratio()
+    return total > 0 and covered * 100 * denominator >= numerator * total
 
 
-def main() -> int:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, required=True)
     parser.add_argument("--report-dir", type=Path, required=True)
-    parser.add_argument("--minimum", type=Decimal, default=Decimal("95"))
+    parser.add_argument("--minimum", type=Decimal, help="override both defaults for a diagnostic run")
+    parser.add_argument("--line-minimum", type=Decimal, help="minimum line coverage (default: 99)")
+    parser.add_argument("--branch-minimum", type=Decimal, help="minimum branch coverage (default: 95)")
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--baseline", action="store_true")
     args = parser.parse_args()
+    if args.minimum is not None and (args.line_minimum is not None or args.branch_minimum is not None):
+        parser.error("--minimum cannot be combined with metric-specific thresholds")
+    if args.minimum is not None:
+        args.line_minimum = args.branch_minimum = args.minimum
+    if args.line_minimum is None:
+        args.line_minimum = Decimal("99")
+    if args.branch_minimum is None:
+        args.branch_minimum = Decimal("95")
+    return args
+
+
+def main() -> int:
+    args = parse_args()
+    targets = {"lines": args.line_minimum, "branches": args.branch_minimum}
     try:
-        if not args.minimum.is_finite() or not 0 <= args.minimum <= 100 or args.jobs < 1:
-            raise ValueError("minimum must be 0..100 and jobs positive")
+        if any(not minimum.is_finite() or not 0 <= minimum <= 100 for minimum in targets.values()):
+            raise ValueError("coverage minimums must be 0..100")
+        if args.jobs < 1:
+            raise ValueError("jobs must be positive")
         initial_sources = source_hashes(ROOT)
         build, reports = args.build_dir.resolve(), args.report_dir.resolve()
         if reports.exists() and any(reports.iterdir()):
@@ -145,7 +164,9 @@ def main() -> int:
         summary = {"source_sha256": initial_sources, "mapping_diagnostics": diagnostics,
                    "exports_sha256": {name: hashlib.sha256((reports / name).read_bytes()).hexdigest()
                                       for name in ("coverage.json", "coverage.profdata")},
-                   "binaries_sha256": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in ordered},"mode": "baseline" if args.baseline else "gate", "target_percent": str(args.minimum),
+                   "binaries_sha256": {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in ordered},
+                   "mode": "baseline" if args.baseline else "gate",
+                   "target_percent": {metric: str(minimum) for metric, minimum in targets.items()},
                    "branch_semantics": "LLVM explicit source branch regions; implicit exception edges absent",
                    "totals": totals, "production_file_inventory": sorted(inventory),
                    "missing_production_files": missing,
@@ -155,7 +176,7 @@ def main() -> int:
                        "reason": "build-only compiler correction, not linked into GUI/CLI/library/MTP targets",
                        "qualification": "native CFG verifier and strict Qt signal-removal semantic preflight"}}
         summary["target_passed"] = not missing and all(
-            passes(values["covered"], values["count"], args.minimum) for values in totals.values())
+            passes(values["covered"], values["count"], targets[metric]) for metric, values in totals.items())
         (reports / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
         run([tools["llvm-cov-20"], "show", str(ordered[0]), *objects,
              f"-instr-profile={merged}", "-format=html", f"-output-dir={reports / 'html'}",

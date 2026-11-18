@@ -41,6 +41,28 @@ class CoverageToolsTest(unittest.TestCase):
         self.assertFalse(COVERAGE.passes(94995, 100000, Decimal('95')))
         self.assertTrue(COVERAGE.passes(95, 100, Decimal('95')))
         self.assertFalse(COVERAGE.passes(0, 0, Decimal('0')))
+        self.assertFalse(COVERAGE.passes(99, 100, Decimal('99.0000000000000000000000000001')))
+
+    def test_default_line_and_branch_targets_have_independent_boundaries(self):
+        with patch.object(sys, 'argv', ['coverage', '--build-dir', 'build', '--report-dir', 'reports']):
+            args = COVERAGE.parse_args()
+        self.assertEqual((args.line_minimum, args.branch_minimum), (Decimal('99'), Decimal('95')))
+        self.assertTrue(COVERAGE.passes(99000, 100000, args.line_minimum))
+        self.assertFalse(COVERAGE.passes(98999, 100000, args.line_minimum))
+        self.assertTrue(COVERAGE.passes(95000, 100000, args.branch_minimum))
+        self.assertFalse(COVERAGE.passes(94999, 100000, args.branch_minimum))
+
+    def test_legacy_minimum_overrides_both_thresholds(self):
+        argv = ['coverage', '--build-dir', 'build', '--report-dir', 'reports', '--minimum', '0']
+        with patch.object(sys, 'argv', argv):
+            args = COVERAGE.parse_args()
+        self.assertEqual((args.line_minimum, args.branch_minimum), (Decimal('0'), Decimal('0')))
+
+    def test_explicit_line_minimum_preserves_default_branch_minimum(self):
+        argv = ['coverage', '--build-dir', 'build', '--report-dir', 'reports', '--line-minimum', '98.5']
+        with patch.object(sys, 'argv', argv):
+            args = COVERAGE.parse_args()
+        self.assertEqual((args.line_minimum, args.branch_minimum), (Decimal('98.5'), Decimal('95')))
 
     def test_llvm_diagnostics_preserved(self):
         output = 'warning: 2 functions have mismatched data\n{"data": []}'

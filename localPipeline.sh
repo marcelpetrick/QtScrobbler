@@ -30,7 +30,7 @@ BASELINE=false
 FORCE_FULL=false
 # Mutation ratchet (owner decision 2026-11-17): the gate fails below the measured
 # 67.55-67.67% (1193-1195/1766) so the score cannot drop. Raise it as tests kill
-# more mutants; 95% remains the documented goal. Coverage keeps its 95% gates.
+# more mutants; 95% remains the documented goal. Coverage requires 99% lines and 95% branches.
 MUTATION_MINIMUM=67
 
 # Detail strings
@@ -96,7 +96,7 @@ Stages:
   9.  Launch app          — start qtscrob once (suppress with --noRun)
   10. Format/static/docs   — native analyzers, fatal Doxygen and documentation checks
   11. Sanitizers           — isolated ASan/UBSan build and complete CTest suite
-  12. Coverage             — isolated LLVM build, separate 95% line and branch gates
+  12. Coverage             — isolated LLVM build, separate 99% line and 95% branch gates
   13. Mutation toolchain   — native Qt signal-removal semantic proof (fail-closed)
   14. Mutation             — isolated native Mull campaign, assertion-killed ratchet gate
                             (MUTATION_MINIMUM; goal 95%)

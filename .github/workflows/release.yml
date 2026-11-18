@@ -30,25 +30,40 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
+      - name: Validate release tag
+        id: tag
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Expected a release tag of the form vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Checkout the release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: refs/tags/${{ steps.tag.outputs.name }}
 
       - name: Verify tag, source version and passed CI
         id: meta
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          TAG: ${{ steps.tag.outputs.name }}
         run: |
-          case "$TAG" in v[0-9]*) ;; *) echo "Not a release tag: $TAG" >&2; exit 1 ;; esac
+          SHA=$(git rev-parse HEAD)
+          TAG_SHA=$(git rev-parse --verify "refs/tags/$TAG^{commit}")
+          if [ "$SHA" != "$TAG_SHA" ]; then
+            echo "Checkout $SHA does not match release tag $TAG ($TAG_SHA)." >&2
+            exit 1
+          fi
           VER="${TAG#v}"
           SOURCE_VER=$(sed -n 's/^#define CLIENT_VERSION "\([^"]*\)".*/\1/p' src/lib/common.h)
           if [ "$VER" != "$SOURCE_VER" ]; then
             echo "Tag $TAG does not match source version $SOURCE_VER" >&2
             exit 1
           fi
-          SHA=$(git rev-parse HEAD)
           # The CI workflow on main is the full quality gate; require its success here.
           RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&head_sha=$SHA&status=success&per_page=1" \
             --jq '.workflow_runs[0].id // empty')

@@ -36,6 +36,21 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
   absolute mutation floor is 65%; the current 67% ratchet remains above it.
   Carry the gate changes in a separate implementation commit and subject the
   eventual release commit to the revised gates.
+- Prepared 0.13.85 with independent raw 99% line and 95% branch gates and
+  strict unrounded comparisons. Eight coverage-tool cases pass. Preserve the
+  67% mutation ratchet over the 65% owner floor. Release workflow normalizes
+  manual and push events to exact tag refs and checks the peeled commit before
+  looking up successful main CI. Actionlint passed for both workflow variants.
+  Local checks rejected same-named branches, malformed or missing tags, and
+  a version mismatch. README links use live CI, Release, release and license
+  data. Coverage badges use the raw 0.13.80 counts, with the failed sanitizer
+  stage disclosed. Mutation uses the latest complete local campaign, 1195/1766.
+- Latest measured coverage from the 0.13.80 coverage stage was 2748/2775 lines
+  and 1037/1073 branches. The LLVM 20 warning comprised 149 hash-zero duplicate
+  records across 16 Qt-generated translation functions and five first-party
+  getters. All had live positive profiles and all five getters remained in the
+  coverage exports. The raw denominator is unchanged. The separate failed
+  sanitizer stage prevents full qualification of that snapshot.
 - Monitor the five-hour usage window using the session's rate-limit metadata.
   If less than 5% remains, record the measured balance and reset time,
   active reports and processes, staged snapshot, remote CI, and next actions
