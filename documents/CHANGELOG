@@ -1,3 +1,7 @@
+* version 0.14.2 (2026-11-18)
+- Write release checksum files that name the bare file, verify them before
+  publishing, and verify the published assets again after the release.
+
 * version 0.14.1 (2026-11-18)
 - Raise the native mutation ratchet to 77% after measured campaigns killed
   77.80-78.02% of mutants; the 95% goal remains open.

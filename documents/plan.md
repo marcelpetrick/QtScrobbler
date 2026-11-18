@@ -30,14 +30,12 @@ unstaged so the qualifying index keeps its exact tree.
   tree `e2b66a4`) both stopped at about 12:54 during the mutation stage
   without a verdict, when the previous session's process tree ended.
   Configure, build, static and docs had passed in both.
-- **Active gate.** A fresh detached (`setsid nohup`) complete gate of tree
-  `491ced7` runs at `~/.cache/qs-140fix.QwTPnh`, started 12:57. At 13:15
-  configure, GUI/CLI build, static, docs and the mutation semantic preflight
-  passed; mutation campaigns are running. `run.sh` records the exact
-  environment (qualified LLVM/Mull env, private C++23 Clazy/Cppcheck,
-  `QTSCROBBLER_CLAZY_EXTRA_ARGS`) and the log ends with `EXIT=<status>`.
-  Commit the staged correction only after `EXIT=0`, using
-  `git -c core.hooksPath=/dev/null commit` (version stays 0.14.0).
+- **Complete gate passed (13:45).** The detached exact gate of tree `491ced7`
+  at `~/.cache/qs-140fix.QwTPnh` ended `EXIT=0` with every mandatory stage
+  PASS (format, static, docs, sanitizers, coverage, mutation toolchain,
+  mutation, package). Coverage 2748/2775 lines (99.027%) and 1037/1073
+  branches (96.645%); 1381/1775 assertion-killed mutants (77.802%, gate 67%).
+  `run.sh` there records the exact environment.
 - **Committed and pushed (13:10).** The fix is `0b5cf5f` (tree `491ced7`,
   0.14.0). Before pushing, the active gate had already passed on that exact
   tree: 27/27 CTests, coverage targets (`target_passed: true`), 27/27
@@ -45,6 +43,9 @@ unstaged so the qualifying index keeps its exact tree.
   The application source equals `9d9a88c`, whose complete gate passed in
   `~/.cache/qs-140full.a`. Main CI 44301468187 runs on `0b5cf5f`; the local
   mutation and package stages continue at `~/.cache/qs-140fix.QwTPnh`.
+- **Main CI green (14:50).** CI 44301468187 on `0b5cf5f` succeeded
+  (1h39m), so the public CI badge is passing again. `0b5cf5f` is now
+  qualified for v0.14.0 by both exact CI and the complete local gate.
 - **v0.13.85 release retry.** Dispatched from main as Release run
   44301500886 (`gh workflow run release.yml --ref main -f tag=v0.13.85`).
   Confirm its result, the exact tag `9bab0d9`, and all four public
@@ -58,6 +59,32 @@ unstaged so the qualifying index keeps its exact tree.
   are preserved unstaged. After the runner fix is committed, restore a
   version-bumped 0.14.1 index on top and run a new complete exact gate
   (its earlier gate was interrupted). No v0.14.1 tag was requested.
+- **v0.13.85 published (13:14).** Release run 44301500886 (dispatched from
+  main, tag on `9bab0d9`) succeeded and published the first public release
+  with four assets. Independent download: the tarball checksum verifies and
+  the AppImage hash matches, but its `.sha256` names the absolute runner path
+  (`/home/runner/.../dist/...AppImage`), so `sha256sum -c` fails for users.
+  Cause: `release.yml` stripped `  dist/` from an absolute path. With the
+  owner's approval the v0.13.85 AppImage `.sha256` was replaced by one naming
+  the bare file (same hash `9d3ef81a…d314`); a fresh download of all four
+  assets now passes `sha256sum -c`. The fix (unstaged, next commit after
+  0.14.1) writes the bare file name, runs `sha256sum -c` in `dist/` before
+  publishing, and downloads the published release to verify both checksum
+  files again. New CTest `release_workflow_contract`
+  (`tests/test_release_workflow.py`) executes the workflow's own checksum
+  commands with absolute paths; it fails 2/3 on the old workflow and passes
+  3/3 on the fix. actionlint 1.7.12 passed. Because a tag push runs the workflow of the
+  tagged commit, publish v0.14.0 through a dispatch from main after this
+  fix is on main, and cancel the automatic tag-push run before it publishes.
+- **0.14.1 committed (15:30).** `de3544a` is the exact gated tree `90b96de`.
+  Its detached complete gate (`~/.cache/qs-141.OmEYvd`) ended `EXIT=0` with
+  every mandatory stage PASS: 2748/2775 lines, 1037/1073 branches and
+  1383/1775 assertion-killed mutants (77.915%) against the new 77% ratchet.
+- **0.14.2 checksum fix.** Release-workflow checksum fix plus
+  `release_workflow_contract`; gated with an exact `--quick` snapshot before
+  pushing (workflow, test and docs only). Then tag v0.14.0 on `0b5cf5f`,
+  cancel the automatic tag-push run (old workflow), dispatch Release from
+  main, and verify the downloaded assets with `sha256sum -c`.
 - **Owner request: prepare a live test scrobble.** After the releases, set up
   an opt-in live check with the owner's Last.fm credentials and one
   deliberately chosen track, run from a temporary copy of the example log in

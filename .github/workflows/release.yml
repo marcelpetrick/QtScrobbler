@@ -199,7 +199,8 @@ jobs:
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
           APPIMAGE=$(tools/build_appimage.sh build dist "$VERSION" | tail -n 1)
-          sha256sum "$APPIMAGE" | sed 's#  dist/#  #' > "$APPIMAGE.sha256"
+          # Record the bare file name so `sha256sum -c` works next to the download.
+          (cd "$(dirname "$APPIMAGE")" && sha256sum "$(basename "$APPIMAGE")") > "$APPIMAGE.sha256"
           echo "path=$APPIMAGE" >> "$GITHUB_OUTPUT"
 
       - name: Check extracted release entry points
@@ -210,6 +211,8 @@ jobs:
           set -o pipefail
           PACKAGE_DIR=$(mktemp -d)
           trap 'rm -rf "$PACKAGE_DIR"' EXIT
+          # Verify the published checksum files exactly as a user would.
+          (cd dist && sha256sum -c -- ./*.sha256)
           tar -xzf "dist/$ARCHIVE.tar.gz" -C "$PACKAGE_DIR"
           python3 tools/run_offline.py -- timeout 5 "$PACKAGE_DIR/$ARCHIVE/scrobbler" --help
           python3 tools/run_offline.py -- timeout 5 "$PACKAGE_DIR/$ARCHIVE/qtscrob" --help
@@ -249,6 +252,17 @@ jobs:
             ${{ steps.pkg.outputs.archive_path }}
             ${{ steps.pkg.outputs.archive_path }}.sha256
           fail_on_unmatched_files: true
+
+      # Download what users get and check every published checksum file.
+      - name: Verify the published release assets
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          VERIFY_DIR=$(mktemp -d)
+          trap 'rm -rf "$VERIFY_DIR"' EXIT
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$VERIFY_DIR"
+          test "$(find "$VERIFY_DIR" -maxdepth 1 -name '*.sha256' | wc -l)" -eq 2
+          (cd "$VERIFY_DIR" && sha256sum -c -- ./*.sha256)
 
       - name: Upload release logs
         if: always()
