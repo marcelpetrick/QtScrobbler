@@ -1,3 +1,11 @@
+* version 0.13.76 (2026-11-18)
+- Publish Linux x86-64 GUI and CLI binaries as a tarball and a Qt 6.12 AppImage,
+  with SHA-256 checksums and release notes generated from the qualifying CI run.
+- Keep the display-backed GUI test stable across Xvfb server resets and check
+  application startup and window close on the private display.
+- Enforce the measured 67% native mutation ratchet in the full quality pipeline.
+  The 95% mutation goal remains open.
+
 * version 0.13.69 (2026-11-17)
 - Require and qualify Qt 6.12.0 with CMake 4.5.0 and C++20; pin every tool,
   SDK archive, Python package and GitHub Action to an exact, checked version

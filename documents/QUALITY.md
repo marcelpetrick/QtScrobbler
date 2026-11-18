@@ -72,13 +72,15 @@ libX11 must be available. Run:
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /path/to/new-reports
 ```
 
-The default gate requires separate 95% raw line/branch thresholds and 95% proven
-assertion kills, alongside every other mandatory stage. `--quick` runs the explicit
+The default gate requires separate 95% raw line/branch thresholds and the current
+67% native mutation ratchet, alongside every other mandatory stage. The mutation
+goal is 95% proven assertion kills. `--quick` runs the explicit
 build/test subset while implementation proceeds. `--baseline` runs all stages but
 records subthreshold scores as measurements. Neither diagnostic mode establishes
-complete qualification. CI and tag releases run the default complete gate.
-Manual release workflow dispatch qualifies and uploads an archive; publication
-occurs only for an explicitly pushed version tag.
+complete qualification. CI runs the default complete gate. The release workflow
+requires a matching version tag on a commit that passed complete CI on main and
+repeats the build, tests, and extracted-package checks before publishing. Manual
+dispatch can also publish an existing tag after those checks.
 
 A native Qt Test wrapper also launches the actual GUI on a private Xvfb display,
 finds its main window with libX11 and requests WM_DELETE_WINDOW. Normal termination

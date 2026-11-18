@@ -94,6 +94,45 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
 
 ## Session handoff (2026-11-18, for the next agent)
 
+### Execution plan for the resumed session
+
+The owner reaffirmed completion of the full initiative and authorized the public release.
+The existing tool prefixes are present, local `main` is clean at `7e1786f` and one
+commit ahead, and CI run 44264412011 is still provisioning on `ab41f20`.
+
+1. Keep `origin/main` stable while that CI runs. Qualify the exact local handoff
+   commit with `--quick` and run the complete native gate on the release candidate
+   in separate disk-backed directories. Inspect and record both results.
+2. Keep `v0.13.74` untagged. The exact-version release-note preflight reproduced a
+   failure: `changelog_entry(Path("documents/CHANGELOG"), "0.13.74")` raises
+   `ValueError` because the newest changelog entry is 0.13.69. Prepare 0.13.76 with
+   the required entry and verify it before pushing. If CI fails, inspect the failed
+   log first and qualify the fix. Tag only after the replacement passes the
+   complete local gate and CI on main. Verify the public release workflow,
+   shipped assets, checksums and notes.
+3. In parallel, audit the vision evidence and investigate mutation survivors.
+   Add focused tests only where the original and targeted mutant results can be
+   demonstrated. Measure the whole campaign before raising the ratchet.
+4. Complete the upstream dependency review, branch review and GitHub About
+   review. Fix verified findings. Run the complete gate on the final snapshot,
+   push after main's active CI finishes and inspect the resulting Actions run.
+   Reconcile the README badges, plan checklist and clean remote/local state
+   against actual evidence.
+
+Resumption evidence for the prepared 0.13.76 release candidate:
+
+- The first `--quick` run on `7e1786f` and complete run on `ab41f20` reproduced
+  `dbus-daemon: Socket name too long` before CTest with a long disk-backed
+  `TMPDIR`. The exact `7e1786f` retry used a shorter disk-backed prefix
+  (`~/.cache/qs-75q-b`) with Qt 6.12.0, CMake 4.5.0 and Python 3.15.2 and passed
+  **27/27 CTests**, including the display-backed GUI test. The separate runner
+  fix and regression proof are pending integration.
+- 0.13.76 has an exact changelog section that `tools/release_notes.py` accepts.
+  The workflow now searches for successful CI on main for the exact commit and
+  runs package smoke tests in the offline namespace. An AppImage process error
+  propagates through the output capture pipe. The native application gate is
+  running under `~/.cache/qs-76full`; release workflow and public assets remain open.
+
 State when the session paused (the owner is switching agents):
 
 - `main` = `origin/main` = `ab41f20` (client **0.13.74**, the Xvfb `-noreset` fix).
@@ -111,9 +150,10 @@ State when the session paused (the owner is switching agents):
 
 Next steps, in order:
 
-1. If 44264412011 passes: record it here, then tag `v0.13.74` on `ab41f20` and push the
-   tag. `release.yml` publishes the first release (tarball, AppImage, `.sha256`, notes).
-   Check that release run, then tick the release items above and update the README badges.
+1. If 44264412011 passes: record it here and proceed with the replacement release
+   candidate described above. `release.yml` publishes the first release
+   (tarball, AppImage, `.sha256`, notes). Check that release run, then tick the
+   release items above and update the README badges.
 2. If it fails: fix the cause, run `--quick` on the exact snapshot, push, and watch again.
 3. Open goals: raise the mutation score toward 95% and lift `MUTATION_MINIMUM` with it
    (571 mutants left); finish the vision evidence audit, `reviewBranch`, `githubAbout`,
