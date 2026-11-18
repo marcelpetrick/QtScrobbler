@@ -8,7 +8,7 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![License: GPL v2](https://img.shields.io/github/license/marcelpetrick/QtScrobbler)](LICENSE)
 [![Qt 6.12.0](https://img.shields.io/badge/Qt-6.12.0-41cd52.svg)](documents/DEPENDENCIES.md)
 [![CMake 4.5.0](https://img.shields.io/badge/CMake-4.5.0-064f8c.svg)](documents/DEPENDENCIES.md)
-[![C++20](https://img.shields.io/badge/C%2B%2B-20-00599c.svg)](CMakeLists.txt)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599c.svg)](CMakeLists.txt)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
 [![Measured 0.13.80 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/plan.md#live-handoff--2026-11-18)
 [![Measured 0.13.80 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/plan.md#live-handoff--2026-11-18)
@@ -62,7 +62,7 @@ Verify a download with its `.sha256` file: `sha256sum -c <file>.sha256`.
 
 - Qt >= 6.12 (qualified build: Qt 6.12.0)
 - CMake >= 3.28
-- A C++20 compiler (qualified native toolchain: Clang 20.1.8)
+- A C++23 compiler (qualified native toolchain: Clang 20.1.8)
 - `cmake`, `pkg-config`, libmtp and exactly zlib 1.4
 
 Use private Qt SDK and zlib prefixes; distribution packages may be below these
@@ -157,8 +157,9 @@ process end-to-end tests, and unperformed physical-device/live-service checks.
 
 ## Project and contributors
 
-QtScrobbler continues the SourceForge project by Tomasz Mon, Robert Keevil, and
-other contributors, and is maintained by Marcel Petrick. It remains licensed under
+QtScrobbler is an independent fork of the original SourceForge project by Tomasz
+Mon, Robert Keevil, and other contributors. Marcel Petrick maintains the Linux
+port, which moved first to Qt 5 and then to Qt 6.12. It remains licensed under
 [GPLv2](LICENSE). See [contributors](documents/AUTHORS),
 [changes](documents/CHANGELOG), and the [Qt port history](documents/port_to_qt6.md).
 

@@ -1,3 +1,11 @@
+* version 0.14.0 (2026-11-18)
+- Require C++23 for the maintained GUI, CLI, and native test build.
+- Use C++23-capable Clazy and Cppcheck builds in GitHub Actions and verify all
+  five Qt 6.12 Linux SDK archives with the locked Python installer.
+- Reject oversized protocol replies without waiting for an unbounded stream.
+- Extend offline import, settings, submission, and interface tests.
+- Set up weekly Dependabot checks and dependency review for pull requests.
+
 * version 0.13.85 (2026-11-18)
 - Require 99% line and 95% branch coverage while retaining the 67% mutation ratchet.
 - Bind the release workflow to the exact tag and its successful main CI run.

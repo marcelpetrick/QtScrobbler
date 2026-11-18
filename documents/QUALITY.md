@@ -35,8 +35,10 @@ Qt library model. Missing system includes are suppressed because Cppcheck cannot
 the complete compiler SDK; production parse errors and other diagnostics remain fatal.
 These selected checks are incremental and do not constitute all available checks.
 `QTSCROBBLER_CLAZY_EXTRA_ARGS` adds shell-split compiler arguments for Clazy only.
-CI uses it because Ubuntu 24.04's Clazy 1.11 (Clang 15) cannot parse GCC 14
-libstdc++; it points Clazy at the GCC 13 headers. The build is unchanged.
+CI builds Clazy 1.17.1 against its pinned LLVM 20.1.8 toolchain. The runner
+uses the override to select the same Clang resource headers as the build.
+Clazy analyzes the production compilation database in C++23 mode. CI also
+builds the Cppcheck 2.22.0 parser to handle C++23 syntax.
 
 Qualified host tools are recorded per report. The initial native host supplies
 clang-tidy/Clazy built on LLVM 23.1.1, Clazy 1.17.1, Cppcheck 2.22.0 and Doxygen 1.18.0.

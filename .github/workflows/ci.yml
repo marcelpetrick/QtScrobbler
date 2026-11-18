@@ -29,15 +29,19 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.15.2'
+          architecture: x64
           check-latest: false
 
-      - name: Install system dependencies (non-Qt)
+      - name: Install Ubuntu build and runtime dependencies
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
             build-essential pkg-config python3 python3-venv \
-            libgl-dev libmtp-dev zlib1g-dev libarchive-tools libstdc++-13-dev \
-            clazy cppcheck doxygen graphviz shellcheck xvfb bison flex iproute2 util-linux dbus
+            libgl-dev libmtp-dev zlib1g-dev libarchive-tools ninja-build \
+            doxygen graphviz shellcheck xvfb xauth bison flex iproute2 util-linux dbus \
+            libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 \
+            libxcb-render0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-util1 libxcb-xkb1
 
       - name: Install verified pkgconf and Graphviz
         run: |
@@ -49,27 +53,25 @@ jobs:
           python3 tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
           echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
 
-      - name: Install Qt 6.12.0
-        id: qt
-        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
-        with:
-          version: '6.12.0'
-          host: linux
-          target: desktop
-          arch: linux_gcc_64
-          archives: qtbase qtdeclarative qttools qttranslations icu
-          aqtversion: '==3.3.0'
-          py7zrversion: '==1.1.4'
-          setup-python: false
-          cache: true
-
-      - name: Install locked quality tools
+      - name: Build checksum-verified Cppcheck 2.22.0
         run: |
-          python3 -m venv "$RUNNER_TEMP/qtscrobbler-quality-tools"
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --upgrade -r requirements-bootstrap.txt
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip install --no-build-isolation -r requirements-quality.txt
-          "$RUNNER_TEMP/qtscrobbler-quality-tools/bin/python" -m pip check
-          echo "$RUNNER_TEMP/qtscrobbler-quality-tools/bin" >> "$GITHUB_PATH"
+          tools/install_cppcheck.sh "$RUNNER_TEMP/qtscrobbler-cppcheck" "$RUNNER_TEMP/qtscrobbler-cppcheck-reports"
+          echo "$RUNNER_TEMP/qtscrobbler-cppcheck/bin" >> "$GITHUB_PATH"
+
+      - name: Install locked Python tools
+        run: |
+          tools="$RUNNER_TEMP/qtscrobbler-quality-tools"
+          python3 -m venv "$tools"
+          "$tools/bin/python" -m pip install --no-deps -r requirements-bootstrap.txt
+          "$tools/bin/python" -m pip install --no-deps --no-build-isolation -r requirements-quality.txt
+          "$tools/bin/python" -m pip check
+          echo "$tools/bin" >> "$GITHUB_PATH"
+
+      - name: Install checksum-verified Qt 6.12.0
+        id: qt
+        run: |
+          tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
+          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.0/gcc_64" >> "$GITHUB_OUTPUT"
 
       - name: Install qualified native LLVM and Mull
         run: |
@@ -82,6 +84,15 @@ jobs:
             echo "QTSCROBBLER_MULL_PLUGIN=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/mull-ir-frontend-20"
             echo "LD_LIBRARY_PATH=$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/x86_64-linux-gnu:$RUNNER_TEMP/qtscrobbler-native-tools/usr/lib/llvm-20/lib:${LD_LIBRARY_PATH:-}"
           } >> "$GITHUB_ENV"
+
+      - name: Build checksum-verified Clazy 1.17.1 with LLVM 20.1.8
+        run: |
+          tools/install_clazy.sh "$QTSCROBBLER_LLVM_PREFIX" \
+            "$RUNNER_TEMP/qtscrobbler-clazy" "$RUNNER_TEMP/qtscrobbler-clazy-reports"
+          echo "$RUNNER_TEMP/qtscrobbler-clazy/bin" >> "$GITHUB_PATH"
+          resource_dir=$("$CC" --print-resource-dir)
+          test -d "$resource_dir/include"
+          echo "QTSCROBBLER_CLAZY_EXTRA_ARGS=-resource-dir=$resource_dir" >> "$GITHUB_ENV"
 
       - name: Install verified native call-removal correction
         run: |
@@ -107,15 +118,14 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           unshare --user --map-root-user --net --pid --fork --mount-proc true
 
+      - name: Record actual runner dependencies
+        run: tools/record_runner_dependencies.sh "$RUNNER_TEMP/dependency-reports"
+
       - name: Run the local quality pipeline
         id: pipeline
         env:
           QTSCROBBLER_QT_PREFIX: ${{ steps.qt.outputs.qt-root-dir }}
           QTSCROBBLER_JOBS: '4'
-          # Ubuntu's clazy 1.11 (Clang 15) cannot parse GCC 14 libstdc++; analyze against GCC 13.
-          QTSCROBBLER_CLAZY_EXTRA_ARGS: >-
-            -nostdinc++ -isystem /usr/include/c++/13
-            -isystem /usr/include/x86_64-linux-gnu/c++/13 -isystem /usr/include/c++/13/backward
         run: |
           set -o pipefail
           trap 'mkdir -p build-reports; cp "$RUNNER_TEMP/pipeline.log" build-reports/pipeline.log' EXIT
@@ -148,8 +158,11 @@ jobs:
           path: |
             build-report.md
             build-reports/
+            ${{ runner.temp }}/dependency-reports/
             ${{ runner.temp }}/qtscrobbler-zlib-reports/
             ${{ runner.temp }}/qtscrobbler-aux-tools-reports/
+            ${{ runner.temp }}/qtscrobbler-clazy-reports/
+            ${{ runner.temp }}/qtscrobbler-cppcheck-reports/
           retention-days: 30
           if-no-files-found: error
 

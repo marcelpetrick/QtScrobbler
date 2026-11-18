@@ -19,20 +19,20 @@ workflow adds no alternative definition of a passing test suite or coverage scor
 on pull requests to `main` (and `master` during migration), and on manual dispatch.
 The Ubuntu 24.04 runner installs the required system libraries, checksum-verified
 CMake/CTest 4.5.0, and the Qt 6.12.0 Linux SDK with qtbase, qtdeclarative, qttools, qttranslations
-and ICU archives. The Qt installer and py7zr versions are explicit.
-The complete Python quality tool resolution in `requirements-quality.txt` is installed
-into an isolated virtual environment for pipeline stages such as coverage. GitHub Actions
-are referenced by immutable commit SHAs.
+and ICU archives. Both workflows install the exact bootstrap and quality locks
+into an isolated Python 3.15.2 virtual environment before invoking its aqt installer.
+The shared Qt installer checks all five SDK archives against committed SHA-256 hashes.
+GitHub Actions are referenced by immutable commit SHAs.
 
-The Qt install action's explicit `qt-root-dir` output selects the SDK for the local
+The installer step's explicit `qt-root-dir` output selects the SDK for the local
 pipeline. This prevents a system `qmake6` from selecting an older Qt installation.
 CMake and CTest are taken from the same installed prefix.
 
 Ubuntu 24.04 runners restrict unprivileged user namespaces through AppArmor, which
 makes `tools/run_offline.py` fail closed (`write failed /proc/self/uid_map`). Both
 workflows set `kernel.apparmor_restrict_unprivileged_userns=0` and probe the exact
-namespace set before the pipeline. They also set `QTSCROBBLER_CLAZY_EXTRA_ARGS` so
-Ubuntu's Clazy 1.11 analyzes against GCC 13 libstdc++ (see [quality](QUALITY.md)).
+namespace set before the pipeline. CI provisions Clazy 1.17.1 against the
+same pinned LLVM 20.1.8 as the C++23 build. See [quality](QUALITY.md).
 
 The quality step uses `pipefail` while teeing output, so saving its log cannot hide
 a failure. The always-run report includes actual pipeline output, including failures,
@@ -41,7 +41,9 @@ hardcoded successful stage results.
 
 Artifacts are available in the workflow run's **Artifacts** section:
 
-- `quality-reports`: pipeline/stage logs, JUnit XML, and build report; retained 30 days.
+- `quality-reports` contains pipeline logs, JUnit XML, the build report, and
+  dependency reports with Qt archive checks, runtime links, runner packages,
+  and selected tool versions. Retained for 30 days.
 - `binaries-linux-x86_64`: GUI `qtscrob` and CLI `scrobbler`, uploaded only on success;
   retained 7 days.
 
@@ -104,7 +106,8 @@ The workflow is deliberately small (minutes instead of the full gate's hours):
 7. Write the release notes with `tools/release_notes.py`: the CHANGELOG entry, the
    checks that passed in the qualifying CI run (read from its `quality-reports`
    artifact; any non-PASS mandatory stage stops the release), the release build's
-   unit tests and the SHA-256 of every file. Then publish; logs are kept as an artifact.
+   unit tests and the SHA-256 of every file. Then publish. The `release-logs`
+   artifact includes the build and dependency reports.
 
 Release flow: push to `main`, wait for green CI, then
 `git tag -a vX.Y.Z <commit> && git push origin vX.Y.Z`.

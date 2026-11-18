@@ -55,3 +55,22 @@ pass. This correction enforces the existing fresh-report policy.
 No unresolved introduced finding was verified in the pending native integration.
 This is not final merge/release qualification: whole-scope mutation, full final-tree
 gates, dependency refresh and actual green Actions remain open.
+
+## Continuation review — first release and C++23 preparation
+
+Base `origin/main` at `ab41f20`. Local reviewed head `d2642a3` plus the
+prepared C++23 build and dependency changes. The earlier initiative base
+`origin/master` at `c3fbd8f` remains the provenance for the historical reviews.
+
+| Priority | Category | Verified failure and resolution |
+| --- | --- | --- |
+| High | Code | The release-note generator rejects 0.13.74 because `documents/CHANGELOG` lacked an exact entry. The 0.13.76 candidate includes a matching entry and qualifies that same application version. |
+| Medium | Code | The release workflow searched successful CI by SHA without checking the branch. It now requires main and the exact tagged commit. The AppImage smoke also propagates failures through its output pipe and launches in the offline namespace. |
+| Medium | Code | A long disk-backed `TMPDIR` exceeded the D-Bus pathname socket limit and prevented CTest from starting. The offline runner now binds an abstract socket inside the namespace. The original fails the long-path regression and the fixed exact quick gate passes 27/27. |
+| Medium | Code | The submission parser accepted oversized success bodies and waited on an incomplete oversized stream. The fixed 64 KiB limit rejects both handshakes and POST overflows using the existing translated diagnostics. The original fails three regressions and the fixed complete Submit suite passes 44/44. |
+| Low | Code | The new runner inventory could hide a failing libmtp lookup inside a successful print, and the Qt installer could use a system extractor on a py7zr import error. The recorder now checks the lookup before printing and Qt provisioning checks py7zr before invoking its locked Python installer. |
+
+The focused fixes and regressions are resolved locally. The release verdict still
+depends on the complete candidate gate, green CI on main, and the Release workflow.
+The composed C++23 environment and updated mutation tests require their own fresh
+whole-campaign reports.

@@ -7,7 +7,7 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | Component | Previous project selection | Selected or measured | Source / status |
 | --- | --- | --- | --- |
 | Qt Core, Network, Sql, Xml, Widgets, Test and tools | >=6.8, CI 6.8.* | 6.12.0 | [Official downloads](https://download.qt.io/official_releases/qt/6.12/); 6.12.1 not yet in download index at review |
-| Qt installer | Unpinned indirect tool | aqtinstall 3.3.0 | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); Linux archive set qtbase, qtdeclarative, qttools, qttranslations, icu |
+| Qt installer | Indirect Action provisioning | aqtinstall 3.3.0 from both Python locks | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); all five Linux SDK archives are SHA-256 pinned |
 | CMake / CTest | >=3.28; local 4.4.4 | 4.5.0 qualified toolchain; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.0) |
 | libmtp | Unversioned pkg-config | 1.1.23 locally | [Upstream releases](https://github.com/libmtp/libmtp/releases); current upstream stable; CI distro package resolution still needs a reproducible pin |
 | Compiler | OS-selected | GCC 16.2.1 locally | Exact CI compiler/environment lock pending |
@@ -15,9 +15,10 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | Python | Host 3.14.7; scripts support 3.12+ | Private / Actions 3.15.2 | [Private interpreter qualification](PYTHON_TOOLCHAIN.md); exact bootstrap/source backends in requirements-bootstrap.txt |
 | Coverage frontend | Absent | gcovr 8.8 installed for qualification | [PyPI](https://pypi.org/project/gcovr/8.8/); measurement/gate pending |
 | Mutation engine | Absent | Mull 0.38.0 qualified with LLVM 20.1.8 | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.38.0); published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1; native Qt Test mutation spike qualified; full campaign target remains open |
+| Clazy standalone | Ubuntu Clazy 1.11 / LLVM 15 | CI builds 1.17.1 against LLVM 20.1.8 | [Upstream source tag](https://invent.kde.org/sdk/clazy/-/tags/v1.17.1); checksum-pinned source and development archives support C++23 analysis |
+| Cppcheck | Ubuntu Cppcheck 2.13.0 | CI builds 2.22.0 | [Upstream release](https://github.com/cppcheck-opensource/cppcheck/releases/tag/2.22.0); source is SHA-256 pinned |
 | checkout Action | v4 | v7.0.1, immutable SHA | CI/release workflows |
 | upload-artifact Action | v4 | v7.0.2, immutable SHA | CI/release workflows |
-| install-qt-action | v3 | v4.5.0, immutable SHA | CI/release workflows |
 | action-gh-release | v2 | v3.0.4, immutable SHA | Release workflow; publishing still requires authorization |
 | linuxdeploy (AppImage) | Absent | 1-alpha-20251107-1, SHA-256 pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy/releases/tag/1-alpha-20251107-1); newest non-continuous release; release workflow only |
 | linuxdeploy-plugin-qt | Absent | 1-alpha-20250213-1, SHA-256 `15106be8…c92724` pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/tag/1-alpha-20250213-1); newest non-continuous release; upstream publishes no digest, so the hash was measured on download (12317424 bytes, two consistent fetches); bundles Qt 6.12 into the AppImage |
@@ -38,13 +39,21 @@ on hosts with a newer system ICU. No OS-wide package replacement is needed.
 
 ```sh
 python3 -m venv /path/to/quality-tools
-/path/to/quality-tools/bin/python -m pip install -r requirements-quality.txt
-/path/to/quality-tools/bin/aqt install-qt linux desktop 6.12.0 linux_gcc_64 \
-  --outputdir /path/to/Qt --archives qtbase qtdeclarative qttools qttranslations icu
+/path/to/quality-tools/bin/python -m pip install --no-deps -r requirements-bootstrap.txt
+/path/to/quality-tools/bin/python -m pip install --no-deps --no-build-isolation -r requirements-quality.txt
+/path/to/quality-tools/bin/python -m pip check
+export PATH=/path/to/quality-tools/bin:$PATH
+tools/install_qt_sdk.sh /path/to/new/Qt /path/to/dependency-reports
 
-QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
+QTSCROBBLER_QT_PREFIX=/path/to/new/Qt/6.12.0/gcc_64 \
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
 ```
+
+The installer requires a new directory and verifies the five Qt 6.12.0 Linux
+x86-64 archives against the committed [SHA-256 manifest](../tools/qt-sdk-linux-x86_64.sha256).
+The hashes match the official Qt package repository's
+`6.12.0-0-202609280346` archive sidecars.
+[Qt SDK archive index](https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/)
 
 Use CMake and CTest from the same installation. The verified Linux x86-64 upstream
 CMake 4.5.0 tarball is `cmake-4.5.0-linux-x86_64.tar.gz` with SHA-256
@@ -84,6 +93,16 @@ see the native resolution below for the artifact hash.
   It builds a static PIC library in a private prefix, runs all 16 upstream tests,
   and fingerprints installed artifacts/compiler provenance before allowing reuse.
   Set `ZLIB_ROOT` to this prefix; the complete pipeline and Actions use it.
+- CI builds Clazy 1.17.1 in a private prefix with
+  [`tools/install_clazy.sh`](../tools/install_clazy.sh). The installer binds Clazy
+  source to commit `55a7af428ea793c5b88962eafb8a59f9f5a78d9a` and checks
+  the SHA-256 of each matching LLVM/Clang 20.1.8 development package. CMake and
+  Ninja build the standalone analyzer using the existing LLVM prefix. The runner
+  supplies the pinned Clang resource directory to Clazy at analysis time.
+- CI builds Cppcheck 2.22.0 with
+  [`tools/install_cppcheck.sh`](../tools/install_cppcheck.sh) from exact commit
+  `a436ca35ed1887bee789765122b65ed2d7a7e045`. This version accepts C++23 language
+  constructs such as `if consteval`, which Ubuntu's Cppcheck 2.13.0 rejects.
 - Native Clazy, Cppcheck, Doxygen, Xvfb and libX11 are required by the complete
   gate. The quality reports record their actual versions. Ubuntu distribution
   analyzer/runtime packages still depend on the runner repository resolution;

@@ -93,34 +93,37 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.15.2'
+          architecture: x64
           check-latest: false
 
-      - name: Install system dependencies (non-Qt)
+      - name: Install Ubuntu build and runtime dependencies
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
             build-essential pkg-config libgl-dev libmtp-dev xvfb iproute2 util-linux dbus \
             libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-            libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 libfuse2t64 file xauth
+            libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 \
+            libxcb-render0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-util1 libxcb-xkb1 libfuse2t64 file xauth
 
       - name: Install verified CMake and CTest 4.5.0
         run: |
           python3 tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
           echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
 
-      - name: Install Qt 6.12.0
+      - name: Install locked Python tools
+        run: |
+          tools="$RUNNER_TEMP/qtscrobbler-quality-tools"
+          python3 -m venv "$tools"
+          "$tools/bin/python" -m pip install --no-deps -r requirements-bootstrap.txt
+          "$tools/bin/python" -m pip install --no-deps --no-build-isolation -r requirements-quality.txt
+          "$tools/bin/python" -m pip check
+          echo "$tools/bin" >> "$GITHUB_PATH"
+
+      - name: Install checksum-verified Qt 6.12.0
         id: qt
-        uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
-        with:
-          version: '6.12.0'
-          host: linux
-          target: desktop
-          arch: linux_gcc_64
-          archives: qtbase qtdeclarative qttools qttranslations icu
-          aqtversion: '==3.3.0'
-          py7zrversion: '==1.1.4'
-          setup-python: false
-          cache: true
+        run: |
+          tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
+          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.0/gcc_64" >> "$GITHUB_OUTPUT"
 
       - name: Install and test pinned zlib 1.4
         run: |
@@ -133,6 +136,9 @@ jobs:
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           unshare --user --map-root-user --net --pid --fork --mount-proc true
+
+      - name: Record actual runner dependencies
+        run: tools/record_runner_dependencies.sh "$RUNNER_TEMP/dependency-reports"
 
       - name: Build and run the unit tests
         id: pipeline
@@ -242,6 +248,8 @@ jobs:
           name: release-logs
           path: |
             build-reports/
+            ${{ runner.temp }}/dependency-reports/
+            ${{ runner.temp }}/qtscrobbler-zlib-reports/
             release-notes.md
           retention-days: 30
           if-no-files-found: warn

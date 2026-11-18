@@ -51,6 +51,16 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
   getters. All had live positive profiles and all five getters remained in the
   coverage exports. The raw denominator is unchanged. The separate failed
   sanitizer stage prevents full qualification of that snapshot.
+- C++20 release replacement is commit 9bab0d9 (0.13.85). Its exact staged
+  tree ef67f45 passed 27/27 in quick mode at ~/.cache/qs-ci85.kZnA/reports.
+  The complete local gate uses ~/.cache/qs-85full.b. Wait for run 44264412011
+  before pushing main. Require a successful main CI run on 9bab0d9 and a
+  complete local pass before pushing tag v0.13.85.
+- Prepared 0.14.0 with its matching changelog and separate compiler/CI/docs
+  tranche. The hook ran before preparing the authorized minor version. Run
+  the complete gate with the private C++23 analyzers at ~/.cache/qs-140full.a.
+  Keep the two release sequences separate and the prepared dependency change
+  uncommitted until its complete gate passes.
 - Monitor the five-hour usage window using the session's rate-limit metadata.
   If less than 5% remains, record the measured balance and reset time,
   active reports and processes, staged snapshot, remote CI, and next actions

@@ -5,8 +5,8 @@ verified on 2026-11-17. This interpreter runs provisioning and quality scripts;
 it is not an application runtime dependency. Do not replace the operating system's
 Python. GitHub Actions selects the same exact interpreter with the immutable
 `actions/setup-python` v7.1.0 commit
-`6d4fd22b20465ccc0f7354476588e8df7c9ca0e0`; Qt installation keeps its own
-`setup-python: false` setting.
+`6d4fd22b20465ccc0f7354476588e8df7c9ca0e0`. Both workflows run Qt provisioning from a
+virtual environment installed from the bootstrap and quality locks.
 
 Sources:
 
@@ -72,8 +72,8 @@ mkdir "$python_work/build"
   make -j4 install
 )
 "$python_work/install/bin/python3" -m venv "$python_work/quality-tools"
-"$python_work/quality-tools/bin/python" -m pip install -r requirements-bootstrap.txt
-"$python_work/quality-tools/bin/python" -m pip install --no-build-isolation -r requirements-quality.txt
+"$python_work/quality-tools/bin/python" -m pip install --no-deps -r requirements-bootstrap.txt
+"$python_work/quality-tools/bin/python" -m pip install --no-deps --no-build-isolation -r requirements-quality.txt
 "$python_work/quality-tools/bin/python" -m pip check
 export PATH="$python_work/quality-tools/bin:$PATH"
 ```
@@ -92,7 +92,8 @@ All six matched their current stable PyPI `info.version` on
 [quality resolution](../requirements-quality.txt). Bootstrap/build tooling is
 listed explicitly rather than implied by the interpreter's bundled pip version.
 The SCM helpers are required by the three source-wheel builds.
-Use `--no-build-isolation` after installing this bootstrap so those builds use
+Use `--no-deps` for both locks and run `pip check` after installation. Use
+`--no-build-isolation` after installing the bootstrap so source builds use
 these exact installed backends rather than independently resolving floating
 build requirements.
 
