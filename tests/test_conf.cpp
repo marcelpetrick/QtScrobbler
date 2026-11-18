@@ -65,8 +65,15 @@ class ConfTest : public QObject {
         QTemporaryDir directory;
         ConfStorage storage;
         auto& conf = *storage.value;
+        QSignalSpy logs(&conf, &Conf::add_log);
         conf.set_custom_location(directory.path());
+        logs.clear();
         QVERIFY(!conf.load_config());
+        QCOMPARE(logs.size(), 2);
+        QCOMPARE(logs.first().at(0).value<LOG_LEVEL>(), LOG_INFO);
+        QCOMPARE(logs.first().at(1).toString(), "Moving config to new location");
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_ERROR);
+        QCOMPARE(logs.last().at(1).toString(), "Conf: Access Error");
         for (const auto& site : conf.sites) QVERIFY(!site.enabled);
         QVERIFY(!conf.save_config());
         QSettings preserved("qtscrob");
@@ -219,7 +226,9 @@ class ConfTest : public QObject {
         QVERIFY(conf.load_config());
         QSignalSpy logs(&conf, &Conf::add_log);
         conf.set_custom_location(location);
-        QVERIFY(!logs.isEmpty());
+        QCOMPARE(logs.size(), 2);
+        QCOMPARE(logs.first().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+        QCOMPARE(logs.first().at(1).toString(), "Conf: setting location to " + location);
         QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_ERROR);
         QCOMPARE(logs.last().at(1).toString(), message);
         conf.utc_offset = 99;
@@ -230,12 +239,19 @@ class ConfTest : public QObject {
     }
 
     void customSection() {
+        const QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        QFile persisted(destination.fileName());
         Conf conf;
         const QHash<QString, QVariant> values{{"size", QSize(600, 450)}, {"maximized", true}, {"nested/key", "value"}};
         conf.save_custom("window", values);
+        QVERIFY(persisted.open(QIODevice::ReadOnly));
+        QVERIFY(persisted.readAll().contains("maximized=true"));
+        persisted.close();
         QCOMPARE(conf.load_custom("window"), values);
         QVERIFY(conf.load_custom("missing").isEmpty());
         conf.save_custom("window", {{"maximized", false}});
+        QVERIFY(persisted.open(QIODevice::ReadOnly));
+        QVERIFY(persisted.readAll().contains("maximized=false"));
         QCOMPARE(conf.load_custom("window").value("size").toSize(), QSize(600, 450));
         QCOMPARE(conf.load_custom("window").value("maximized").toBool(), false);
     }
@@ -267,6 +283,7 @@ class ConfTest : public QObject {
         blocker.close();
         QSignalSpy logs(&conf, &Conf::add_log);
         QVERIFY(!conf.save_config());
+        QCOMPARE(logs.size(), 1);
         QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_ERROR);
         QCOMPARE(logs.last().at(1).toString(), "Conf: Access Error");
     }
@@ -313,7 +330,11 @@ class ConfTest : public QObject {
         conf.proxy_pass = "sensitive-proxy-secret";
         conf.sites[CONFIG_CUSTOM].username = "sensitive-user";
         conf.sites[CONFIG_CUSTOM].password_hash = "sensitive-password-hash";
+        const int logsBeforeSave = logs.size();
         QVERIFY(conf.save_config());
+        QCOMPARE(logs.size(), logsBeforeSave + 1);
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+        QCOMPARE(logs.last().at(1).toString(), "Conf: Success on read/write");
         QVERIFY(conf.load_config());
         QSettings actual(file, QSettings::IniFormat);
         QCOMPARE(actual.value("unrelated/key").toString(), "keep me");
@@ -329,18 +350,33 @@ class ConfTest : public QObject {
     }
 
     void migrationFromVersion011PreservesSections() {
-        {
-            QSettings old("qtscrob");
-            old.setValue("application/tz_override", true);
-            old.setValue("application/utc_offset", 2700);
-            old.setValue("application/mru", QStringList{"/fictional/device"});
-            old.setValue("window/size", QSize(700, 500));
-            old.setValue("Last.fm/enabled", true);
-            old.setValue("Last.fm/username", "old-user");
-            old.setValue("Last.fm/password_hash", "old-hash");
-        }
+        QSettings source("qtscrob");
+        source.setFallbacksEnabled(false);
+        source.setValue("application/tz_override", true);
+        source.setValue("application/utc_offset", 2700);
+        source.setValue("application/mru", QStringList{"/fictional/device"});
+        source.setValue("window/size", QSize(700, 500));
+        source.setValue("Last.fm/enabled", true);
+        source.setValue("Last.fm/username", "old-user");
+        source.setValue("Last.fm/password_hash", "old-hash");
+        source.sync();
+        QCOMPARE(source.status(), QSettings::NoError);
+        const QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         Conf conf;
+        QSignalSpy logs(&conf, &Conf::add_log);
         QVERIFY(conf.load_config());
+        QCOMPARE(logs.size(), 2);
+        QCOMPARE(logs.first().at(0).value<LOG_LEVEL>(), LOG_INFO);
+        QCOMPARE(logs.first().at(1).toString(), "Moving config to new location");
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+        QCOMPARE(logs.last().at(1).toString(), "Conf: Success on read/write");
+        QFile persisted(destination.fileName());
+        QVERIFY(persisted.open(QIODevice::ReadOnly));
+        const auto bytes = persisted.readAll();
+        QVERIFY(bytes.contains("utc_offset=2700"));
+        QVERIFY(bytes.contains("username=old-user"));
+        QVERIFY(!QFile::exists(source.fileName()));
+        QVERIFY(source.allKeys().isEmpty());
         QCOMPARE(conf.utc_offset, 2700);
         QVERIFY(conf.tz_override);
         QCOMPARE(conf.mru, QStringList{"/fictional/device"});
@@ -348,8 +384,6 @@ class ConfTest : public QObject {
         QCOMPARE(conf.sites[CONFIG_LASTFM].username, "old-user");
         QCOMPARE(conf.sites[CONFIG_LASTFM].password_hash, "old-hash");
         QCOMPARE(conf.load_custom("window").value("size").toSize(), QSize(700, 500));
-        QSettings old("qtscrob");
-        QVERIFY(old.allKeys().isEmpty());
         QVERIFY(conf.load_config());
         QCOMPARE(conf.utc_offset, 2700);
     }
@@ -401,28 +435,45 @@ class ConfTest : public QObject {
         QCOMPARE(preserved.value("application/username").toString(), "preserved-user");
     }
 
+    void legacyMigration_data() {
+        QTest::addColumn<bool>("enabledFlags");
+        QTest::newRow("legacy-enabled-flags") << true;
+        QTest::newRow("legacy-disabled-flags") << false;
+    }
+
     void legacyMigration() {
+        QFETCH(bool, enabledFlags);
         {
             QSettings old("qtscrob");
             old.setValue("application/lastDirectory", "/example/player");
             old.setValue("application/username", "legacy-user");
             old.setValue("application/password", "legacy-hash");
             old.setValue("application/utc_offset", -3600);
-            old.setValue("application/tz_override", true);
+            old.setValue("application/tz_override", enabledFlags);
             old.setValue("application/checkAutoOpen", false);
-            old.setValue("application/checkDelPlayList", true);
+            old.setValue("application/checkDelPlayList", enabledFlags);
             old.setValue("proxy/proxy_host", "legacy.invalid");
             old.setValue("proxy/proxy_port", 8080);
             old.setValue("proxy/proxy_user", "old-user");
             old.setValue("proxy/proxy_pass", "old-password");
         }
         Conf conf;
+        QSignalSpy logs(&conf, &Conf::add_log);
         QVERIFY(conf.load_config());
+        QCOMPARE(logs.size(), 4);
+        QCOMPARE(logs.at(0).at(0).value<LOG_LEVEL>(), LOG_INFO);
+        QCOMPARE(logs.at(0).at(1).toString(), "Moving config to new location");
+        QCOMPARE(logs.at(1).at(0).value<LOG_LEVEL>(), LOG_INFO);
+        QCOMPARE(logs.at(1).at(1).toString(), "Conf: Upgrading from 0.10 or before");
+        for (const int index : {2, 3}) {
+            QCOMPARE(logs.at(index).at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+            QCOMPARE(logs.at(index).at(1).toString(), "Conf: Success on read/write");
+        }
         QCOMPARE(conf.mru, QStringList({"/example/player"}));
         QCOMPARE(conf.utc_offset, -3600);
-        QVERIFY(conf.tz_override);
+        QCOMPARE(conf.tz_override, enabledFlags);
         QVERIFY(!conf.auto_open);
-        QVERIFY(conf.del_apple_playlist);
+        QCOMPARE(conf.del_apple_playlist, enabledFlags);
         QVERIFY(conf.sites[CONFIG_LASTFM].enabled);
         QCOMPARE(conf.sites[CONFIG_LASTFM].username, "legacy-user");
         QCOMPARE(conf.sites[CONFIG_LASTFM].password_hash, "legacy-hash");
@@ -432,8 +483,24 @@ class ConfTest : public QObject {
         QCOMPARE(conf.proxy_pass, "old-password");
         QSettings old("qtscrob");
         QVERIFY(old.allKeys().isEmpty());
+        QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        destination.setFallbacksEnabled(false);
+        QCOMPARE(destination.value("application/version").toString(), CLIENT_VERSION);
+        QCOMPARE(destination.value("application/mru").toStringList(), QStringList{"/example/player"});
+        QCOMPARE(destination.value("application/tz_override").toBool(), enabledFlags);
+        QCOMPARE(destination.value("application/del_apple_playlist").toBool(), enabledFlags);
+        QVERIFY(!destination.contains("application/lastDirectory"));
+        QVERIFY(!destination.contains("application/checkDelPlayList"));
+        QVERIFY(!destination.contains("application/username"));
+        QVERIFY(!destination.contains("application/password"));
+        QCOMPARE(destination.value("Last.fm/username").toString(), "legacy-user");
+        QCOMPARE(destination.value("Last.fm/password_hash").toString(), "legacy-hash");
+        QCOMPARE(destination.value("proxy/proxy_host").toString(), "legacy.invalid");
+        logs.clear();
         QVERIFY(conf.load_config());
         QCOMPARE(conf.mru.size(), 1);
+        QCOMPARE(logs.size(), 1);
+        QCOMPARE(logs.first().at(1).toString(), "Conf: Success on read/write");
     }
 };
 

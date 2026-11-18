@@ -40,6 +40,13 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
 - [ ] Publish the first C++23 release as **0.14.0**. Set `CLIENT_VERSION` and
       add the exact changelog entry before qualifying the release snapshot.
       Tag `v0.14.0` only after the complete local gate and CI on main pass.
+- [x] Apply the authorized GitHub About update after independent provenance
+      review. Describe the fork from SourceForge, the Qt 5 and then Qt 6.12
+      ports, and continued Linux maintenance. Remove stale qmake and Qt 6.11
+      metadata and verify the public description and topics after updating.
+      The original SourceForge import and Qt 5 port are recorded in
+      `919faaf` and `9286e99`. The GitHub API read-back confirmed the new
+      description and ten discovery topics on 2026-11-18.
 - [x] Inventory current end-to-end and acceptance tests. The CLI suite launches
       the real process and uploads the fixture to loopback. GUI acceptance tests
       run real widgets for import, editing, submission and cancellation. The
@@ -215,6 +222,15 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   in the `gettrackinfo-kU3Gbu/ipod`, `main-window-survivors.hkPAgf`, and
   `~/.cache/qs-cli-native` reports. These targeted runs do not replace the
   full campaign, which is running on the previous 0.13.80 snapshot.
+- Prepared 0.13.82 strengthens settings, database cache, and configuration
+  contracts. On identical native inventories the GUI improves **4/38 to
+  24/38**, SQLite cache **1/11 to 10/11**, and settings persistence **2/18 to
+  16/18**. Unmutated suites pass **46/46**, **24/24**, and **21/21**,
+  respectively. The exact GUI suite also passes three seeded shuffled runs.
+  Evidence lives under `gui-settings-survivors.4hFtrB`, `qs-db-native` and
+  `gettrackinfo-kU3Gbu/conf`. The full 0.13.80 campaign passed raw coverage
+  at **2748/2775 lines and 1037/1073 branches**, with no missing production
+  files, and is still measuring mutation.
 
 State when the session paused (the owner is switching agents):
 

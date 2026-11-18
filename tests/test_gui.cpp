@@ -276,6 +276,36 @@ class GuiTest : public QObject {
         window.settings();  // Destructor closes an open settings dialog safely.
     }
 
+    void closingWindowPersistsLocationAndSettings() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString configPath = directory.filePath("window.ini");
+        QSize size;
+        QPoint position;
+        {
+            QTScrob window;
+            window.scrob->conf->set_custom_location(configPath);
+            window.setupWindow();
+            window.resize(720, 480);
+            window.move(40, 60);
+            window.show();
+            size = window.size();
+            position = window.pos();
+            window.scrob->conf->auto_open = false;
+            auto* exit = menuAction(window, "Exit");
+            QVERIFY(exit);
+            exit->trigger();
+            QVERIFY(!window.isVisible());
+        }
+
+        QTScrob reopened;
+        reopened.scrob->conf->set_custom_location(configPath);
+        reopened.setupWindow();
+        QCOMPARE(reopened.size(), size);
+        QCOMPARE(reopened.pos(), position);
+        QVERIFY(!reopened.scrob->conf->auto_open);
+    }
+
     void settingsPositiveTimezoneAndRecalculation() {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
@@ -735,8 +765,12 @@ class GuiTest : public QObject {
     }
 
     void settingsSaveCancelAndReopen() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString configPath = directory.filePath("settings.ini");
         QTScrob window;
-        window.scrob->conf->auto_open = false;
+        window.scrob->conf->set_custom_location(configPath);
+        window.scrob->conf->auto_open = true;
         window.scrob->conf->del_apple_playlist = true;
         window.scrob->conf->display_utc = true;
         window.scrob->conf->utc_offset = -19800;
@@ -745,13 +779,17 @@ class GuiTest : public QObject {
         window.scrob->conf->proxy_port = 4321;
         window.scrob->conf->proxy_user = "saved-proxy-user";
         window.scrob->conf->proxy_pass = "fictional-proxy-password";
+        auto& lastfm = window.scrob->conf->sites[CONFIG_LASTFM];
+        lastfm.enabled = true;
+        lastfm.username = "existing-user";
+        lastfm.password_hash = "fixture-password-hash";
         window.setupWindow();
         window.settings();
         auto* settings = window.findChild<Settings*>();
         QVERIFY(settings);
         auto sites = siteWidgets(*settings);
         QCOMPARE(sites.size(), CONFIG_NUM_SITES);
-        QVERIFY(!settings->findChild<QCheckBox*>("chkAutoOpen")->isChecked());
+        QVERIFY(settings->findChild<QCheckBox*>("chkAutoOpen")->isChecked());
         QVERIFY(settings->findChild<QCheckBox*>("chkDelPlayList")->isChecked());
         QVERIFY(settings->findChild<QCheckBox*>("chkDisplayUTC")->isChecked());
         QVERIFY(settings->findChild<QGroupBox*>("grpManual")->isChecked());
@@ -781,12 +819,24 @@ class GuiTest : public QObject {
         }
         QVERIFY(!sites[CONFIG_LASTFM]->host->isEnabled());
         QVERIFY(sites[CONFIG_CUSTOM]->host->isEnabled());
+        QVERIFY(sites[CONFIG_LASTFM]->enabled->isChecked());
+        QVERIFY(!sites[CONFIG_LIBREFM]->enabled->isChecked());
+        QVERIFY(!sites[CONFIG_CUSTOM]->enabled->isChecked());
+        QCOMPARE(sites[CONFIG_LASTFM]->username->text(), "existing-user");
+        QCOMPARE(sites[CONFIG_LASTFM]->password->text(), "********");
+        QCOMPARE(sites[CONFIG_LIBREFM]->password->text(), QString());
+        QCOMPARE(sites[CONFIG_CUSTOM]->password->text(), QString());
+        sites[CONFIG_LASTFM]->enabled->setChecked(false);
+        sites[CONFIG_LIBREFM]->enabled->setChecked(true);
+        sites[CONFIG_LIBREFM]->username->setText("new-librefm-user");
         sites[CONFIG_CUSTOM]->enabled->setChecked(true);
         sites[CONFIG_CUSTOM]->host->setText("127.0.0.1:12345");
         sites[CONFIG_CUSTOM]->name->setText("Local fixture");
         sites[CONFIG_CUSTOM]->username->setText("fictional-user");
         sites[CONFIG_CUSTOM]->password->setText("fictional-secret");
         sites[CONFIG_CUSTOM]->password->setModified(true);
+        settings->findChild<QCheckBox*>("chkAutoOpen")->setChecked(false);
+        settings->findChild<QCheckBox*>("chkDelPlayList")->setChecked(false);
         settings->findChild<QCheckBox*>("chkDisplayUTC")->setChecked(true);
         settings->findChild<QLineEdit*>("edtProxyHost")->setText("127.0.0.1");
         settings->findChild<QLineEdit*>("edtProxyPort")->setText("3128");
@@ -798,15 +848,28 @@ class GuiTest : public QObject {
         const auto& site = window.scrob->conf->sites[CONFIG_CUSTOM];
         QCOMPARE(site.handshake_host, "127.0.0.1:12345");
         QCOMPARE(site.conf_name, "Local fixture");
+        QVERIFY(site.enabled);
+        QVERIFY(!lastfm.enabled);
+        QCOMPARE(lastfm.password_hash, "fixture-password-hash");
+        QVERIFY(window.scrob->conf->sites[CONFIG_LIBREFM].enabled);
+        QCOMPARE(window.scrob->conf->sites[CONFIG_LIBREFM].username, "new-librefm-user");
         QCOMPARE(site.password_hash,
                  QString::fromLatin1(QCryptographicHash::hash("fictional-secret", QCryptographicHash::Md5).toHex()));
         QCOMPARE(window.scrob->conf->utc_offset, -19800);
         QCOMPARE(window.scrob->conf->proxy_port, 3128);
+        QVERIFY(!window.scrob->conf->auto_open);
+        QVERIFY(!window.scrob->conf->del_apple_playlist);
         QVERIFY(window.scrob->conf->display_utc);
+        QVERIFY(window.scrob->conf->tz_override);
         window.settings();
         settings = window.findChild<Settings*>();
         QVERIFY(settings);
         sites = siteWidgets(*settings);
+        QVERIFY(!settings->findChild<QCheckBox*>("chkAutoOpen")->isChecked());
+        QVERIFY(!settings->findChild<QCheckBox*>("chkDelPlayList")->isChecked());
+        QVERIFY(!sites[CONFIG_LASTFM]->enabled->isChecked());
+        QVERIFY(sites[CONFIG_LIBREFM]->enabled->isChecked());
+        QVERIFY(sites[CONFIG_CUSTOM]->enabled->isChecked());
         QCOMPARE(sites[CONFIG_CUSTOM]->password->text(), "********");
         QCOMPARE(sites[CONFIG_CUSTOM]->password->echoMode(), QLineEdit::Password);
         sites[CONFIG_CUSTOM]->username->setText("discarded-change");
@@ -818,11 +881,39 @@ class GuiTest : public QObject {
         QCOMPARE(window.scrob->conf->sites[CONFIG_CUSTOM].username, "fictional-user");
         window.settings();
         settings = window.findChild<Settings*>();
+        QVERIFY(settings);
         sites = siteWidgets(*settings);
         QCOMPARE(sites[CONFIG_CUSTOM]->username->text(), "fictional-user");
+        sites[CONFIG_LASTFM]->enabled->setChecked(true);
+        sites[CONFIG_LIBREFM]->enabled->setChecked(false);
+        sites[CONFIG_CUSTOM]->enabled->setChecked(false);
+        settings->findChild<QCheckBox*>("chkAutoOpen")->setChecked(true);
+        settings->findChild<QCheckBox*>("chkDelPlayList")->setChecked(true);
+        settings->findChild<QComboBox*>("cmb_tz_hour")->setCurrentText("0");
+        settings->findChild<QComboBox*>("cmb_tz_min")->setCurrentText("15");
         settings->findChild<QPushButton*>("btnOK")->click();
         QCOMPARE(window.scrob->conf->sites[CONFIG_CUSTOM].password_hash,
                  QString::fromLatin1(QCryptographicHash::hash("fictional-secret", QCryptographicHash::Md5).toHex()));
+        QCOMPARE(window.scrob->conf->utc_offset, 900);
+        QVERIFY(window.scrob->conf->tz_override);
+        window.settings();
+        settings = window.findChild<Settings*>();
+        QVERIFY(settings);
+        QCOMPARE(settings->findChild<QComboBox*>("cmb_tz_hour")->currentText(), "0");
+        QCOMPARE(settings->findChild<QComboBox*>("cmb_tz_min")->currentText(), "15");
+        settings->findChild<QGroupBox*>("grpManual")->setChecked(false);
+        settings->findChild<QPushButton*>("btnOK")->click();
+
+        Conf restored;
+        restored.set_custom_location(configPath);
+        QVERIFY(restored.auto_open);
+        QVERIFY(restored.del_apple_playlist);
+        QVERIFY(!restored.tz_override);
+        QCOMPARE(restored.utc_offset, 900);
+        QVERIFY(restored.sites[CONFIG_LASTFM].enabled);
+        QVERIFY(!restored.sites[CONFIG_LIBREFM].enabled);
+        QVERIFY(!restored.sites[CONFIG_CUSTOM].enabled);
+        QCOMPARE(restored.sites[CONFIG_LASTFM].password_hash, "fixture-password-hash");
         window.settings_close();  // Repeated close notifications are harmless.
     }
 
@@ -1062,7 +1153,12 @@ class GuiTest : public QObject {
         QCOMPARE(window.scrob->get_track(0).artist, "Edited Artist");
         table->item(0, 2)->setText("Edited Title");
         QCOMPARE(window.scrob->get_track(0).title, "Edited Title");
+        QApplication::setOverrideCursor(Qt::CrossCursor);
         window.loadtable();
+        const bool restoredCursor =
+            QApplication::overrideCursor() && QApplication::overrideCursor()->shape() == Qt::CrossCursor;
+        QApplication::restoreOverrideCursor();
+        QVERIFY(restoredCursor);
         table->item(0, 1)->setText("Edited Album");
         QCOMPARE(window.scrob->get_track(0).album, "Edited Album");
 

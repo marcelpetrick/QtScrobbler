@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QProcess>
 #include <QSignalSpy>
 #include <QSqlQuery>
@@ -49,8 +50,18 @@ class DBCacheTest : public QObject {
         DBCache cache;
         QVERIFY(cache.init());
         QCOMPARE(cache.get_track_length("missing", "track"), -1);
+        const qint64 before = QDateTime::currentSecsSinceEpoch();
         cache.set_track_length("Artist's \"quoted\" name", QString::fromUtf8("海辺"), 217);
+        const qint64 after = QDateTime::currentSecsSinceEpoch();
         QCOMPARE(cache.get_track_length("Artist's \"quoted\" name", QString::fromUtf8("海辺")), 217);
+        {
+            QSqlQuery query(QSqlDatabase::database(QSqlDatabase::connectionNames().first()));
+            QVERIFY(query.exec("SELECT timestamp FROM track_length"));
+            QVERIFY(query.next());
+            const qint64 timestamp = query.value(0).toLongLong();
+            QVERIFY(timestamp >= before && timestamp <= after);
+            QVERIFY(!query.next());
+        }
         QCOMPARE(cache.get_track_length("Other artist", QString::fromUtf8("海辺")), -1);
         cache.set_track_length("Artist's \"quoted\" name", QString::fromUtf8("海辺"), 301);
         QCOMPARE(cache.get_track_length("Artist's \"quoted\" name", QString::fromUtf8("海辺")), 301);
@@ -84,13 +95,22 @@ class DBCacheTest : public QObject {
         const auto clock = [] { return qint64(5000000000); };
         {
             DBCache first(directory.path(), clock);
+            QSignalSpy logs(&first, &DBCache::add_log);
             QVERIFY(first.init());
+            QCOMPARE(logs.size(), 1);
+            QCOMPARE(logs.first().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+            QCOMPARE(logs.first().at(1).toString(), "DB: tables: ");
             first.set_track_length("artist", "title", 450);
             QVERIFY(first.init());
+            QCOMPARE(logs.size(), 1);
             QCOMPARE(first.get_track_length("artist", "title"), 450);
         }
         DBCache reopened(directory.path(), clock);
+        QSignalSpy logs(&reopened, &DBCache::add_log);
         QVERIFY(reopened.init());
+        QCOMPARE(logs.size(), 2);
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_DEBUG);
+        QCOMPARE(logs.last().at(1).toString(), "DB: version: " + QString::number(DB_CURRENT_SCHEMA));
         QCOMPARE(reopened.get_track_length("artist", "title"), 450);
     }
 
@@ -98,8 +118,15 @@ class DBCacheTest : public QObject {
         QTemporaryDir directory;
         DBCache cache(directory.path(), {});
         QVERIFY(cache.init());
+        const qint64 before = QDateTime::currentSecsSinceEpoch();
         cache.set_track_length("artist", "title", 180);
+        const qint64 after = QDateTime::currentSecsSinceEpoch();
         QCOMPARE(cache.get_track_length("artist", "title"), 180);
+        QSqlQuery query(QSqlDatabase::database(QSqlDatabase::connectionNames().first()));
+        QVERIFY(query.exec("SELECT timestamp FROM track_length WHERE artist='artist' AND title='title'"));
+        QVERIFY(query.next());
+        const qint64 timestamp = query.value(0).toLongLong();
+        QVERIFY(timestamp >= before && timestamp <= after);
     }
 
     void expiry_data() {
@@ -192,6 +219,8 @@ class DBCacheTest : public QObject {
         DBCache cache(parent + "/child", [] { return qint64(1); });
         QSignalSpy logs(&cache, &DBCache::add_log);
         QVERIFY(!cache.init());
+        QCOMPARE(logs.size(), 1);
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_INFO);
         QCOMPARE(logs.last().at(1).toString(), "DB: path could not be created: " + parent + "/child");
     }
 
@@ -201,6 +230,8 @@ class DBCacheTest : public QObject {
         DBCache cache(directory.path(), [] { return qint64(1); });
         QSignalSpy logs(&cache, &DBCache::add_log);
         QVERIFY(!cache.init());
+        QCOMPARE(logs.size(), 1);
+        QCOMPARE(logs.last().at(0).value<LOG_LEVEL>(), LOG_INFO);
         QVERIFY(logs.last().at(1).toString().startsWith("DB: failed to open:"));
     }
 
