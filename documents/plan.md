@@ -9,6 +9,26 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
 
 ## Latest continuation — 2026-11-18
 
+- Hosted 0.13.85 tag release 44294766294 failed two installer contracts:
+  the runner omitted libarchive-tools (bsdtar). No release or assets
+  were published. Preserve the existing v0.13.85 tag on CI-qualified 9bab0d9.
+- Hosted 0.14.0 CI 44295096927 on 9d9a88c failed Qt's strict ldd audit for
+  libEGL.so.1. All five SDK archives passed their checksums. Ubuntu Noble
+  provides the missing library in libegl1. CI and Release now provision it,
+  and Release also provisions libarchive-tools. The release retry checks out
+  its provisioning helpers from github.workflow_sha while retaining the
+  verified tagged source and exact qualifying main CI for build and assets.
+- Preserve the owner-authorized unreleased 0.14.0 version for this narrowly
+  scoped runner correction. The hook has already prepared 0.14.1 for the
+  separate measurement/ratchet follow-up; its patch is saved at
+  ~/.cache/qs-141-ratchet-staged.patch. Reapply the bump after the 0.14.0 fix.
+  Corrected 0.14.1 snapshot e2b66a4 continues at ~/.cache/qs-141full.b.
+- After the fixed workflow reaches main, dispatch Release from main with
+  tag v0.13.85. Confirm that its exact tag remains 9bab0d9 and that the
+  four assets are public and their checksums verify. Qualify the corrected
+  0.14.0 exact main commit before publishing v0.14.0. No force-push or tag
+  deletion is needed. Full local runner-fix gate uses ~/.cache/qs-140fix.a.
+
 - Main CI 44264412011 on ab41f20 is still running. Preserve it and inspect the
   conclusion before pushing. GitHub has no published release.
 - Exact 0.13.76 (534e642) and 0.13.80 (80af9d0) both failed sanitizer CTest

@@ -100,7 +100,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
-            build-essential pkg-config libgl-dev libmtp-dev xvfb iproute2 util-linux dbus \
+            build-essential pkg-config libgl-dev libegl1 libmtp-dev libarchive-tools xvfb iproute2 util-linux dbus \
             libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
             libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 \
             libxcb-render0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-util1 libxcb-xkb1 libfuse2t64 file xauth
@@ -119,10 +119,19 @@ jobs:
           "$tools/bin/python" -m pip check
           echo "$tools/bin" >> "$GITHUB_PATH"
 
+      # Retry an existing qualified tag with this workflow's provisioning
+      # files, even when the older tagged source predates these helpers.
+      - name: Checkout provisioning scripts from the workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-workflow
+          persist-credentials: false
+
       - name: Install checksum-verified Qt 6.12.0
         id: qt
         run: |
-          tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
+          .release-workflow/tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
           echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.0/gcc_64" >> "$GITHUB_OUTPUT"
 
       - name: Install and test pinned zlib 1.4
@@ -138,7 +147,7 @@ jobs:
           unshare --user --map-root-user --net --pid --fork --mount-proc true
 
       - name: Record actual runner dependencies
-        run: tools/record_runner_dependencies.sh "$RUNNER_TEMP/dependency-reports"
+        run: .release-workflow/tools/record_runner_dependencies.sh "$RUNNER_TEMP/dependency-reports"
 
       - name: Build and run the unit tests
         id: pipeline
