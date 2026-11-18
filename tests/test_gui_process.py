@@ -42,7 +42,10 @@ def main():
         home = Path(temporary)
         read_fd, write_fd = os.pipe()
         server_log = (home / 'xvfb.log').open('w+')
-        server = subprocess.Popen(['Xvfb', '-displayfd', str(write_fd), '-screen', '0', '1024x768x24', '-nolisten', 'tcp'],
+        # -noreset: a server reset rewrites the display number to -displayfd, which is fatal
+        # ("Cannot write display number") once nobody reads it; the pipe also stays open.
+        server = subprocess.Popen(['Xvfb', '-displayfd', str(write_fd), '-noreset', '-screen', '0', '1024x768x24',
+                                   '-nolisten', 'tcp'],
                                   pass_fds=(write_fd,), stdout=server_log, stderr=server_log)
         os.close(write_fd)
         child = None
@@ -53,8 +56,6 @@ def main():
                 server_log.seek(0)
                 raise RuntimeError('private X server did not start: ' + server_log.read())
             display_name = b':' + os.read(read_fd, 32).strip()
-            os.close(read_fd)
-            read_fd = -1
             # Xvfb can announce its display shortly before it accepts clients on slow
             # (sanitizer) runs; retry briefly and keep its log for a real failure.
             connect_deadline = time.monotonic() + 10

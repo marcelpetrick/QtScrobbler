@@ -81,6 +81,11 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
 - [x] Fix the CI-only sanitizer failure: `gui_process` connected to Xvfb right after
       it announced the display and failed on the slower sanitizer run. The test now
       retries for up to 10 s and reports Xvfb's log/exit status on a real failure.
+      Actions 44193926851 (0.13.73) then showed the real cause in that log: Xvfb died
+      with `Cannot write display number to fd 5`. A server reset rewrites the number
+      to `-displayfd`, and the test had already closed the pipe. 0.13.74 starts Xvfb
+      with `-noreset` and keeps the pipe open. The same run passed every other stage,
+      including the mutation ratchet (1193/1766, 67.55% ≥ 67%).
 - [ ] Publish a release. `v0.13.69` (`d07b90e`) cannot be released: its CI failed
       (mutation 67.55% < 95%, Xvfb race), and its old-style release run 44169110976
       failed the same gate. The next green CI commit gets the first release. Its tag was pushed on `d07b90e` before this change, so the

@@ -98,7 +98,7 @@ Clang/LLVM20.1.8, MTP enabled and pinned zlib1.4, by the complete local gate
 | Source branches | 1027 /1063, 96.61335841956726%; 95% gate PASS (local and CI) |
 | Missing production files | None; library, CLI, GUI, and Linux MTP included |
 | Normal CTest | 26 /26 PASS (local and CI) |
-| ASan/UBSan/leak CTest | 26 /26 PASS locally; CI failed only the Xvfb connect race, fixed in 0.13.72 |
+| ASan/UBSan/leak CTest | 26 /26 PASS locally; CI failed only the Xvfb display-pipe reset, fixed in 0.13.74 |
 | Format, static, documentation | PASS (local and CI) |
 | Extracted package checks | PASS (local and CI) |
 | Native mutation | 1195 /1766 assertion-killed, 67.667% locally; 1193 /1766, 67.554% on CI; ratchet 67% PASS, 95% goal open |
