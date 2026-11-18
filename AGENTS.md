@@ -105,11 +105,11 @@ Replace these instructions with the qualified preset/pipeline commands as they a
 - Run long complete gates detached (`setsid nohup <run_dir>/run.sh`) with a
   `run.sh` that records the environment and appends `EXIT=<status>` to the log.
   Gates attached to an agent session die with it and yield no evidence.
-- Current release order: runner fix `0b5cf5f` (0.14.0) is on main. Publish
-  `v0.13.85` (tag on `9bab0d9`, green CI 44278965577) through a Release
-  dispatch from main, then tag `v0.14.0` on `0b5cf5f` after its exact main CI
-  and complete local gate pass. 0.14.1 (77% ratchet, badges) follows after
-  its own complete gate. Never push while a qualifying main CI run is active.
+- Releases v0.13.85 and v0.14.0 are published and verified. A tag push runs
+  the Release workflow of the tagged commit; to publish an older qualified tag
+  with a corrected workflow, cancel that run before it publishes and dispatch
+  `gh workflow run release.yml --ref main -f tag=vX.Y.Z`. Never push while a
+  qualifying main CI run is active.
 - On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
   are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
   `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib

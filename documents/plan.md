@@ -1,19 +1,21 @@
 # Qt 6.12 and quality improvement plan
 
-P0 and the broad behavior suites are implemented. Public CI, releases, C++23
-qualification, and the 95% mutation goal remain open. Updated 2026-11-18 13:15.
+P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
+is green and v0.13.85 and v0.14.0 are published. The 95% mutation goal, the
+owner's live test scrobble and final completion review remain open.
+Updated 2026-11-18 15:30.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
 commit contained only this plan and `AGENTS.md`; implementation has started.
 
-## Session handoff — 2026-11-18T13:15+01:00
+## Session handoff — 2026-11-18T15:30+01:00
 
 A new agent session resumed the previous session's work, which stopped at
-12:36 with 5% of its usage window left. This section is intentionally
-unstaged so the qualifying index keeps its exact tree.
+12:36 with 5% of its usage window left. Entries are chronological; the
+newest state is in the last bullets.
 
-- Remote main is `9d9a88c` (0.14.0) and local main equals it. CI 44295096927
+- At resume, remote main was `9d9a88c` (0.14.0). CI 44295096927
   failed before the gate because `libEGL.so.1` was absent. The pinned Qt
   archive checks all passed. No qualifying main run is active.
 - Existing tag `v0.13.85` remains at `9bab0d9` with green exact CI
@@ -85,6 +87,18 @@ unstaged so the qualifying index keeps its exact tree.
   pushing (workflow, test and docs only). Then tag v0.14.0 on `0b5cf5f`,
   cancel the automatic tag-push run (old workflow), dispatch Release from
   main, and verify the downloaded assets with `sha256sum -c`.
+- **v0.14.0 published (15:21).** Tag `v0.14.0` (annotated) on `0b5cf5f`.
+  The automatic tag-push Release run 44321509274 (old workflow) was
+  cancelled after 12 s, before publishing. Release run 44321624580,
+  dispatched from main at `c10f621`, succeeded: tag/version/CI verification
+  (CI 44301468187), extracted entry points with `sha256sum -c` in dist/, and
+  the new post-publish download verification all passed. Independent
+  download: both `.sha256` files verify; the tarball CLI (with Qt 6.12
+  libraries) and the AppImage under Xvfb/xcb print `v0.14.0`. v0.14.0 is
+  marked Latest; live badges show CI passing, Release passing and release
+  v0.14.0, and main shows the measured 0.14.0 coverage/mutation badges.
+- **Pushed.** `de3544a` (0.14.1) and `c10f621` (0.14.2, quick gate 28/28 at
+  `~/.cache/qs-142q.UuVCic`) are on main; CI 44321463082 runs on `c10f621`.
 - **Owner request: prepare a live test scrobble.** After the releases, set up
   an opt-in live check with the owner's Last.fm credentials and one
   deliberately chosen track, run from a temporary copy of the example log in
