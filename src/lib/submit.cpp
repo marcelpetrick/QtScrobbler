@@ -20,6 +20,26 @@
 
 #include <QCryptographicHash>
 
+namespace {
+constexpr qint64 MAX_RESPONSE_BYTES = 64 * 1024;
+constexpr char RESPONSE_TOO_LARGE[] = "submitResponseTooLarge";
+
+void limitProtocolResponse(QNetworkReply* reply) {
+    // Reserve one extra byte to detect overflow even when the server streams a reply without Content-Length.
+    reply->setReadBufferSize(MAX_RESPONSE_BYTES + 1);
+    QObject::connect(reply, &QNetworkReply::readyRead, reply, [reply] {
+        if (reply->bytesAvailable() > MAX_RESPONSE_BYTES) {
+            reply->setProperty(RESPONSE_TOO_LARGE, true);
+            reply->abort();
+        }
+    });
+}
+
+bool responseTooLarge(const QNetworkReply* reply) {
+    return reply->property(RESPONSE_TOO_LARGE).toBool() || reply->bytesAvailable() > MAX_RESPONSE_BYTES;
+}
+}  // namespace
+
 Submit::Submit(int submit_index) {
     index = submit_index;
     nam_handshake = new QNetworkAccessManager(this);
@@ -133,17 +153,22 @@ void Submit::senddata() {
 
     QByteArray submit_data = QByteArray(data.toUtf8());
     nr_submit = nam_submit->post(submit_handshake, submit_data);
+    limitProtocolResponse(nr_submit);
 }
 
 void Submit::senddata_finished(QNetworkReply* reply) {
     if (reply != nr_submit || cancelled) return;
     nr_submit = nullptr;
     reply->deleteLater();
+    if (responseTooLarge(reply)) {
+        emit finished(false, tr("%1: Server returned an error after sending data").arg(SITE_NAME[index]));
+        return;
+    }
     if (reply->error() != QNetworkReply::NoError) {
         emit finished(false, tr("SUBMIT %1: Request failed, %2").arg(SITE_NAME[index], reply->errorString()));
         return;
     }
-    const QString result = QString::fromUtf8(reply->readAll()).trimmed();
+    const QString result = QString::fromUtf8(reply->read(MAX_RESPONSE_BYTES)).trimmed();
     if (result == "BADSESSION" || result.contains("no POST parameters")) {
         if (++retries > 2) {
             emit finished(false, tr("%1: Submission retry limit reached").arg(SITE_NAME[index]));
@@ -196,6 +221,7 @@ void Submit::handshake() {
     request_handshake.setRawHeader("User-Agent", CLIENT_USERAGENT);
 
     nr_handshake = nam_handshake->get(request_handshake);
+    limitProtocolResponse(nr_handshake);
 }
 
 void Submit::handshake_finished(QNetworkReply* reply) {
@@ -203,10 +229,12 @@ void Submit::handshake_finished(QNetworkReply* reply) {
     nr_handshake = nullptr;
     reply->deleteLater();
     QString error;
-    if (reply->error() != QNetworkReply::NoError)
+    if (responseTooLarge(reply))
+        error = tr("%1: Bad handshake response").arg(SITE_NAME[index]);
+    else if (reply->error() != QNetworkReply::NoError)
         error = tr("%1: HANDSHAKE: Request failed: %2").arg(SITE_NAME[index], reply->errorString());
     else {
-        const auto fields = QString::fromUtf8(reply->readAll()).split('\n');
+        const auto fields = QString::fromUtf8(reply->read(MAX_RESPONSE_BYTES)).split('\n');
         const QString status = fields.first().trimmed();
         if (status == "BANNED")
             error = tr("%1: Handshake Failed - client software banned").arg(SITE_NAME[index]);

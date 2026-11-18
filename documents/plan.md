@@ -26,9 +26,9 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
       or workflow results. Keep this separate from the release-candidate fix.
       Dependabot alerts were already enabled with **0 open alerts**. Enabled and
       read back security updates, secret scanning and push protection. The first
-      GitHub-managed CodeQL scan was started as run 44267841867. Actions and
-      Python jobs passed on initial inspection; the C/C++ job was still
-      running. The scheduled version-update configuration checks pip and
+      GitHub-managed CodeQL scan, run 44267841867, passed for Actions, Python
+      and C/C++. GitHub reports weekly scheduling and **0 open CodeQL,
+      Dependabot or secret-scanning alerts**. The scheduled version-update configuration checks pip and
       GitHub Actions weekly and limits each to one open version-update PR.
       The PR-only Dependency Review action is pinned to v5.0.1. Both YAML
       files parse successfully. Verify default-branch updater jobs and the
@@ -187,6 +187,12 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   The exact staged `--quick` run passed **27/27 CTests** using the long
   `TMPDIR` under `~/.cache/qtscrobbler-runs/77q-long-offline`. Commit
   `ad83e91` contains the runner fix. Complete post-fix qualification remains open.
+- Prepared 0.13.79 caps decoded handshake and submission replies at 64 KiB.
+  Oversized input fails using existing translated diagnostics, and an ongoing
+  oversized chunked stream aborts before end of stream. New size tests fail on
+  the original (**3 regressions**) and the complete offline Submit suite passes
+  **44/44** with the fix. The focused rows passed ten repeated runs. Evidence
+  lives in `~/.cache/qtscrobbler-runs/submit-response.l7PNco`.
 
 State when the session paused (the owner is switching agents):
 

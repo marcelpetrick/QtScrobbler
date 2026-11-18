@@ -190,6 +190,90 @@ class SubmitTest : public QObject {
         QVERIFY(!submit.submission_successful());
     }
 
+    void responseSizeBoundary_data() {
+        QTest::addColumn<bool>("duringPost");
+        QTest::addColumn<bool>("oversized");
+        QTest::newRow("handshake-at-limit") << false << false;
+        QTest::newRow("handshake-over-limit") << false << true;
+        QTest::newRow("submission-at-limit") << true << false;
+        QTest::newRow("submission-over-limit") << true << true;
+    }
+
+    void responseSizeBoundary() {
+        QFETCH(bool, duringPost);
+        QFETCH(bool, oversized);
+        constexpr qsizetype limit = 64 * 1024;
+        HttpFixture server;
+        server.respond = [&](const auto& request) {
+            const bool isPost = request.method == "POST";
+            QByteArray body = isPost ? QByteArray("OK\n") : server.handshake();
+            if (isPost == duringPost) body = body.leftJustified(limit + oversized, ' ');
+            return HttpFixture::Response{body};
+        };
+        auto entries = tracks(1);
+        QMutex mutex;
+        Submit submit(0);
+        QVERIFY(submit.init(context(server, entries, mutex)));
+        QSignalSpy finished(&submit, &Submit::finished);
+        QSignalSpy failure(&submit, &Submit::signalHandshakeFailure);
+        QSignalSpy progress(&submit, &Submit::progress);
+        submit.do_submit();
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size() + failure.size(), 1, 1000);
+
+        if (!duringPost && oversized) {
+            QCOMPARE(failure.size(), 1);
+            QCOMPARE(failure.first().first().toString(), QString("%1: Bad handshake response").arg(SITE_NAME[0]));
+            QCOMPARE(server.requests.size(), 1);
+            QCOMPARE(progress.size(), 0);
+            QCOMPARE(entries[0].sent[0], SENT_UNSENT);
+        } else {
+            QCOMPARE(finished.size(), 1);
+            QCOMPARE(finished.first()[0].toBool(), !oversized);
+            QCOMPARE(
+                finished.first()[1].toString(),
+                oversized ? QString("%1: Server returned an error after sending data").arg(SITE_NAME[0]) : QString());
+            QCOMPARE(server.requests.size(), 2);
+            QCOMPARE(server.requests.last().method, "POST");
+            QCOMPARE(progress.size(), 1);
+            QCOMPARE(entries[0].sent[0], oversized ? SENT_FAILED : SENT_SUCCESS);
+        }
+        QCOMPARE(submit.submission_successful(), !oversized);
+    }
+
+    void oversizedStreamingResponseAbortsBeforeServerFinishes() {
+        HttpFixture server;
+        server.respond = [&](const auto& request) {
+            if (request.method == "GET") return HttpFixture::Response{server.handshake()};
+            return HttpFixture::Response{{}, 200, true};
+        };
+        auto entries = tracks(1);
+        QMutex mutex;
+        Submit submit(0);
+        QVERIFY(submit.init(context(server, entries, mutex)));
+        QSignalSpy finished(&submit, &Submit::finished);
+        submit.do_submit();
+        QTRY_COMPARE_WITH_TIMEOUT(server.requests.size(), 2, 1000);
+
+        QTcpSocket* connection = nullptr;
+        for (auto* socket : server.findChildren<QTcpSocket*>())
+            if (socket->state() == QAbstractSocket::ConnectedState) connection = socket;
+        QVERIFY(connection);
+        QSignalSpy disconnected(connection, &QTcpSocket::disconnected);
+        constexpr qsizetype chunkSize = 64 * 1024;
+        const QByteArray chunk = QByteArray::number(chunkSize, 16) + "\r\n" + QByteArray(chunkSize, ' ') + "\r\n";
+        const QByteArray reply = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + chunk + "1\r\nX\r\n";
+        QCOMPARE(connection->write(reply), reply.size());
+        // Keep the connection open without the terminating chunk. The client must stop as soon as it exceeds
+        // the body limit, without waiting for an end marker or relying on Content-Length.
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 1000);
+        QTRY_COMPARE_WITH_TIMEOUT(disconnected.size(), 1, 1000);
+        QCOMPARE(finished.first()[0].toBool(), false);
+        QCOMPARE(finished.first()[1].toString(),
+                 QString("%1: Server returned an error after sending data").arg(SITE_NAME[0]));
+        QCOMPARE(server.requests.size(), 2);
+        QCOMPARE(entries[0].sent[0], SENT_FAILED);
+    }
+
     void retry_data() {
         QTest::addColumn<QByteArray>("response");
         QTest::newRow("bad-session") << QByteArray("BADSESSION\n");
