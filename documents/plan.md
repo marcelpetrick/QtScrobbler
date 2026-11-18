@@ -92,13 +92,32 @@ Owner requests added 2026-11-17 evening (highest priority with the list above):
       old full release workflow (run **44169110976**) is qualifying it in parallel with
       CI run **44167982834**; later releases use the lean workflow.
 
-Current work (0.13.69, `d07b90e`): local full gate in
-`~/.cache/qtscrobbler-runs/69` PASS through format, static, docs, sanitizers
-(26/26) and coverage (lines 2722/2749 = 99.017824663514%, branches 1027/1063 =
-96.61335841956726%); native mutation is running. CI **44167982834** and the old
-full release run **44169110976** for tag `v0.13.69` are in progress. The
-lean-release and documentation commit is held locally until CI finishes, because
-a push to `main` cancels the running CI.
+## Session handoff (2026-11-18, for the next agent)
+
+State when the session paused (the owner is switching agents):
+
+- `main` = `origin/main` = `ab41f20` (client **0.13.74**, the Xvfb `-noreset` fix).
+  Exact-HEAD snapshot `/tmp/qtscrobbler-74-source` passed `--quick --noRun --noOpen`:
+  **27/27 CTests PASS**, `gui_process` included (reports
+  `~/.cache/qtscrobbler-runs/74q/reports`, log `.../74q/log`). Diagnostic subset only.
+- Actions CI **44264412011** for `ab41f20` was **in progress** at handoff (about 1.5 h
+  per run). Do not push to `main` until it has finished: the concurrency group cancels it.
+  Check it with `gh run view 44264412011`; on failure use `--log-failed` first.
+- The previous run, 44193926851 (`f30f717`, 0.13.73), failed only `gui_process` in the
+  sanitizer stage; every other stage passed, including mutation 1193/1766 (67.55%) ≥ 67%.
+- This handoff note and the AGENTS.md resume section are a docs-only local commit
+  (0.13.75, not pushed, not gated). Push it only after 44264412011 has finished, after a
+  `--quick` run on its exact snapshot.
+
+Next steps, in order:
+
+1. If 44264412011 passes: record it here, then tag `v0.13.74` on `ab41f20` and push the
+   tag. `release.yml` publishes the first release (tarball, AppImage, `.sha256`, notes).
+   Check that release run, then tick the release items above and update the README badges.
+2. If it fails: fix the cause, run `--quick` on the exact snapshot, push, and watch again.
+3. Open goals: raise the mutation score toward 95% and lift `MUTATION_MINIMUM` with it
+   (571 mutants left); finish the vision evidence audit, `reviewBranch`, `githubAbout`,
+   and the complete gate on the final tree.
 
 ## Owner updates and final product requirements
 

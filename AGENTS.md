@@ -95,6 +95,32 @@ Replace these instructions with the qualified preset/pipeline commands as they a
 - Put `/path/to/cmake-4.5.0/bin` first on `PATH`; `~/.local/bin/ctest` is a broken
   wrapper on the development host and fails the CTest stage.
 
+## Resuming a session or switching agents
+
+- Start with the "Session handoff" section of `documents/plan.md`: it names the
+  current commit, the CI run to check and the next steps. Then `git status`,
+  `git log origin/main..` and `gh run list --limit 5`. Never push while a CI run
+  on `main` is in progress.
+- On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
+  are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
+  `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib
+  `/tmp/qtscrobbler-zlib-1.4-qualified`, LLVM/Mull correction
+  `/tmp/qtscrobbler-mull-callfix-qualified2/env.sh`. If any is missing, provision it
+  again following `documents/DEPENDENCIES.md`.
+- Exact-snapshot quick gate used before pushes:
+
+  ```sh
+  git archive HEAD | tar -x -C /tmp/qtscrobbler-<ver>-source
+  . /tmp/qtscrobbler-mull-callfix-qualified2/env.sh
+  export PATH=/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin:$PATH
+  export QTSCROBBLER_QT_PREFIX=/tmp/qtscrobbler-qt/6.12.0/gcc_64
+  export ZLIB_ROOT=/tmp/qtscrobbler-zlib-1.4-qualified QTSCROBBLER_JOBS=4
+  R=~/.cache/qtscrobbler-runs/<ver>q; mkdir -p $R/tmp
+  export QTSCROBBLER_BUILD_DIR=$R/build TMPDIR=$R/tmp
+  cd /tmp/qtscrobbler-<ver>-source
+  ./localPipeline.sh --quick --noRun --noOpen --report-dir $R/reports > $R/log 2>&1
+  ```
+
 ## Testing and measurement policy
 
 - Use Qt Test, QSignalSpy, CTest and real Qt event loops for C++ behavior.
