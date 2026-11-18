@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QSignalSpy>
 #include <QSqlDatabase>
+#include <QStatusBar>
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QTemporaryDir>
@@ -53,6 +54,18 @@ class GuiTest : public QObject {
         for (auto* candidate : widget.findChildren<QPushButton*>())
             if (candidate->text() == text) return candidate;
         return nullptr;
+    }
+
+    static QAction* menuAction(QWidget& window, const QString& text) {
+        for (auto* candidate : window.findChildren<QAction*>(Qt::FindDirectChildrenOnly))
+            if (candidate->text() == text) return candidate;
+        return nullptr;
+    }
+
+    static bool statusBarShows(QTScrob& window, const QString& text) {
+        for (auto* label : static_cast<QMainWindow&>(window).statusBar()->findChildren<QLabel*>())
+            if (label->isVisibleTo(&window) && label->text() == text) return true;
+        return false;
     }
 
     static void answer(QMessageBox::StandardButton answer) {
@@ -151,24 +164,37 @@ class GuiTest : public QObject {
         window.scrob->conf->auto_open = false;
         window.scrob->conf->mru.clear();
         bool sawChooser = false;
+        bool selectsDirectories = false;
         QTimer::singleShot(0, &window, [&] {
             auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
             sawChooser = chooser != nullptr;
-            if (chooser) chooser->reject();
+            if (chooser) {
+                selectsDirectories =
+                    chooser->fileMode() == QFileDialog::Directory && chooser->testOption(QFileDialog::ShowDirsOnly);
+                chooser->reject();
+            }
         });
         window.open_log();
         QVERIFY(sawChooser);
+        QVERIFY(selectsDirectories);
         QCOMPARE(window.scrob->get_num_tracks(), 0);
         QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
-        window.scrob->conf->mru = {directory.path()};
+        QTemporaryDir previous;
+        QVERIFY(previous.isValid());
+        window.scrob->conf->mru = {directory.path(), previous.path()};
+        bool remembersPastLocation = false;
         QTimer::singleShot(0, &window, [&] {
             auto* chooser = qobject_cast<QFileDialog*>(QApplication::activeModalWidget());
             if (chooser) {
+                remembersPastLocation = chooser->history().contains(previous.path());
                 chooser->setDirectory(directory.path());
                 static_cast<QDialog*>(chooser)->accept();
             }
         });
-        window.open_log();
+        auto* openAction = menuAction(window, "Open");
+        QVERIFY(openAction);
+        openAction->trigger();
+        QVERIFY(remembersPastLocation);
         QCOMPARE(window.scrob->get_num_tracks(), 3);
         QVERIFY(window.findChildren<QFileDialog*>().isEmpty());
         window.scrob->cancel_submission();
@@ -221,17 +247,26 @@ class GuiTest : public QObject {
         answer(QMessageBox::Ok);
         window.scrobble();
         QVERIFY(window.scrob->submissions.isEmpty());
-        QTimer::singleShot(0, &window, [] {
+        bool showedAboutQt = false;
+        QTimer::singleShot(0, &window, [&] {
             auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
-            if (box) box->accept();
+            if (box) {
+                showedAboutQt = true;
+                box->accept();
+            }
         });
-        window.aboutQt();
+        auto* aboutQt = menuAction(window, "About Qt");
+        QVERIFY(aboutQt);
+        aboutQt->trigger();
+        QCoreApplication::processEvents();
+        QVERIFY(showedAboutQt);
         window.resize(680, 460);
         window.move(30, 40);
         window.saveWindow();
         QTScrob restored;
         restored.setupWindow();
         QCOMPARE(restored.size(), QSize(680, 460));
+        QCOMPARE(restored.pos(), window.pos());
         window.setWindowState(Qt::WindowMaximized);
         window.saveWindow();
         QTScrob maximized;
@@ -245,7 +280,12 @@ class GuiTest : public QObject {
         QTemporaryDir directory;
         QVERIFY(fixture(directory));
         QTScrob window;
+        window.scrob->conf->display_utc = true;
         window.setupWindow();
+        auto* edit = window.findChild<QDateTimeEdit*>();
+        QVERIFY(edit);
+        edit->setDateTime(QDateTime(QDate(2026, 11, 30), QTime(23, 30, 45)));
+        QVERIFY(statusBarShows(window, "Adjust from (UTC):"));
         window.parse(SCROBBLE_LOG, directory.path());
         window.settings();
         auto* settings = window.findChild<Settings*>();
@@ -256,12 +296,19 @@ class GuiTest : public QObject {
         settings->findChild<QComboBox*>("cmb_tz_min")->setCurrentIndex(3);
         settings->findChild<QPushButton*>("btnOK")->click();
         QCOMPARE(window.scrob->conf->utc_offset, 20700);
-        auto* edit = window.findChild<QDateTimeEdit*>();
+        QCOMPARE(edit->date(), QDate(2026, 12, 1));
+        QCOMPARE(edit->time(), QTime(5, 15, 45));
+        QVERIFY(statusBarShows(window, "Adjust from (Local):"));
+        auto* table = window.findChild<QTableWidget*>();
+        QCOMPARE(table->horizontalHeaderItem(6)->text(), "Date (Local)");
+        QCOMPARE(table->item(0, 6)->text(), "2026-11-17 13:45:00");
         edit->setDateTime(QDateTime(QDate(2026, 11, 17), QTime(12, 0)));
-        window.recalcDT();
+        auto* recalc = button(window, "Recalc Date/Time");
+        QVERIFY(recalc);
+        QTest::mouseClick(recalc, Qt::LeftButton);
         const auto last = window.scrob->get_track(2);
         QCOMPARE(last.when + last.length, 1794916800 - 20700);
-        auto* table = window.findChild<QTableWidget*>();
+        QCOMPARE(table->item(2, 6)->text(), "2026-11-17 11:56:00");
         QTest::keyClick(table, Qt::Key_Right);
         QCOMPARE(window.scrob->get_num_tracks(), 3);
     }
@@ -401,6 +448,16 @@ class GuiTest : public QObject {
             QVERIFY(!control->icon().isNull());
             QVERIFY(central->layout()->indexOf(control) >= 0);
         }
+        QVERIFY(statusBarShows(window, "Ready"));
+        auto* status = static_cast<QMainWindow&>(window).statusBar();
+        auto* date = status->findChild<QDateTimeEdit*>();
+        auto* recalc = button(*status, "Recalc Date/Time");
+        QVERIFY(date && date->isVisible());
+        QVERIFY(recalc && recalc->isVisible() && !recalc->icon().isNull());
+#ifdef HAVE_MTP
+        auto* mtp = button(window, "Open MTP Device");
+        QVERIFY(mtp && mtp->isVisible() && !mtp->icon().isNull());
+#endif
         // Theme icons can mask a broken bundle, so check the bundled fallbacks directly.
         for (const QString name :
              {"16x16/qtscrob.png", "128x128/qtscrob.png", "appointment-new.png", "document-open.png", "edit-clear.png",
@@ -426,6 +483,15 @@ class GuiTest : public QObject {
             for (auto* action : menu->actions()) actual.append(action->text());
             QCOMPARE(actual, expectedActions[index]);
         }
+        for (const QString text : {"Open", "Open iTunesDB", "Settings", "Exit", "Help"}) {
+            auto* action = menuAction(window, text);
+            QVERIFY(action && !action->icon().isNull());
+        }
+#ifdef HAVE_MTP
+        auto* openMtp = menuAction(window, "Open MTP Device");
+        QVERIFY(openMtp && !openMtp->icon().isNull());
+#endif
+        QCOMPARE(menuAction(window, "Help")->shortcut(), QKeySequence(QKeySequence::HelpContents));
     }
 
     void editAllFieldsAndRejectInvalidValues() {
@@ -574,9 +640,17 @@ class GuiTest : public QObject {
         auto* table = window.findChild<QTableWidget*>();
         auto* open = button(window, "Open .scrobbler.log");
         QVERIFY(open);
-        QVERIFY(open->isEnabled());
+        QList<QAbstractButton*> openButtons{open, button(window, "Open iTunesDB")};
+        QList<QAction*> openActions{menuAction(window, "Open"), menuAction(window, "Open iTunesDB")};
+#ifdef HAVE_MTP
+        openButtons.append(button(window, "Open MTP Device"));
+        openActions.append(menuAction(window, "Open MTP Device"));
+#endif
+        for (auto* control : openButtons) QVERIFY(control && control->isEnabled());
+        for (auto* action : openActions) QVERIFY(action && action->isEnabled());
         window.parse(SCROBBLE_LOG, directory.path());
-        QVERIFY(!open->isEnabled());
+        for (auto* control : openButtons) QVERIFY(!control->isEnabled());
+        for (auto* action : openActions) QVERIFY(!action->isEnabled());
         QCOMPARE(window.scrob->conf->mru.first(), directory.path());
         table->selectRow(1);
         answer(QMessageBox::No);
@@ -592,7 +666,8 @@ class GuiTest : public QObject {
         window.deleteRow();
         QCOMPARE(table->rowCount(), 0);
         QVERIFY(!window.scrob->get_parser_busy());
-        QVERIFY(open->isEnabled());
+        for (auto* control : openButtons) QVERIFY(control->isEnabled());
+        for (auto* action : openActions) QVERIFY(action->isEnabled());
         QTest::mouseClick(open, Qt::LeftButton);
         QCOMPARE(table->rowCount(), 3);
         QCOMPARE(window.scrob->conf->mru.count(directory.path()), 1);
@@ -754,28 +829,33 @@ class GuiTest : public QObject {
     void auxiliaryWindowsAndMissingProgress() {
         QTScrob window;
         window.setupWindow();
-        window.help();
+        auto* helpAction = menuAction(window, "Help");
+        auto* aboutAction = menuAction(window, "About");
+        auto* consoleAction = menuAction(window, "Console");
+        QVERIFY(helpAction && aboutAction && consoleAction);
+        helpAction->trigger();
         auto* help = window.findChild<Help*>();
-        QVERIFY(help);
+        QVERIFY(help && help->isVisible());
         QCOMPARE(help->windowTitle(), "QTScrobbler Help");
         auto* helpText = help->findChild<QTextEdit*>();
         QVERIFY(helpText && helpText->isReadOnly());
         QVERIFY(!helpText->toPlainText().isEmpty());
         QVERIFY(help->layout()->indexOf(helpText) >= 0);
         help->close();
-        window.help();
+        helpAction->trigger();
         QCOMPARE(window.findChildren<Help*>().size(), 1);
         QVERIFY(help->isVisible());
-        window.about();
+        aboutAction->trigger();
         auto* about = window.findChild<About*>();
-        QVERIFY(about);
+        QVERIFY(about && about->isVisible());
         QCOMPARE(about->findChild<QLabel*>("lblVersion")->text(), QString("QTScrobbler v%1").arg(CLIENT_VERSION));
         about->close();
-        window.about();
+        aboutAction->trigger();
         QCOMPARE(window.findChildren<About*>().size(), 1);
-        window.console();
+        QVERIFY(about->isVisible());
+        consoleAction->trigger();
         auto* console = window.findChild<Console*>();
-        QVERIFY(console);
+        QVERIFY(console && console->isVisible());
         auto* level = console->findChild<QComboBox*>();
         auto* output = console->findChild<QTextEdit*>();
         QVERIFY(level && output);
@@ -793,11 +873,18 @@ class GuiTest : public QObject {
         window.scrob->clear_log();
         QTRY_VERIFY_WITH_TIMEOUT(output->toPlainText().isEmpty(), 1000);
         console->close();
-        window.console();
+        consoleAction->trigger();
         QCOMPARE(window.findChildren<Console*>().size(), 1);
+        QVERIFY(console->isVisible());
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        window.parse(SCROBBLE_LOG, directory.path());
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table && table->item(0, 4));
+        QCOMPARE(table->item(0, 4)->text(), "210");
         window.missing_times_start(4);
         auto* missing = window.findChild<MissingTimeProgress*>();
-        QVERIFY(missing);
+        QVERIFY(missing && missing->isVisible());
         auto* progress = missing->findChild<QProgressBar*>();
         QVERIFY(progress);
         QCOMPARE(missing->windowTitle(), "Please wait");
@@ -812,8 +899,13 @@ class GuiTest : public QObject {
         QCOMPARE(progress->maximum(), 4);
         window.missing_times_progress(2);
         QCOMPARE(progress->value(), 2);
+        auto first = window.scrob->get_track(0);
+        first.length = 333;
+        window.scrob->update_track(first, 0);
+        QCOMPARE(table->item(0, 4)->text(), "210");
         window.missing_times_finished();
         QVERIFY(!window.findChild<MissingTimeProgress*>());
+        QCOMPARE(table->item(0, 4)->text(), "333");
         window.missing_times_finished();  // A late completion cannot reuse a deleted dialog.
         window.missing_times_start(2);
         window.missing_times_start(2);
@@ -868,6 +960,7 @@ class GuiTest : public QObject {
             dismissError.start(1);
         }
         submit->click();
+        QVERIFY(statusBarShows(window, "Submitting data to server..."));
         auto* progress = window.findChild<Progress*>();
         QVERIFY(progress);
         QVERIFY(progress->isVisible());
@@ -910,10 +1003,14 @@ class GuiTest : public QObject {
         if (outcome != "cancel") QCOMPARE(sentProgress.first().first().toInt(), 3);
         QCOMPARE(finished.first().at(0).toBool(), outcome == "success");
         QTRY_VERIFY_WITH_TIMEOUT(!window.findChild<Progress*>(), 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            statusBarShows(window, outcome == "success" ? "Data submitted succesfully" : "Submission failed"), 2000);
         QVERIFY(submit->isEnabled());
         QVERIFY(button(window, "Open .scrobbler.log")->isEnabled());
         QCOMPARE(QFile::exists(directory.filePath(".scrobbler.log")), outcome != "success");
         QCOMPARE(window.scrob->get_num_tracks(), outcome == "success" ? 0 : 3);
+        QCOMPARE(window.findChild<QTableWidget*>()->rowCount(), outcome == "success" ? 0 : 3);
+        QVERIFY(!window.scrob->get_parser_busy());
         QVERIFY(window.scrob->submissions.isEmpty());
     }
 
@@ -941,12 +1038,21 @@ class GuiTest : public QObject {
         QCOMPARE(parsed.first().at(0).toBool(), true);
         QCOMPARE(table->rowCount(), 3);
         QCOMPARE(window.scrob->get_num_tracks(), 3);
-        QCOMPARE(table->item(0, 0)->text(), "Example Artist");
-        QCOMPARE(table->item(0, 2)->text(), "Morning Signal");
-        QCOMPARE(table->item(0, 3)->text(), "1");
-        QCOMPARE(table->item(0, 4)->text(), "210");
-        QCOMPARE(table->item(0, 5)->text(), "L");
-        QCOMPARE(table->item(0, 6)->text(), "2026-11-17 08:00:00");
+        QVERIFY(statusBarShows(window, "Loaded 3 entries"));
+        const QList<QStringList> expected{
+            {"Example Artist", "Example Album", "Morning Signal", "1", "210", "L", "2026-11-17 08:00:00"},
+            {"Example Artist", "Example Album", "Evening Echo", "2", "185", "L", "2026-11-17 08:05:00"},
+            {"Fictional Ensemble", "Demo Sessions", "Quiet Harbour", "3", "240", "L", "2026-11-17 08:10:00"},
+        };
+        for (int row = 0; row < expected.size(); ++row) {
+            QStringList displayed;
+            for (int column = 0; column < table->columnCount(); ++column) {
+                auto* item = table->item(row, column);
+                QVERIFY(item);
+                displayed.append(item->text());
+            }
+            QCOMPARE(displayed, expected[row]);
+        }
         if (qEnvironmentVariableIsSet("QTSCROBBLER_SCREENSHOT_PATH")) {
             window.resize(1120, 320);
             QApplication::processEvents();

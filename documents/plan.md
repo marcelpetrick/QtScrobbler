@@ -37,6 +37,9 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
       Clang/LLVM 20.1.8 and the release GCC toolchain, including C++23 language
       or library usage and analyzer compatibility. Update README and build
       documentation to match the verified configuration.
+- [ ] Publish the first C++23 release as **0.14.0**. Set `CLIENT_VERSION` and
+      add the exact changelog entry before qualifying the release snapshot.
+      Tag `v0.14.0` only after the complete local gate and CI on main pass.
 - [x] Inventory current end-to-end and acceptance tests. The CLI suite launches
       the real process and uploads the fixture to loopback. GUI acceptance tests
       run real widgets for import, editing, submission and cancellation. The
@@ -204,6 +207,14 @@ Resumption evidence for the prepared 0.13.76 release candidate:
   `~/.cache/qtscrobbler-runs/gettrackinfo-kU3Gbu` and
   `~/.cache/qtscrobbler-runs/gui-survivors.woRbQZ`. These are targeted results.
   The whole campaign must be rerun before changing the mutation ratchet.
+- Prepared 0.13.81 targets three more test surfaces. The native iPod inventory
+  improves **24/43 to 42/43** with 18 additional historical survivor kills.
+  Main-window widget assertions improve **1/65 to 47/65**, and CLI usage and
+  verbosity improve **0/4 to 4/4**. Unmutated suites pass **88/88**, **45/45**,
+  and **65/65**, respectively. Raw before/after databases and original logs are
+  in the `gettrackinfo-kU3Gbu/ipod`, `main-window-survivors.hkPAgf`, and
+  `~/.cache/qs-cli-native` reports. These targeted runs do not replace the
+  full campaign, which is running on the previous 0.13.80 snapshot.
 
 State when the session paused (the owner is switching agents):
 

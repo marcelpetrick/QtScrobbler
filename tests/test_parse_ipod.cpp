@@ -5,6 +5,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#include <limits>
 
 #include "parse-ipod.h"
 
@@ -67,8 +68,8 @@ QByteArray payload(const QList<QByteArray>& tracks) {
     return result;
 }
 
-QByteArray database(const QByteArray& body, bool compressed = false) {
-    const QByteArray contents = compressed ? qCompress(body).mid(4) : body;
+QByteArray database(const QByteArray& body, bool compressed = false, int compressionLevel = -1) {
+    const QByteArray contents = compressed ? qCompress(body, compressionLevel).mid(4) : body;
     QByteArray result("mhbd", 4);
     append32(result, 12);
     append32(result, compressed ? contents.size() : contents.size() + 12);
@@ -132,18 +133,33 @@ class ParseIpodTest : public QObject {
     void validDatabase_data() {
         QTest::addColumn<bool>("compressed");
         QTest::addColumn<int>("offset");
-        QTest::newRow("plain-utc") << false << 0;
-        QTest::newRow("plain-positive-offset") << false << 3600;
-        QTest::newRow("compressed-negative-offset") << true << -1800;
+        QTest::addColumn<int>("headerSize");
+        QTest::addColumn<int>("trackNumber");
+        QTest::newRow("plain-utc") << false << 0 << 12 << 7;
+        QTest::newRow("plain-positive-offset") << false << 3600 << 12 << 7;
+        QTest::newRow("plain-minimum-header") << false << 0 << 8 << 7;
+        QTest::newRow("plain-extended-header") << false << 0 << 64 << 7;
+        QTest::newRow("maximum-track-number") << false << 0 << 12 << std::numeric_limits<int>::max();
+        QTest::newRow("compressed-negative-offset") << true << -1800 << 12 << 7;
+        QTest::newRow("compressed-extended-header") << true << 0 << 64 << 7;
     }
 
     void validDatabase() {
         QFETCH(bool, compressed);
         QFETCH(int, offset);
+        QFETCH(int, headerSize);
+        QFETCH(int, trackNumber);
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
-        const auto body = payload({track(QString::fromUtf8("Björk 示例"), "Demo Title", "Demo Album")});
-        QVERIFY(writeFixture(directory.path(), database(body, compressed), playCounts({2}), compressed));
+        const auto body =
+            payload({track(QString::fromUtf8("Björk 示例"), "Demo Title", "Demo Album", 210999, trackNumber)});
+        auto db = database(body, compressed);
+        if (headerSize < 12)
+            db.remove(headerSize, 12 - headerSize);
+        else
+            db.insert(12, QByteArray(headerSize - 12, '\0'));
+        set32(db, 4, headerSize);
+        QVERIFY(writeFixture(directory.path(), db, playCounts({2}), compressed));
         Parse_Ipod parser;
         QList<scrob_entry> entries;
         connect(&parser, &Parse::entry, this, [&](scrob_entry item) { entries.append(item); });
@@ -159,7 +175,7 @@ class ParseIpodTest : public QObject {
         QCOMPARE(entries[0].title, "Demo Title");
         QCOMPARE(entries[0].album, "Demo Album");
         QCOMPARE(entries[0].length, 210);
-        QCOMPARE(entries[0].tracknum, 7);
+        QCOMPARE(entries[0].tracknum, trackNumber);
         QCOMPARE(entries[0].when, static_cast<int>(TrackTime) - offset);
         QCOMPARE(entries[0].played, QChar('L'));
         QCOMPARE(entries[0].mb_track_id, QString());
@@ -169,12 +185,20 @@ class ParseIpodTest : public QObject {
         parser.clear();
         QCOMPARE(cleared.size(), 1);
         QVERIFY(cleared.first().at(0).toBool());
-        QVERIFY(!QFile::exists(directory.filePath("iPod_Control/iTunes/Play Counts")));
+        const auto countsPath = directory.filePath("iPod_Control/iTunes/Play Counts");
+        QCOMPARE(cleared.first().at(1).toString(), "Deleted log file " + countsPath);
+        QVERIFY(!QFile::exists(countsPath));
         QVERIFY(QFile::exists(
             directory.filePath(compressed ? "iPod_Control/iTunes/iTunesCDB" : "iPod_Control/iTunes/iTunesDB")));
+        const auto replacementCounts = playCounts({1});
+        QVERIFY(writeFile(countsPath, replacementCounts));
         parser.clear();
         QCOMPARE(cleared.size(), 2);
         QCOMPARE(cleared.last().at(0).toBool(), false);
+        QCOMPARE(cleared.last().at(1).toString(), "Asked to clear without successfully parsing");
+        QFile replacement(countsPath);
+        QVERIFY(replacement.open(QIODevice::ReadOnly));
+        QCOMPARE(replacement.readAll(), replacementCounts);
     }
 
     void skipUnplayedOrIncompleteTracks() {
@@ -237,8 +261,8 @@ class ParseIpodTest : public QObject {
         set32(artist, 8, 16);
         QTest::newRow("artist-record") << artist << QByteArray();
         QTest::newRow("dataset") << block("mhsd", 16) << QByteArray();
-        QTest::newRow("artwork-list") << block("mhli", 8) << QByteArray();
-        QTest::newRow("artwork-record") << block("mhii", 8) << QByteArray();
+        QTest::newRow("artwork-list") << block("mhli", 12) << QByteArray();
+        QTest::newRow("artwork-record") << block("mhii", 16) << QByteArray();
         QTest::newRow("unknown-metadata") << QByteArray() << metadata(999, "discarded");
         QTest::newRow("playlist-list") << QByteArray() << QByteArray("mhlpJUNK");
         QTest::newRow("playlist") << QByteArray() << QByteArray("mhypJUNK");
@@ -343,6 +367,10 @@ class ParseIpodTest : public QObject {
             << truncatedHeader << goodCounts << false << QString("invalid iTunesDB header");
         QTest::newRow("compressed-truncated-header")
             << truncatedHeader << goodCounts << true << QString("invalid iTunesCDB header");
+        QTest::newRow("plain-header-without-body")
+            << goodDb.left(12) << goodCounts << false << QString("Different number of tracks");
+        QTest::newRow("compressed-header-without-stream") << database(goodPayload, true).left(12) << goodCounts << true
+                                                          << QString("invalid compressed iTunesCDB data");
         QByteArray corruptCompressed("mhbd", 4);
         append32(corruptCompressed, 12);
         append32(corruptCompressed, 5);
@@ -364,6 +392,10 @@ class ParseIpodTest : public QObject {
         add("empty-body", QByteArray());
         add("partial-block-type", goodPayload + "mh");
         add("track-without-list", track());
+        auto lateTrackList = payload({});
+        set32(lateTrackList, 8, 1);
+        QTest::newRow("track-before-list") << database(track() + lateTrackList) << goodCounts << false
+                                           << QString("invalid or truncated iTunesDB block");
         add("short-track-header", payload({block("mhit", 47)}));
         add("metadata-without-track", payload({}) + metadata(MHOD_TITLE, "orphan"));
         QByteArray badTrack = track();
@@ -376,6 +408,8 @@ class ParseIpodTest : public QObject {
         badList = goodPayload;
         set32(badList, 8, 2);
         add("track-list-count-mismatch", badList);
+        QTest::newRow("truncated-track-list-count")
+            << database(payload({}).left(8)) << goodCounts << false << QString("invalid or truncated iTunesDB block");
         add("artist-header-truncated", QByteArray("mhla"));
         add("artist-header-short", block("mhla", 8).replace(4, 4, QByteArray(4, '\0')));
         add("artist-record-truncated", QByteArray("mhia"));
@@ -460,7 +494,11 @@ class ParseIpodTest : public QObject {
     }
 
     void extendedHeadersAndRecords() {
-        QByteArray body = payload({track()});
+        QByteArray extendedTrack = track();
+        extendedTrack.insert(48, QByteArray(4, '\1'));
+        set32(extendedTrack, 4, 52);
+        extendedTrack.insert(52, metadata(999, "discarded"));
+        QByteArray body = payload({extendedTrack});
         body.insert(12, QByteArray(4, '\0'));
         set32(body, 4, 16);
         QByteArray counts = playCounts({1});
@@ -478,6 +516,7 @@ class ParseIpodTest : public QObject {
         QCOMPARE(completed.size(), 1);
         QVERIFY(completed.first().at(0).toBool());
         QCOMPARE(entries.size(), 1);
+        QCOMPARE(entries[0].title, "Demo Title");
         QCOMPARE(entries[0].when, static_cast<int>(TrackTime));
     }
 
@@ -499,13 +538,20 @@ class ParseIpodTest : public QObject {
         QCOMPARE(entries[0].title, title);
     }
 
+    void excessiveDecodedSize_data() {
+        QTest::addColumn<int>("extraByte");
+        QTest::addColumn<QString>("message");
+        QTest::newRow("exact-limit-reaches-block-check") << 0 << "Unknown blocktype: xxxx (0x78787878)";
+        QTest::newRow("over-limit") << 1 << "Parsing failed - decompressed iTunesCDB exceeds 256 MiB";
+    }
+
     void excessiveDecodedSize() {
-        // The encoded stream is tiny; the decoder must stop as soon as output
-        // would exceed the documented 256 MiB body cap.
+        QFETCH(int, extraByte);
+        QFETCH(QString, message);
         QByteArray db;
         {
-            const QByteArray excessive(256 * 1024 * 1024 + 1, 'x');
-            db = database(excessive, true);
+            const QByteArray decoded(256 * 1024 * 1024 + extraByte, 'x');
+            db = database(decoded, true, 1);
         }
         QTemporaryDir directory;
         QVERIFY(writeFixture(directory.path(), db, playCounts({1}), true));
@@ -514,22 +560,52 @@ class ParseIpodTest : public QObject {
         parser.open(directory.path(), 0);
         QCOMPARE(completed.size(), 1);
         QVERIFY(!completed.first().at(0).toBool());
-        QVERIFY(completed.first().at(1).toString().contains("decompressed iTunesCDB exceeds 256 MiB"));
+        QCOMPARE(completed.first().at(1).toString(), message);
+    }
+
+    void excessiveFileSize_data() {
+        QTest::addColumn<int>("extraByte");
+        QTest::addColumn<QString>("message");
+        QTest::newRow("exact-limit-reaches-format-check") << 0 << "Parsing failed - not an iTunesDB file";
+        QTest::newRow("over-limit") << 1 << "Parsing failed - iTunesDB file exceeds 256 MiB";
     }
 
     void excessiveFileSize() {
+        QFETCH(int, extraByte);
+        QFETCH(QString, message);
         QTemporaryDir directory;
-        QVERIFY(writeFixture(directory.path(), database(payload({track()})), playCounts({1})));
+        QVERIFY(writeFixture(directory.path(), "NOPE", playCounts({1})));
         QFile file(directory.filePath("iPod_Control/iTunes/iTunesDB"));
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        QVERIFY(file.resize(256 * 1024 * 1024 + 1));  // Sparse file; no large fixture committed.
+        QVERIFY(file.open(QIODevice::ReadWrite));
+        QVERIFY(file.resize(256 * 1024 * 1024 + extraByte));
         file.close();
         Parse_Ipod parser;
         QSignalSpy completed(&parser, &Parse::open_finished);
         parser.open(directory.path(), 0);
         QCOMPARE(completed.size(), 1);
         QVERIFY(!completed.first().at(0).toBool());
-        QVERIFY(completed.first().at(1).toString().contains("iTunesDB file exceeds 256 MiB"));
+        QCOMPARE(completed.first().at(1).toString(), message);
+    }
+
+    void exactMaximumPlayCount() {
+        QTemporaryDir directory;
+        QVERIFY(writeFixture(directory.path(), database(payload({track()})), playCounts({1000000})));
+        Parse_Ipod parser;
+        int emitted = 0;
+        int firstTimestamp = -1;
+        int lastTimestamp = -1;
+        connect(&parser, &Parse::entry, this, [&](const scrob_entry& item) {
+            if (emitted == 0) firstTimestamp = item.when;
+            lastTimestamp = item.when;
+            ++emitted;
+        });
+        QSignalSpy completed(&parser, &Parse::open_finished);
+        parser.open(directory.path(), 0);
+        QCOMPARE(completed.size(), 1);
+        QVERIFY(completed.first().at(0).toBool());
+        QCOMPARE(emitted, 1000000);
+        QCOMPARE(firstTimestamp, static_cast<int>(TrackTime));
+        QCOMPARE(lastTimestamp, 0);
     }
 
     void clearFailureCanBeRetriedSafely() {
@@ -539,6 +615,7 @@ class ParseIpodTest : public QObject {
         QSignalSpy completed(&parser, &Parse::open_finished);
         QSignalSpy cleared(&parser, &Parse::clear_finished);
         parser.open(directory.path(), 0);
+        QCOMPARE(completed.size(), 1);
         QVERIFY(completed.first().at(0).toBool());
         const QString path = directory.filePath("iPod_Control/iTunes/Play Counts");
         QVERIFY(QFile::remove(path));

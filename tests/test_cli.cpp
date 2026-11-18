@@ -228,6 +228,12 @@ class CliTest : public QObject {
         QCOMPARE(result.exitStatus, QProcess::NormalExit);
         QCOMPARE(result.exitCode, 2);
         QCOMPARE(result.error, message);
+        if (message == "Error - no (single) method specified\n") {
+            QVERIFY(result.output.startsWith(QByteArray("scrobbler (v") + CLIENT_VERSION + ")"));
+            QVERIFY(result.output.contains("Methods (choose exactly one):\n"));
+        } else {
+            QCOMPARE(result.output, QByteArray());
+        }
     }
 
     void badConfiguration_data() {
@@ -296,7 +302,8 @@ class CliTest : public QObject {
 
     void upload_data() {
         QTest::addColumn<QString>("mode");
-        for (const QString mode : {"short", "long", "timezone", "utc-overrides-timezone", "recalc", "now", "quiet"})
+        for (const QString mode :
+             {"short", "long", "timezone", "utc-overrides-timezone", "recalc", "now", "quiet", "trace"})
             QTest::newRow(qPrintable(mode)) << mode;
     }
 
@@ -318,6 +325,7 @@ class CliTest : public QObject {
         if (mode == "recalc") arguments << "-r" << QString::number(reference);
         if (mode == "now") arguments << "-n";
         if (mode == "quiet") arguments << "-v" << "0";
+        if (mode == "trace") arguments << "--verbose=3";
         const qint64 startedAt = QDateTime::currentSecsSinceEpoch();
         const Result result = run(arguments, directory.path());
         const qint64 finishedAt = QDateTime::currentSecsSinceEpoch();
@@ -325,6 +333,12 @@ class CliTest : public QObject {
         QCOMPARE(result.exitStatus, QProcess::NormalExit);
         QCOMPARE(result.exitCode, 0);
         QVERIFY(result.output.endsWith("Submission complete\n"));
+        if (mode == "quiet") {
+            QCOMPARE(result.output, QByteArray("Submission complete\n"));
+        } else {
+            QVERIFY(result.output.contains("INFO : Successfully parsed 1 log entries\n"));
+            QCOMPARE(result.output.contains("DEBUG: Log CLIENT: QtScrobbler-offline-test\n"), mode == "trace");
+        }
         QCOMPARE(result.error, QByteArray());
         QCOMPARE(server.requests.size(), 2);
         const HttpRequest& handshake = server.requests[0];
