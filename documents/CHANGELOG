@@ -1,3 +1,9 @@
+* version 0.13.84 (2026-11-18)
+- Make the display-backed GUI test close the mapped window once and verify
+  orderly exit, including under sanitizers.
+- Include the bounded protocol response handling, expanded offline tests,
+  and GitHub dependency automation prepared since 0.13.76.
+
 * version 0.13.76 (2026-11-18)
 - Publish Linux x86-64 GUI and CLI binaries as a tarball and a Qt 6.12 AppImage,
   with SHA-256 checksums and release notes generated from the qualifying CI run.

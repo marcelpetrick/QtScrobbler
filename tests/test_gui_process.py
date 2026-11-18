@@ -23,6 +23,22 @@ class Event(C.Union):
     _fields_ = [('client', ClientMessage), ('padding', C.c_long * 24)]
 
 
+class WindowAttributes(C.Structure):
+    # XGetWindowAttributes writes the full Xlib structure even though we only read map_state.
+    _fields_ = [('x', C.c_int), ('y', C.c_int), ('width', C.c_int), ('height', C.c_int),
+                ('border_width', C.c_int), ('depth', C.c_int), ('visual', C.c_void_p),
+                ('root', C.c_ulong), ('window_class', C.c_int), ('bit_gravity', C.c_int),
+                ('win_gravity', C.c_int), ('backing_store', C.c_int),
+                ('backing_planes', C.c_ulong), ('backing_pixel', C.c_ulong),
+                ('save_under', C.c_int), ('colormap', C.c_ulong), ('map_installed', C.c_int),
+                ('map_state', C.c_int), ('all_event_masks', C.c_long),
+                ('your_event_mask', C.c_long), ('do_not_propagate_mask', C.c_long),
+                ('override_redirect', C.c_int), ('screen', C.c_void_p)]
+
+
+IS_VIEWABLE = 2  # X11 IsViewable
+
+
 def main():
     binary = Path(sys.argv[1]).resolve()
     if not binary.is_file() or not shutil.which('Xvfb') or not find_library('X11'):
@@ -31,6 +47,7 @@ def main():
     x.XOpenDisplay.argtypes, x.XOpenDisplay.restype = [C.c_char_p], C.c_void_p
     x.XDefaultRootWindow.argtypes, x.XDefaultRootWindow.restype = [C.c_void_p], C.c_ulong
     x.XQueryTree.argtypes = [C.c_void_p, C.c_ulong, C.POINTER(C.c_ulong), C.POINTER(C.c_ulong), C.POINTER(C.POINTER(C.c_ulong)), C.POINTER(C.c_uint)]
+    x.XGetWindowAttributes.argtypes = [C.c_void_p, C.c_ulong, C.POINTER(WindowAttributes)]
     x.XGetWMProtocols.argtypes = [C.c_void_p, C.c_ulong, C.POINTER(C.POINTER(C.c_ulong)), C.POINTER(C.c_int)]
     x.XFetchName.argtypes = [C.c_void_p, C.c_ulong, C.POINTER(C.c_void_p)]
     x.XInternAtom.argtypes, x.XInternAtom.restype = [C.c_void_p, C.c_char_p, C.c_int], C.c_ulong
@@ -83,6 +100,9 @@ def main():
                     raise RuntimeError('cannot inspect private X tree')
                 try:
                     for candidate in children[:count.value]:
+                        attributes = WindowAttributes()
+                        if not x.XGetWindowAttributes(display, candidate, C.byref(attributes)) or attributes.map_state != IS_VIEWABLE:
+                            continue
                         name = C.c_void_p()
                         if x.XFetchName(display, candidate, C.byref(name)) and name.value:
                             try:
@@ -108,12 +128,10 @@ def main():
             event.client = ClientMessage(33, 0, 1, display, window,
                                          x.XInternAtom(display, b'WM_PROTOCOLS', 0), 32,
                                          (C.c_long * 5)(x.XInternAtom(display, b'WM_DELETE_WINDOW', 0), 0, 0, 0, 0))
-            deadline = time.monotonic() + 5
-            while child.poll() is None and time.monotonic() < deadline:
-                if not x.XSendEvent(display, window, 0, 0, C.byref(event)):
-                    raise RuntimeError('window close request failed')
-                x.XSync(display, 0)
-                time.sleep(0.05)
+            # Qt destroys the window before the process necessarily exits.
+            if not x.XSendEvent(display, window, 0, 0, C.byref(event)):
+                raise RuntimeError('window close request failed')
+            x.XSync(display, 0)
             output, errors = child.communicate(timeout=5)
             if child.returncode or errors:
                 raise RuntimeError(f'GUI close failed ({child.returncode}): {errors.decode(errors="replace")}')

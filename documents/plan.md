@@ -24,6 +24,18 @@ commit contained only this plan and `AGENTS.md`; implementation has started.
   `./localPipeline.sh --quick --noRun --noOpen --report-dir <new-dir>`.
   Reports and logs: ~/.cache/qs-83q.90wr. Full qualification was skipped
   by the diagnostic mode. C++23 build and dependency changes are separate.
+- Prepared C++20 replacement 0.13.84. The GUI smoke test waits for the mapped
+  window, sends one close event and checks the resulting process exit. Sanitized
+  offline repeats passed 30/30. A controlled 300 ms process-exit delay reproduced
+  BadWindow in 3/3 original runs and passed 3/3 with the fix. Evidence is in
+  ~/.cache/qs-gui-close-audit. Exact staged 0.13.84 tree c2a1e58 passed
+  27/27 in quick mode at ~/.cache/qs-84.r1Ip/reports. Full qualification
+  and matching successful main CI remain required before the release tag.
+- Owner priority update: fix public CI and README badges first. The coverage
+  target is now 99% lines, with the existing separate 95% branch gate. The
+  absolute mutation floor is 65%; the current 67% ratchet remains above it.
+  Carry the gate changes in a separate implementation commit and subject the
+  eventual release commit to the revised gates.
 - Monitor the five-hour usage window using the session's rate-limit metadata.
   If less than 5% remains, record the measured balance and reset time,
   active reports and processes, staged snapshot, remote CI, and next actions
