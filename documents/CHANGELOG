@@ -1,3 +1,7 @@
+* version 0.15.4 (2026-11-25)
+- README and quality report: publish the coverage and mutation results
+  measured by the complete 0.15.3 gate.
+
 * version 0.15.3 (2026-11-24)
 - AppImage: bundle Qt's Wayland platform plugin and its shell, decoration and
   graphics integrations. Wayland sessions printed "Could not find the Qt

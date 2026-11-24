@@ -101,8 +101,16 @@ with `sha256sum -c` (`~/.cache/qs-release-0.15.0`) and the AppImage prints
   complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
   `~/.cache/qs-gate-0.15.3`.
 
-Remaining in this session: confirm main CI on 0.15.2 and 0.15.3, then tag
-`v0.15.3` on the CI-green commit and verify that Release (AppImage with both
+0.15.3 gate: EXIT=0, every mandatory stage PASS; lines 2738/2765, branches
+1037/1073, assertion-killed 1363/1749 (77.93%). Main CI 45478989326 passed
+on 0.15.2.
+
+- `0.15.4` docs: README badges/text and QUALITY.md measured results now
+  cite the complete 0.15.3 gate. Gate: `--quick` on this exact tree in
+  `~/.cache/qs-gate-0.15.4` (documentation-only on top of 0.15.3).
+
+Remaining in this session: confirm main CI on 0.15.4, then tag
+`v0.15.4` (0.15.3 plus documentation) on the CI-green commit and verify that Release (AppImage with both
 platform plugins, tar.gz, Windows ZIP and three checksums). Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.

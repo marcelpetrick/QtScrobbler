@@ -10,8 +10,8 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![CMake 4.5.1](https://img.shields.io/badge/CMake-4.5.1-064f8c.svg)](documents/DEPENDENCIES.md)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599c.svg)](CMakeLists.txt)
 [![Platforms: Linux | Windows](https://img.shields.io/badge/platforms-Linux_%7C_Windows-fcc624.svg)](documents/GITHUB_ACTIONS.md)
-[![Measured 0.14.0 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
-[![Measured 0.14.0 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
+[![Measured 0.15.3 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
+[![Measured 0.15.3 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
 [![Measured 0.14.0 mutation score: 78.02%](https://img.shields.io/badge/mutants_killed-78.02%25_(ratchet_77%25)-brightgreen.svg)](documents/MUTATION_TESTING.md#measured-results)
 [![Tests: Qt Test](https://img.shields.io/badge/tests-Qt_Test-41cd52.svg)](tests/CMakeLists.txt)
 [![Code style: clang-format](https://img.shields.io/badge/code%20style-clang--format-4c566a.svg)](.clang-format)
@@ -34,10 +34,9 @@ The screenshot comes from the running application after importing the
 [fictional example log](examples/README.md). Recreate it with
 `tools/capture_screenshot.sh /path/to/build`; the capture uses temporary settings and a log copy.
 
-The complete local 0.14.0 gate covered 2,748 of 2,775 lines (99.02%) and
-1,037 of 1,073 branches (96.64%). Test assertions killed 1,385 of 1,775
-native mutants (78.02%). The 0.13.85 CI run measured the same coverage and
-killed 1,381 of 1,775 mutants (77.80%). [Measured results](documents/QUALITY.md#measured-results)
+The complete local 0.15.3 gate covered 2,738 of 2,765 lines (99.02%) and
+1,037 of 1,073 branches (96.64%). Test assertions killed 1,363 of 1,749
+native mutants (77.93%). [Measured results](documents/QUALITY.md#measured-results)
 
 [Build and dependencies](documents/DEPENDENCIES.md) ·
 [Testing and quality](documents/QUALITY.md) ·
