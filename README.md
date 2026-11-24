@@ -9,7 +9,7 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![Qt 6.12.1](https://img.shields.io/badge/Qt-6.12.1-41cd52.svg)](documents/DEPENDENCIES.md)
 [![CMake 4.5.1](https://img.shields.io/badge/CMake-4.5.1-064f8c.svg)](documents/DEPENDENCIES.md)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599c.svg)](CMakeLists.txt)
-[![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
+[![Platforms: Linux | Windows](https://img.shields.io/badge/platforms-Linux_%7C_Windows-fcc624.svg)](documents/GITHUB_ACTIONS.md)
 [![Measured 0.14.0 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
 [![Measured 0.14.0 branch coverage: 96.64%](https://img.shields.io/badge/branches-96.64%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
 [![Measured 0.14.0 mutation score: 78.02%](https://img.shields.io/badge/mutants_killed-78.02%25_(ratchet_77%25)-brightgreen.svg)](documents/MUTATION_TESTING.md#measured-results)
@@ -25,8 +25,10 @@ Import your portable player's listening history, review the tracks, and scrobble
 - Configure scrobbling services in the desktop settings, or use the CLI for scripted workflows.
 - Use the English, German, or Polish interface.
 
-Linux is the maintained platform. Windows and macOS sources are retained, but their
-current builds and device compatibility have not been qualified.
+Linux is the fully qualified platform. Each CI run also builds a Windows x86-64 package
+with Qt 6.12.1 (MinGW) and gates it on five portable Qt Test suites and a smoke test of
+the extracted ZIP; the other suites are not yet ported to Windows, and MTP support is
+Linux-only. macOS sources are retained but not built.
 
 The screenshot comes from the running application after importing the
 [fictional example log](examples/README.md). Recreate it with
@@ -46,13 +48,15 @@ killed 1,381 of 1,775 mutants (77.80%). [Measured results](documents/QUALITY.md#
 
 ## Download
 
-Published Linux x86-64 builds come with notes listing the changes and checks that
+Published x86-64 builds come with notes listing the changes and checks that
 passed. [GitHub releases](https://github.com/marcelpetrick/QtScrobbler/releases)
 
 - `QtScrobbler-<version>-x86_64.AppImage`: self-contained, bundles Qt 6.12.
   Run `chmod +x QtScrobbler-*.AppImage && ./QtScrobbler-*.AppImage`.
 - `qtscrobbler-<version>-linux-x86_64.tar.gz`: the stripped `qtscrob` (GUI) and
   `scrobbler` (CLI); needs Qt >= 6.12 and libmtp installed.
+- `qtscrobbler-<version>-windows-x86_64.zip` (Windows 10/11): unpack and run
+  `qtscrob.exe` (GUI) or `scrobbler.exe` (CLI); bundles Qt 6.12 and the MinGW runtime.
 
 Verify a download with its `.sha256` file: `sha256sum -c <file>.sha256`.
 

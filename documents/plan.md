@@ -40,8 +40,15 @@ complete `./localPipeline.sh --noRun --noOpen` before committing.
   after the fix on Windows.
   Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
   `~/.cache/qs-gate-0.14.6` (reports/summary.txt; `EXIT=` in log).
+- `0.15.0` feat(release): Windows x86-64 ZIP. Validated on the real runner
+  from the temporary branch `ci/windows-validation` (runs 45410753831,
+  45411322912 failed while porting the installer; 45412165069 passed). The
+  gate covers 5 Qt Test suites; 6 suites remain test-side ports, measured in
+  `documents/GITHUB_ACTIONS.md`. Release publishes AppImage, tar.gz and ZIP.
+  Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
+  `~/.cache/qs-gate-0.15.0` (reports/summary.txt; `EXIT=` in log).
 
-Remaining in this session: 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
+Remaining in this session: push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
 tar.gz, Windows ZIP and checksums) and close PR #9 as superseded. Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.

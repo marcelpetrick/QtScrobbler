@@ -106,9 +106,11 @@ def verified_install(prefix: Path) -> bool:
     if data.get("version") != VERSION or data.get("source_sha256") != SHA256:
         raise ValueError("existing zlib manifest has a different resolution")
     files = data.get("installed_files", {})
-    if not isinstance(files, dict) or not {"include/zlib.h", "include/zconf.h", "lib/libz.a"} <= files.keys():
+    # zlib's CMake names the static archive libzs.a for MinGW and libz.a elsewhere.
+    if (not isinstance(files, dict) or not {"include/zlib.h", "include/zconf.h"} <= files.keys()
+            or not {"lib/libz.a", "lib/libzs.a"} & files.keys()):
         raise ValueError("existing zlib manifest is incomplete")
-    actual = {str(path.relative_to(prefix)) for path in prefix.rglob("*")
+    actual = {path.relative_to(prefix).as_posix() for path in prefix.rglob("*")
               if path.is_file() and path != manifest}
     if actual != set(files):
         raise ValueError("installed zlib artifact inventory differs from the manifest")
@@ -141,7 +143,7 @@ def install(args: argparse.Namespace) -> Path:
     if prefix.exists() and any(prefix.iterdir()):
         raise ValueError("zlib prefix must be empty or contain a verified install")
     cmake = Path(shutil.which(str(args.cmake)) or args.cmake).resolve()
-    ctest = cmake.with_name("ctest")
+    ctest = cmake.with_name("ctest" + cmake.suffix)
     if not cmake.is_file() or not ctest.is_file():
         raise ValueError("select qualified CMake and its sibling CTest")
     reports = (args.report_dir or prefix.with_name(prefix.name + "-reports")).resolve()
@@ -172,7 +174,7 @@ def install(args: argparse.Namespace) -> Path:
         if count == 0 or any(int(suite.attrib.get(key, "0")) for key in ("failures", "errors", "skipped")):
             raise ValueError("zlib upstream test report is empty or failed")
         run([str(cmake), "--install", str(build)], reports / "install.log")
-        installed = {str(path.relative_to(prefix)): digest(path) for path in prefix.rglob("*") if path.is_file()}
+        installed = {path.relative_to(prefix).as_posix(): digest(path) for path in prefix.rglob("*") if path.is_file()}
         cache = (build / "CMakeCache.txt").read_text()
         (reports / "CMakeCache.txt").write_text(cache)
         tools = {tool.name: subprocess.check_output([str(tool), "--version"], text=True).splitlines()[0]

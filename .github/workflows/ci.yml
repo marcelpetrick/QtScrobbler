@@ -176,3 +176,89 @@ jobs:
             build/scrobbler
           retention-days: 7
           if-no-files-found: error
+
+  windows:
+    name: Windows package (Windows Server 2025 / Qt 6.12.1 MinGW)
+    runs-on: windows-2025
+    # A modal Qt error dialog would otherwise block until the default job limit.
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Python 3.15.2
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15.2'
+          architecture: x64
+          check-latest: false
+
+      - name: Install verified CMake and CTest 4.5.1
+        run: |
+          python tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
+          echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
+
+      - name: Install checksum-verified Qt 6.12.1 MinGW and MinGW 15.1
+        run: python tools/install_qt_sdk_windows.py --dest "$RUNNER_TEMP/qtscrobbler-qt"
+
+      - name: Install and test pinned zlib 1.4
+        env:
+          CMAKE_GENERATOR: MinGW Makefiles
+          CC: gcc
+        run: |
+          MINGW_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin")
+          export PATH="$MINGW_BIN:$PATH"
+          python tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib" \
+            --cmake "$RUNNER_TEMP/qtscrobbler-cmake/bin/cmake.exe"
+
+      - name: Build, test, package and smoke-test the Windows ZIP
+        id: package
+        env:
+          QTSCROBBLER_JOBS: '4'
+        run: |
+          VERSION=$(sed -n 's/^#define CLIENT_VERSION "\([^"]*\)".*/\1/p' src/lib/common.h)
+          ZIP=$(tools/build_windows_package.sh "$RUNNER_TEMP/qtscrobbler-qt/6.12.1/mingw_64" \
+            "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin" "$RUNNER_TEMP/qtscrobbler-zlib" \
+            "$VERSION" dist | tail -n 1)
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+
+      # Measurement only: these suites still assume Linux settings storage, file
+      # permissions and process output. Their real Windows results are recorded, not gated.
+      - name: Measure the suites not yet ported to Windows
+        if: success()
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          MINGW_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin")
+          QT_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/6.12.1/mingw_64/bin")
+          export PATH="$MINGW_BIN:$QT_BIN:$PATH"
+          mkdir -p windows-unported-suites
+          status=0
+          for suite in conf dbcache scrobble cli gui translations; do
+            # Qt Test writes its report to a file, so an abnormal exit still leaves evidence.
+            if (cd build-windows && timeout 120 "./test_$suite.exe" -o "../windows-unported-suites/$suite.txt,txt"); then
+              echo "$suite: PASS"
+            else
+              echo "$suite: FAIL (exit $?)"
+              status=1
+            fi
+          done > windows-unported-suites/summary.txt 2>&1
+          cat windows-unported-suites/summary.txt
+          exit "$status"
+
+      - name: Upload the Windows package
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x86_64
+          path: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.zip }}.sha256
+            windows-unported-suites/
+          retention-days: 7
+          if-no-files-found: error

@@ -3,7 +3,8 @@ name: Release
 # Releases only publish commits that CI already qualified. The complete quality gate
 # (static analysis, sanitizers, coverage and native mutation testing) runs in CI on
 # main; this workflow repeats only the build and unit tests, then publishes Linux
-# x86-64 binaries (tar.gz and AppImage) with evidence-based release notes.
+# x86-64 binaries (tar.gz and AppImage) and the Windows x86-64 ZIP with
+# evidence-based release notes.
 on:
   push:
     tags: ['v[0-9]*']
@@ -22,8 +23,100 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  windows:
+    name: Windows package (Windows Server 2025 / Qt 6.12.1 MinGW)
+    runs-on: windows-2025
+    # A modal Qt error dialog would otherwise block until the default job limit.
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      tests: ${{ steps.package.outputs.tests }}
+
+    steps:
+      - name: Validate release tag
+        id: tag
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Expected a release tag of the form vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          fi
+          {
+            echo "name=$TAG"
+            echo "version=${TAG#v}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.tag.outputs.name }}
+
+      - name: Checkout provisioning scripts from the workflow commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .release-workflow
+          persist-credentials: false
+
+      - name: Install Python 3.15.2
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.15.2'
+          architecture: x64
+          check-latest: false
+
+      - name: Install verified CMake and CTest 4.5.1
+        run: |
+          python .release-workflow/tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
+          echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
+
+      - name: Install checksum-verified Qt 6.12.1 MinGW and MinGW 15.1
+        run: python .release-workflow/tools/install_qt_sdk_windows.py --dest "$RUNNER_TEMP/qtscrobbler-qt"
+
+      - name: Install and test pinned zlib 1.4
+        env:
+          CMAKE_GENERATOR: MinGW Makefiles
+          CC: gcc
+        run: |
+          MINGW_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin")
+          export PATH="$MINGW_BIN:$PATH"
+          python .release-workflow/tools/install_zlib.py --prefix "$RUNNER_TEMP/qtscrobbler-zlib" \
+            --cmake "$RUNNER_TEMP/qtscrobbler-cmake/bin/cmake.exe"
+
+      - name: Build, test, package and smoke-test the Windows ZIP
+        id: package
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          QTSCROBBLER_JOBS: '4'
+        run: |
+          set -o pipefail
+          # The script smoke-tests the banner, so the tagged source must carry $VERSION.
+          ZIP=$(.release-workflow/tools/build_windows_package.sh "$RUNNER_TEMP/qtscrobbler-qt/6.12.1/mingw_64" \
+            "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin" "$RUNNER_TEMP/qtscrobbler-zlib" \
+            "$VERSION" dist 2> >(tee windows-package.log >&2) | tail -n 1)
+          TESTS=$(grep -oE '[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+' windows-package.log | tail -n 1)
+          test -n "$TESTS"
+          {
+            echo "zip=$ZIP"
+            echo "tests=Windows CTest suites: $TESTS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload the Windows package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows
+          path: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.zip }}.sha256
+          retention-days: 7
+          if-no-files-found: error
+
   release:
     name: Linux release (Ubuntu 24.04 / Qt 6.12.1)
+    needs: windows
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -203,6 +296,12 @@ jobs:
           (cd "$(dirname "$APPIMAGE")" && sha256sum "$(basename "$APPIMAGE")") > "$APPIMAGE.sha256"
           echo "path=$APPIMAGE" >> "$GITHUB_OUTPUT"
 
+      - name: Download the Windows package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-windows
+          path: dist
+
       - name: Check extracted release entry points
         env:
           ARCHIVE: ${{ steps.meta.outputs.archive }}
@@ -232,12 +331,15 @@ jobs:
           CI_REPORTS: ${{ steps.meta.outputs.ci_reports }}
           ARCHIVE: ${{ steps.pkg.outputs.archive_path }}
           APPIMAGE: ${{ steps.appimage.outputs.path }}
+          WINDOWS_ZIP: dist/qtscrobbler-${{ steps.meta.outputs.version }}-windows-x86_64.zip
+          WINDOWS_TESTS: ${{ needs.windows.outputs.tests }}
         run: |
           TESTS=$(grep -oE '[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+|100% tests passed out of [0-9]+' \
             build-reports/ctest.log | tail -n 1)
           python3 tools/release_notes.py --version "$VERSION" --commit "$SHA" --ci-run "$CI_RUN" \
             --ci-reports "$CI_REPORTS" --release-tests "unit tests on the release build: $TESTS" \
-            --asset "$APPIMAGE" --asset "$ARCHIVE" --output release-notes.md
+            --windows-tests "$WINDOWS_TESTS" \
+            --asset "$APPIMAGE" --asset "$ARCHIVE" --asset "$WINDOWS_ZIP" --output release-notes.md
           cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release
@@ -251,6 +353,8 @@ jobs:
             ${{ steps.appimage.outputs.path }}.sha256
             ${{ steps.pkg.outputs.archive_path }}
             ${{ steps.pkg.outputs.archive_path }}.sha256
+            dist/qtscrobbler-${{ steps.meta.outputs.version }}-windows-x86_64.zip
+            dist/qtscrobbler-${{ steps.meta.outputs.version }}-windows-x86_64.zip.sha256
           fail_on_unmatched_files: true
 
       # Download what users get and check every published checksum file.
@@ -261,7 +365,9 @@ jobs:
           VERIFY_DIR=$(mktemp -d)
           trap 'rm -rf "$VERIFY_DIR"' EXIT
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$VERIFY_DIR"
-          test "$(find "$VERIFY_DIR" -maxdepth 1 -name '*.sha256' | wc -l)" -eq 2
+          test "$(find "$VERIFY_DIR" -maxdepth 1 -name '*.sha256' | wc -l)" -eq 3
+          test -n "$(find "$VERIFY_DIR" -maxdepth 1 -name '*.AppImage')"
+          test -n "$(find "$VERIFY_DIR" -maxdepth 1 -name '*-windows-x86_64.zip')"
           (cd "$VERIFY_DIR" && sha256sum -c -- ./*.sha256)
 
       - name: Upload release logs

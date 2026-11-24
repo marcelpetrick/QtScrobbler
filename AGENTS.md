@@ -114,7 +114,7 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   `~/.cache/qs-tools` (they were lost from `/tmp` on reboot before 2026-11-24):
   Qt `qt/6.12.1/gcc_64`, CMake 4.5.1 `cmake`, zlib `zlib`, LLVM/Mull `native-tools`,
   call-removal correction `mull-callfix`, `clazy`, `cppcheck`, `aux-tools`, Python
-  `quality-tools`. `~/.cache/qs-tools/provision.sh`
+  `quality-tools`, and the Windows kit `qt-win`. `~/.cache/qs-tools/provision.sh`
   re-creates missing ones following `documents/DEPENDENCIES.md`;
   `~/.cache/qs-tools/env.sh` exports the complete gate environment, including
   `QTSCROBBLER_CLAZY_EXTRA_ARGS`.
@@ -129,6 +129,8 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   # gate.sh extracts the snapshot, sources env.sh, records the environment and
   # appends EXIT=<status> to <run_dir>/log.
   ```
+- Windows: the GitHub Windows runner is the qualifying evidence. A local cross build
+  (host MinGW targets UCRT, Qt's kit msvcrt) under Wine is only a portability check.
 
 ## Testing and measurement policy
 

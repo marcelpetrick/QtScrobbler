@@ -1,3 +1,8 @@
+* version 0.15.0 (2026-11-24)
+- Publish a Windows x86-64 ZIP built with Qt 6.12.1 (MinGW 15.1) next to the
+  Linux AppImage and tarball. CI builds it on Windows Server 2025, runs the
+  Windows-qualified Qt Test suites and smoke-tests the extracted package.
+
 * version 0.14.6 (2026-11-24)
 - Keep non-Latin artist, album and title text from Audioscrobbler logs on
   Windows: decoded UTF-8 no longer round-trips through the ANSI code page.

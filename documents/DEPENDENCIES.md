@@ -7,8 +7,9 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | Component | Previous project selection | Selected or measured | Source / status |
 | --- | --- | --- | --- |
 | Qt Core, Network, Sql, Xml, Widgets, Test and tools | >=6.8, CI 6.8.* | 6.12.1 (`6.12.1-0-202611180427`) | [Official open-source release](https://download.qt.io/official_releases/qt/6.12/6.12.1/); newest stable 2026-11-24, 6.13 is pre-release only |
+| Qt for Windows (release ZIP) | Absent | 6.12.1 MinGW kit with MinGW 15.1.0 (`15.1.0-202610271023`) | [Qt repository](https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6121/qt6_6121_mingw/); five archives SHA-256 pinned in `tools/qt-sdk-windows-x86_64.sha256` |
 | Qt installer | Indirect Action provisioning | aqtinstall 3.3.0 from both Python locks | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); all five Linux SDK archives are SHA-256 pinned |
-| CMake / CTest | >=3.28; local 4.4.4 | 4.5.1 qualified; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.1) |
+| CMake / CTest | >=3.28; local 4.4.4 | 4.5.1 (Linux and Windows archives) qualified; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.1) |
 | libmtp | Unversioned pkg-config | 1.1.23 locally | [Upstream releases](https://github.com/libmtp/libmtp/releases); current upstream stable; CI distro package resolution still needs a reproducible pin |
 | Compiler | OS-selected | GCC 16.2.1 locally | Exact CI compiler/environment lock pending |
 | pkg-config implementation | Host pkgconf 3.0.7 | Private pkgconf 3.0.11 | Checksum-pinned installer and 429 upstream checks; final project qualification pending |
@@ -19,6 +20,7 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | Cppcheck | Ubuntu Cppcheck 2.13.0 | CI builds 2.22.0 | [Upstream release](https://github.com/cppcheck-opensource/cppcheck/releases/tag/2.22.0); source is SHA-256 pinned |
 | checkout Action | v4 | v7.0.1, immutable SHA | CI/release workflows |
 | upload-artifact Action | v4 | v7.0.2, immutable SHA | CI/release workflows |
+| download-artifact Action | Absent | v8.0.2, immutable SHA `9000827c…8333` | Release workflow; moves the Windows ZIP to the publishing job |
 | action-gh-release | v2 | v3.0.4, immutable SHA | Release workflow; publishing still requires authorization |
 | linuxdeploy (AppImage) | Absent | 1-alpha-20251107-1, SHA-256 pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy/releases/tag/1-alpha-20251107-1); newest non-continuous release; release workflow only |
 | linuxdeploy-plugin-qt | Absent | 1-alpha-20250213-1, SHA-256 `15106be8…c92724` pinned | [Upstream release](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/tag/1-alpha-20250213-1); newest non-continuous release; upstream publishes no digest, so the hash was measured on download (12317424 bytes, two consistent fetches); bundles Qt 6.12 into the AppImage |
@@ -55,10 +57,12 @@ The hashes match the official Qt package repository's
 `6.12.1-0-202611180427` archive sidecars.
 [Qt SDK archive index](https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6121/qt6_6121/qt.qt6.6121.linux_gcc_64/)
 
-Use CMake and CTest from the same installation. The verified Linux x86-64 upstream CMake 4.5.1 tarball is
-`cmake-4.5.1-linux-x86_64.tar.gz` with SHA-256
-`83b71181fb62b4fe8f26067a9321448572e7a43bd04ff6c7f54a24c33698f16d`, checked
-against upstream's `cmake-4.5.1-SHA-256.txt`.
+Use CMake and CTest from the same installation. The verified upstream CMake 4.5.1 archives are `cmake-4.5.1-linux-x86_64.tar.gz`
+(SHA-256 `83b71181fb62b4fe8f26067a9321448572e7a43bd04ff6c7f54a24c33698f16d`) and
+`cmake-4.5.1-windows-x86_64.zip` (SHA-256
+`bfe6eadb245dc8213e0d3feea316b520cb2aae92f5667ffd76059ba6b05c430c`), both checked
+against upstream's `cmake-4.5.1-SHA-256.txt`. `tools/install_cmake.py` selects the
+archive for the host.
 
 ## Repeatable dependency review
 
@@ -181,8 +185,23 @@ isolation for the quality resolution so CPython3.15 source wheels use the review
 build backends instead of floating build requirements. The private selected Python
 and native tools do not replace the user's host runtime libraries.
 
+## Windows release toolchain
 
-## Download client identification
+`tools/install_qt_sdk_windows.py --dest NEW_DIR` installs the Qt 6.12.1 MinGW kit
+(qtbase, qttools, qttranslations and the MinGW runtime) plus Qt's matching MinGW
+15.1.0 compiler. aqtinstall 3.3.0 cannot resolve Qt's architecture-suffixed Windows
+repository folders (`qt6_6121_mingw`), so the script downloads the fixed official
+archive URLs and checks every archive against `tools/qt-sdk-windows-x86_64.sha256`
+before extracting it with 7-Zip. The hashes equal the official `.sha256` sidecars and
+were re-measured locally on 2026-11-24. `tools/install_zlib.py` builds the same pinned
+zlib 1.4 with that compiler (`CMAKE_GENERATOR="MinGW Makefiles"`); MinGW names the
+static archive `libzs.a`. `tools/build_windows_package.sh` builds with MTP disabled,
+runs the Windows-qualified suites, deploys with `windeployqt` and smoke-tests the
+extracted ZIP without Qt or MinGW on `PATH`.
+
+The host MinGW cross compiler on the development machine targets UCRT while Qt's kit
+uses msvcrt, so local Wine runs of a cross build are only a portability check; the
+GitHub Windows runner provides the qualifying Windows evidence.
 
 All installers send the neutral User-Agent `qtscrobbler-tool-installer`: since
 2026-11 archive.ubuntu.com answers Python's default agent with HTTP 403.

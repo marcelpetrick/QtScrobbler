@@ -99,19 +99,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ci-run", required=True, help="URL of the qualifying CI run")
     parser.add_argument("--ci-reports", type=Path, required=True, help="the CI run's build-reports directory")
     parser.add_argument("--release-tests", required=True, help="release build unit-test result line")
+    parser.add_argument("--windows-tests", help="Windows package build unit-test result line")
     parser.add_argument("--changelog", type=Path, default=Path("documents/CHANGELOG"))
     parser.add_argument("--asset", type=Path, action="append", default=[])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     notes = [f"# QtScrobbler {args.version}", "", "## Changes", "", *changelog_entry(args.changelog, args.version), "",
-             "## Downloads (Linux x86-64)", "",
-             "- **AppImage**: self-contained, bundles Qt 6.12. `chmod +x` and run it; "
+             "## Downloads (x86-64)", "",
+             "- **AppImage** (Linux): self-contained, bundles Qt 6.12. `chmod +x` and run it; "
              "the CLI is inside as `usr/bin/scrobbler`.",
-             "- **tar.gz**: stripped `qtscrob` (GUI) and `scrobbler` (CLI); needs Qt >= 6.12 and libmtp installed.",
+             "- **tar.gz** (Linux): stripped `qtscrob` (GUI) and `scrobbler` (CLI); needs Qt >= 6.12 and libmtp installed.",
+             "- **windows-x86_64.zip** (Windows 10/11): unpack and run `qtscrob.exe` (GUI) or `scrobbler.exe` (CLI); "
+             "bundles Qt 6.12 and the MinGW runtime. MTP device support is Linux-only.",
              "", "## Checks passed before this release", "",
              f"Full CI gate on commit `{args.commit}`: {args.ci_run}", "",
              *verification(args.ci_reports),
-             f"- ✅ Release build: {args.release_tests}", "",
+             f"- ✅ Release build: {args.release_tests}",
+             *([f"- ✅ Windows package build: {args.windows_tests}"] if args.windows_tests else []), "",
              "## SHA-256", "", "```text"]
     for asset in args.asset:
         notes.append(f"{hashlib.sha256(asset.read_bytes()).hexdigest()}  {asset.name}")

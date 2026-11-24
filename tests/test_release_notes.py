@@ -46,14 +46,14 @@ class ReleaseNotesTest(unittest.TestCase):
         self.changelog.write_text("* version 1.2.3 (2026-11-17)\n- Fix one\n- Fix two\n\n"
                                   "* version 1.2.2 (2026-11-01)\n- Older\n")
 
-    def write(self, version="1.2.3", assets=()):
+    def write(self, version="1.2.3", assets=(), extra=()):
         output = self.root / "notes.md"
         arguments = ["--version", version, "--commit", "abc123", "--ci-run", "https://ci/run/1",
                      "--ci-reports", str(self.reports), "--release-tests", "26/26 CTest suites PASS",
                      "--changelog", str(self.changelog), "--output", str(output)]
         for asset in assets:
             arguments += ["--asset", str(asset)]
-        self.assertEqual(NOTES.main(arguments), 0)
+        self.assertEqual(NOTES.main(arguments + list(extra)), 0)
         return output.read_text()
 
     def test_notes_contain_changes_checks_and_exact_checksums(self):
@@ -70,6 +70,16 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertIn("Release build: 26/26 CTest suites PASS", notes)
         self.assertIn(f"{hashlib.sha256(b'appimage bytes').hexdigest()}  {asset.name}", notes)
         self.assertEqual(notes.count("- ✅"), len(NOTES.REQUIRED_STAGES) + 1)
+
+    def test_windows_package_is_described_and_its_check_listed_only_when_run(self):
+        archive = self.root / "qtscrobbler-1.2.3-windows-x86_64.zip"
+        archive.write_bytes(b"zip bytes")
+        notes = self.write(assets=[archive], extra=["--windows-tests", "5/5 Windows CTest suites PASS"])
+        self.assertIn("**windows-x86_64.zip** (Windows 10/11)", notes)
+        self.assertIn("- ✅ Windows package build: 5/5 Windows CTest suites PASS", notes)
+        self.assertIn(f"{hashlib.sha256(b'zip bytes').hexdigest()}  {archive.name}", notes)
+        self.assertEqual(notes.count("- ✅"), len(NOTES.REQUIRED_STAGES) + 2)
+        self.assertNotIn("Windows package build", self.write())
 
     def test_historical_single_threshold_remains_readable(self):
         report = self.reports / "coverage/summary.json"

@@ -157,6 +157,25 @@ class ZlibInstallerTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "inventory differs"):
                 installer.verified_install(prefix)
 
+    def test_manifest_accepts_mingw_archive_name_but_requires_a_library(self):
+        # zlib's CMake installs libzs.a for MinGW (the Windows release build).
+        for library, accepted in (("lib/libzs.a", True), ("lib/zlib.lib", False)):
+            with self.subTest(library=library), tempfile.TemporaryDirectory() as directory:
+                prefix = Path(directory)
+                files = {}
+                for relative in ("include/zlib.h", "include/zconf.h", library):
+                    path = prefix / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b"qualified contents")
+                    files[relative] = installer.digest(path)
+                manifest = {"version": installer.VERSION, "source_sha256": installer.SHA256, "installed_files": files}
+                (prefix / installer.MANIFEST).write_text(json.dumps(manifest))
+                if accepted:
+                    self.assertTrue(installer.verified_install(prefix))
+                else:
+                    with self.assertRaisesRegex(ValueError, "incomplete"):
+                        installer.verified_install(prefix)
+
     def test_untracked_library_cannot_override_qualified_archive(self):
         with tempfile.TemporaryDirectory() as directory:
             prefix = Path(directory)

@@ -80,6 +80,18 @@ class ReleaseWorkflowChecksumTest(unittest.TestCase):
         self.assertEqual(Path(f"{archive}.sha256").read_text(), f"{sha}  {archive.name}\n")
         self.verify_like_a_user(archive)
 
+    def test_windows_zip_checksum_names_the_bare_file(self):
+        script = (WORKFLOW.parents[2] / "tools/build_windows_package.sh").read_text()
+        line = next(line for line in script.splitlines() if '> "$name.zip.sha256"' in line)
+        command = line[line.index('sha256sum "$name.zip"'):].rstrip(")")
+        package = self.dist / "qtscrobbler-9.9.9-windows-x86_64.zip"
+        package.write_bytes(b"zip bytes")
+        self.assertTrue(line.startswith('(cd "$out" && '))
+        self.run_bash(command, self.dist, name=package.name.removesuffix(".zip"))
+        expected = f"{hashlib.sha256(b'zip bytes').hexdigest()}  {package.name}\n"
+        self.assertEqual(Path(f"{package}.sha256").read_text(), expected)
+        self.verify_like_a_user(package)
+
     def test_checksums_are_verified_before_and_after_publishing(self):
         steps = re.findall(r"^      - name: (.+)$", self.text, re.M)
         publish = steps.index("Create GitHub Release")
@@ -89,7 +101,8 @@ class ReleaseWorkflowChecksumTest(unittest.TestCase):
         after = step_script(self.text, "Verify the published release assets")
         self.assertGreater(steps.index("Verify the published release assets"), publish)
         self.assertIn('gh release download "$TAG"', after)
-        self.assertIn("-eq 2", after)
+        self.assertIn("-eq 3", after)
+        self.assertIn("-windows-x86_64.zip", after)
         self.assertIn('sha256sum -c -- ./*.sha256', after)
 
 

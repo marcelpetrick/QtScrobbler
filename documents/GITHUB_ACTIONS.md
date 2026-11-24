@@ -24,6 +24,28 @@ into an isolated Python 3.15.2 virtual environment before invoking its aqt insta
 The shared Qt installer checks all five SDK archives against committed SHA-256 hashes.
 GitHub Actions are referenced by immutable commit SHAs.
 
+A parallel `windows` job on Windows Server 2025 installs CMake 4.5.1, the
+checksum-pinned Qt 6.12.1 MinGW kit with MinGW 15.1.0
+(`tools/install_qt_sdk_windows.py`) and zlib 1.4, then runs
+`tools/build_windows_package.sh`. It gates on building both programs, the Windows-
+qualified Qt Test suites (`common`, `parse_log`, `parse_ipod`, `gettrackinfo`,
+`submit`), `windeployqt` packaging and a smoke test of the extracted ZIP with no Qt or
+MinGW on `PATH`. The remaining Qt Test suites still assume Linux behavior; a non-gating
+step runs each one and uploads its Qt Test report in `windows-unported-suites/` with the
+package artifact. Measured on Windows Server 2025 (run 45412165069, 2026-11-24):
+
+| Suite | Passed / failed | Observed cause |
+| --- | --- | --- |
+| `conf` | 15 / 6 | Settings without a custom path live in the registry on Windows; tests read INI files |
+| `dbcache` | 23 / 1 | Child-process output ends in `\r\n` (text-mode stdout) |
+| `scrobble` | 48 / 17 | Linux paths, permissions and process expectations |
+| `gui` | 30 / 16 | Child-process output line endings and Linux paths |
+| `cli` | 9 / 52 | Expected output compared byte-for-byte with `\n` line endings |
+| `translations` | 5 / 1 | The offscreen platform warns that Qt ships no font directory |
+
+These are test-side assumptions, not observed product defects; porting them is open work. The Linux job remains the complete
+quality gate (coverage, sanitizers, mutation).
+
 The installer step's explicit `qt-root-dir` output selects the SDK for the local
 pipeline. This prevents a system `qmake6` from selecting an older Qt installation.
 CMake and CTest are taken from the same installed prefix.
