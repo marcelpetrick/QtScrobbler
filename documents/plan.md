@@ -33,8 +33,15 @@ complete `./localPipeline.sh --noRun --noOpen` before committing.
   pkgconf 3.0.11, libmtp 1.1.23, Python 3.15.2, LLVM 20.1.8) is current.
   Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
   `~/.cache/qs-gate-0.14.5` (reports/summary.txt; `EXIT=` in log).
+- `0.14.6` fix: Windows-portable log decoding and UTC conversion, found by
+  the first Windows build (`timegm`/`tm_gmtoff` missing on MinGW;
+  `parse_log` failed with `Bj\uFFFDrk ??`). The existing `parse_log` and
+  `gui` recalculation tests cover both; `parse_log` failed before and passes
+  after the fix on Windows.
+  Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
+  `~/.cache/qs-gate-0.14.6` (reports/summary.txt; `EXIT=` in log).
 
-Remaining in this session: 0.14.6, 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
+Remaining in this session: 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
 tar.gz, Windows ZIP and checksums) and close PR #9 as superseded. Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.

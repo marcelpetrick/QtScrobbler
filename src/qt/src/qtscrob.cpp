@@ -24,6 +24,7 @@
 #include <QHeaderView>
 #include <QTableWidget>
 #include <QTime>
+#include <QTimeZone>
 #include <QtGui>
 #include <limits>
 
@@ -419,27 +420,10 @@ QString QTScrob::dt_format(time_t when) {
 }
 
 void QTScrob::updaterecalcDT(QDateTime newrecalcDT) {
-    // temp value - we just want to setup the tm struct
-    struct tm* tmp = gmtime(&recalc_timestamp);
-
-    tmp->tm_year = newrecalcDT.date().year() - 1900;
-    tmp->tm_mon = newrecalcDT.date().month() - 1;
-    tmp->tm_mday = newrecalcDT.date().day();
-
-    tmp->tm_hour = newrecalcDT.time().hour();
-    tmp->tm_min = newrecalcDT.time().minute();
-    tmp->tm_sec = newrecalcDT.time().second();
-
-    tmp->tm_isdst = 0;
-    tmp->tm_wday = newrecalcDT.date().dayOfWeek();
-    tmp->tm_yday = newrecalcDT.date().dayOfYear();
-
-#ifdef _MSC_VER
-    recalc_timestamp = _mkgmtime(tmp);
-#else
-    tmp->tm_gmtoff = 0;
-    recalc_timestamp = timegm(tmp);
-#endif
+    // Interpret the picked wall-clock fields as UTC, as timegm() did, portably.
+    const QTime wall = newrecalcDT.time();
+    const QDateTime utc(newrecalcDT.date(), QTime(wall.hour(), wall.minute(), wall.second()), QTimeZone::UTC);
+    recalc_timestamp = static_cast<time_t>(utc.toSecsSinceEpoch());
 
     if (!scrob->conf->display_utc) recalc_timestamp -= scrob->get_custom_offset();
 }

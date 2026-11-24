@@ -1,3 +1,8 @@
+* version 0.14.6 (2026-11-24)
+- Keep non-Latin artist, album and title text from Audioscrobbler logs on
+  Windows: decoded UTF-8 no longer round-trips through the ANSI code page.
+- Recalculate timestamps with Qt's UTC conversion instead of POSIX timegm().
+
 * version 0.14.5 (2026-11-24)
 - Update Qt to 6.12.1, CMake/CTest to 4.5.1 and Graphviz to 16.1.2.
 - Update the Python pins certifi 2026.11.20 (supersedes Dependabot PR #9),
