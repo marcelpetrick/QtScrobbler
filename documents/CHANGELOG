@@ -1,3 +1,8 @@
+* version 0.14.4 (2026-11-24)
+- Send a neutral User-Agent from every tool installer: archive.ubuntu.com now
+  answers Python's default agent with HTTP 403, which stopped provisioning of
+  the pinned LLVM/Mull toolchain locally and on fresh CI runners.
+
 * version 0.14.2 (2026-11-18)
 - Write release checksum files that name the bare file, verify them before
   publishing, and verify the published assets again after the release.

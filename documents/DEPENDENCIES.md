@@ -181,3 +181,8 @@ setup-python **v7.1.0** pinned to
 isolation for the quality resolution so CPython3.15 source wheels use the reviewed
 build backends instead of floating build requirements. The private selected Python
 and native tools do not replace the user's host runtime libraries.
+
+## Download client identification
+
+All installers send the neutral User-Agent `qtscrobbler-tool-installer`: since
+2026-11 archive.ubuntu.com answers Python's default agent with HTTP 403.

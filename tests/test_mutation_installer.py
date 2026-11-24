@@ -45,6 +45,20 @@ class MutationInstallerTest(unittest.TestCase):
             result = installer.install(root / "prefix")
         return result, artifacts
 
+    def test_downloads_send_a_neutral_user_agent(self):
+        # archive.ubuntu.com answers the default Python-urllib agent with HTTP 403.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = self.native_package(root)
+            artifacts = [("https://fixture.invalid/fixture.deb", hashlib.sha256(package).hexdigest())]
+            with mock.patch.object(installer, "ARTIFACTS", artifacts), \
+                    mock.patch.object(installer.urllib.request, "urlopen", return_value=io.BytesIO(package)) as download:
+                installer.install(root / "prefix")
+            request = download.call_args.args[0]
+            self.assertEqual(request.full_url, "https://fixture.invalid/fixture.deb")
+            self.assertEqual(request.get_header("User-agent"), "qtscrobbler-tool-installer")
+            self.assertNotIn("python", request.get_header("User-agent").lower())
+
     def test_unrelated_nonempty_prefix_is_preserved_before_any_download(self):
         with tempfile.TemporaryDirectory() as directory:
             prefix = Path(directory) / "prefix"

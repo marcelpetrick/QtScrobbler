@@ -28,6 +28,10 @@ import sys
 import tempfile
 import urllib.request
 
+# archive.ubuntu.com rejects the default "Python-urllib" User-Agent with HTTP 403;
+# a neutral client name identifies these downloads without personal details.
+DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
+
 
 LLVM_VERSION = "20.1.8~++20250804090239+87f0227cb601-1~exp1~20250804210352.139"
 LLVM_BASE = "https://apt.llvm.org/noble/pool/main/l/llvm-toolchain-20/"
@@ -146,7 +150,7 @@ def populate(prefix: Path, final_prefix: Path) -> dict:
         archive = downloads / url.rsplit("/", 1)[1]
         if not archive.exists():
             partial = archive.with_suffix(".part")
-            with urllib.request.urlopen(url, timeout=60) as response, partial.open("wb") as output:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=DOWNLOAD_HEADERS), timeout=60) as response, partial.open("wb") as output:
                 shutil.copyfileobj(response, output)
             partial.rename(archive)
         if hashlib.sha256(archive.read_bytes()).hexdigest() != digest:

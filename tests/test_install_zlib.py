@@ -37,7 +37,10 @@ class ZlibInstallerTest(unittest.TestCase):
                 selected = installer.download_source(archive, root)
             self.assertEqual(selected, installer.SOURCE_URLS[1])
             self.assertEqual(archive.read_bytes(), b"verified source")
-            self.assertEqual(request.call_args_list, [mock.call(url, timeout=60) for url in installer.SOURCE_URLS])
+            self.assertEqual([(call.args[0].full_url, call.kwargs) for call in request.call_args_list],
+                             [(url, {"timeout": 60}) for url in installer.SOURCE_URLS])
+            self.assertTrue(all(call.args[0].get_header("User-agent") == "qtscrobbler-tool-installer"
+                                for call in request.call_args_list))
             evidence = json.loads((root / "downloads.json").read_text())
             self.assertEqual([item["status"] for item in evidence], ["checksum_mismatch", "verified"])
             self.assertEqual(evidence[0]["actual_sha256"], hashlib.sha256(b"bad response").hexdigest())

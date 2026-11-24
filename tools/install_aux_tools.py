@@ -20,6 +20,10 @@ import tempfile
 import urllib.request
 import xml.etree.ElementTree as ET
 
+# archive.ubuntu.com rejects the default "Python-urllib" User-Agent with HTTP 403;
+# a neutral client name identifies these downloads without personal details.
+DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
+
 RESOLUTION = {
     "pkgconf": {
         "version": "3.0.11",
@@ -163,7 +167,7 @@ def install(args: argparse.Namespace) -> Path:
                 raise RuntimeError(f"{name} failed; inspect {reports}")
         for package, pin in RESOLUTION.items():
             archive = work / f"{package}.tar.xz"
-            with urllib.request.urlopen(pin["url"], timeout=60) as response, archive.open("wb") as out:
+            with urllib.request.urlopen(urllib.request.Request(pin["url"], headers=DOWNLOAD_HEADERS), timeout=60) as response, archive.open("wb") as out:
                 shutil.copyfileobj(response, out)
             source = unpack(archive, work, package)
             options = [f"--prefix={prefix}", f"--libdir={prefix}/lib"]

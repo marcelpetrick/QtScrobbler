@@ -24,6 +24,10 @@ import tempfile
 import urllib.request
 import xml.etree.ElementTree as ET
 
+# archive.ubuntu.com rejects the default "Python-urllib" User-Agent with HTTP 403;
+# a neutral client name identifies these downloads without personal details.
+DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
+
 VERSION = "1.4"
 URL = "https://zlib.net/zlib-1.4.tar.gz"
 SOURCE_URLS = (URL, "https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz")
@@ -48,7 +52,7 @@ def download_source(archive: Path, reports: Path) -> str:
         attempt = {"url": url, "expected_sha256": SHA256, "http_status": None,
                    "size_bytes": 0, "actual_sha256": None, "status": "download_error"}
         try:
-            with urllib.request.urlopen(url, timeout=60) as response, archive.open("wb") as output:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=DOWNLOAD_HEADERS), timeout=60) as response, archive.open("wb") as output:
                 attempt["http_status"] = getattr(response, "status", None)
                 shutil.copyfileobj(response, output)
             attempt["size_bytes"] = archive.stat().st_size

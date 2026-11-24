@@ -3,11 +3,31 @@
 P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
 is green and v0.13.85 and v0.14.0 are published. The 95% mutation goal, the
 owner's live test scrobble and final completion review remain open.
-Updated 2026-11-18 15:30.
+Updated 2026-11-24.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
 commit contained only this plan and `AGENTS.md`; implementation has started.
+
+## Session handoff — 2026-11-24
+
+Resumed after a host reboot cleared the `/tmp` tools; all tools are now
+re-provisioned on disk under `~/.cache/qs-tools` (see AGENTS.md). GitHub had
+no open issues and one open PR (Dependabot #9, certifi), superseded by the
+dependency commit. Each commit below was gated as an exact tree with the
+complete `./localPipeline.sh --noRun --noOpen` before committing.
+
+- `0.14.4` fix(tools): neutral installer User-Agent. Fresh provisioning
+  failed with HTTP 403 from archive.ubuntu.com for Python's default agent
+  (curl and a custom agent receive 200). New regression assertions in
+  `mutation_installer_contract` and `zlib_installer_contract`.
+  Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
+  `~/.cache/qs-gate-0.14.4` (reports/summary.txt; `EXIT=` in log).
+
+Remaining in this session: 0.14.5, 0.14.6, 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
+tar.gz, Windows ZIP and checksums) and close PR #9 as superseded. Still open
+from before: 95% mutation goal, the owner's live test scrobble (needs the
+owner's credentials), final completion review, Windows test-suite porting.
 
 ## Session handoff — 2026-11-18T15:30+01:00
 

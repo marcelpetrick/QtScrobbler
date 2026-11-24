@@ -23,6 +23,10 @@ import tempfile
 import urllib.request
 import zipfile
 
+# archive.ubuntu.com rejects the default "Python-urllib" User-Agent with HTTP 403;
+# a neutral client name identifies these downloads without personal details.
+DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tools/native/void_call_fix.cpp"
 CFG_TEST = ROOT / "tools/native/callfix_cfg_test.cpp"
@@ -113,7 +117,7 @@ def download(url: str, expected: str, destination: Path, local: Path | None) -> 
     if local is not None:
         shutil.copyfile(local, destination)
     else:
-        with urllib.request.urlopen(url, timeout=60) as response, destination.open("wb") as output:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=DOWNLOAD_HEADERS), timeout=60) as response, destination.open("wb") as output:
             shutil.copyfileobj(response, output)
     if digest(destination) != expected:
         raise ValueError(f"callfix dependency checksum mismatch: {destination.name}")

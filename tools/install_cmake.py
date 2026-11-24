@@ -20,6 +20,10 @@ import tarfile
 import tempfile
 import urllib.request
 
+# archive.ubuntu.com rejects the default "Python-urllib" User-Agent with HTTP 403;
+# a neutral client name identifies these downloads without personal details.
+DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
+
 
 VERSION = "4.5.0"
 ARCHIVE_NAME = f"cmake-{VERSION}-linux-x86_64.tar.gz"
@@ -59,7 +63,7 @@ def install(prefix: Path) -> None:
         work = Path(temporary)
         archive = work / ARCHIVE_NAME
         digest = hashlib.sha256()
-        with urllib.request.urlopen(DOWNLOAD_URL, timeout=60) as response, archive.open("wb") as output:
+        with urllib.request.urlopen(urllib.request.Request(DOWNLOAD_URL, headers=DOWNLOAD_HEADERS), timeout=60) as response, archive.open("wb") as output:
             while chunk := response.read(1024 * 1024):
                 digest.update(chunk)
                 output.write(chunk)
