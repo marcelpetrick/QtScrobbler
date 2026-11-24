@@ -1,3 +1,9 @@
+* version 0.15.2 (2026-11-24)
+- Release workflow: find the qualifying CI run by branch and commit and pick
+  the successful one locally; GitHub's status filter lagged and reported no
+  run for the CI-green v0.15.0 commit, so the second release run stopped
+  before publishing.
+
 * version 0.15.1 (2026-11-24)
 - Release workflow: read the Windows test summary in CTest 4.5's format
   ("100% tests passed out of N"); the first v0.15.0 release run stopped

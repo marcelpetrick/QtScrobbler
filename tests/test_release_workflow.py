@@ -6,6 +6,7 @@ These tests execute the workflow's own checksum commands with absolute paths
 and require verification both before and after publishing.
 """
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -108,6 +109,21 @@ class ReleaseWorkflowChecksumTest(unittest.TestCase):
                     result = subprocess.run(["grep", "-oE", pattern, str(log)], capture_output=True,
                                             text=True, timeout=20)
                     self.assertEqual(result.stdout.strip().splitlines()[-1], expected)
+
+    def test_qualifying_ci_run_is_selected_by_conclusion_not_the_status_index(self):
+        # GitHub's status= filter lagged and found no run for the CI-green v0.15.0 commit.
+        script = step_script(self.text, "Verify tag, source version and passed CI")
+        query = next(line for line in script.splitlines() if "actions/workflows/ci.yml/runs?" in line)
+        self.assertIn("branch=main&head_sha=$SHA", query)
+        self.assertNotIn("status=", query)
+        jq = re.search(r"--jq '([^']+)'", script)[1]
+        runs = {"workflow_runs": [{"id": 3, "conclusion": "failure"}, {"id": 2, "conclusion": "success"},
+                                  {"id": 1, "conclusion": "success"}]}
+        for data, expected in ((runs, "2"), ({"workflow_runs": [{"id": 3, "conclusion": "failure"}]}, "")):
+            with self.subTest(expected=expected):
+                result = subprocess.run(["jq", "-r", jq], input=json.dumps(data), capture_output=True,
+                                        text=True, timeout=20, check=True)
+                self.assertEqual(result.stdout.strip(), expected)
 
     def test_checksums_are_verified_before_and_after_publishing(self):
         steps = re.findall(r"^      - name: (.+)$", self.text, re.M)

@@ -64,9 +64,25 @@ and CTest 4.5 prints "100% tests passed out of 5".
   `~/.cache/qs-gate-0.15.1` (workflow/test-only change on top of the
   complete-gated 0.15.0 tree).
 
-Remaining in this session: push 0.15.1, then publish the qualified tag with
-the corrected workflow (`gh workflow run release.yml --ref main -f
-tag=v0.15.0`), verify the Release (AppImage, tar.gz, Windows ZIP and three
+Dispatched Release 45477856260 (workflow from `fe0ca6d`): the Windows job
+passed; the Linux job stopped at the CI check before publishing. The API
+query `ci.yml/runs?branch=main&head_sha=<sha>&status=success` returned
+`total_count` 0 although run 45460038756 passed on `63fb7b9`; without
+`status=` it returns that run, and `branch=main&status=success` listed a
+week-old run first, so GitHub's status index lagged.
+
+- `0.15.2` ci(release): query by branch and commit and select
+  `conclusion == "success"` with jq; `release_workflow_contract` asserts no
+  `status=` filter and runs the jq selection (fails without the fix). Gate:
+  `--quick` on this exact tree in `~/.cache/qs-gate-0.15.2`.
+
+Main CI 45477855417 (0.15.1) failed in "Install verified pkgconf and
+Graphviz": the Graphviz download timed out (`The read operation timed out`);
+the same pinned installer passed in 45460038756. The 0.15.2 run is the
+confirmation run.
+
+Remaining in this session: confirm main CI on 0.15.2, publish the qualified tag with the corrected workflow (`gh workflow
+run release.yml --ref main -f tag=v0.15.0`), verify the Release (AppImage, tar.gz, Windows ZIP and three
 checksums) and confirm main CI on 0.15.1. Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.

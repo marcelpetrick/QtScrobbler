@@ -160,8 +160,10 @@ jobs:
             exit 1
           fi
           # The CI workflow on main is the full quality gate; require its success here.
-          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&head_sha=$SHA&status=success&per_page=1" \
-            --jq '.workflow_runs[0].id // empty')
+          # Filter the conclusion locally: the API's status= index can lag behind
+          # finished runs and returned none for a passed v0.15.0 commit.
+          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&head_sha=$SHA&per_page=100" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")][0].id // empty')
           if [ -z "$RUN_ID" ]; then
             echo "No successful CI run for $SHA; release only commits that passed CI on main." >&2
             exit 1
