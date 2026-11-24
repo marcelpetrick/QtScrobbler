@@ -1,3 +1,8 @@
+* version 0.15.1 (2026-11-24)
+- Release workflow: read the Windows test summary in CTest 4.5's format
+  ("100% tests passed out of N"); the first v0.15.0 release run stopped
+  there before publishing.
+
 * version 0.15.0 (2026-11-24)
 - Publish a Windows x86-64 ZIP built with Qt 6.12.1 (MinGW 15.1) next to the
   Linux AppImage and tarball. CI builds it on Windows Server 2025, runs the

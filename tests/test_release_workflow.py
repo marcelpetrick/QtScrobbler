@@ -92,6 +92,23 @@ class ReleaseWorkflowChecksumTest(unittest.TestCase):
         self.assertEqual(Path(f"{package}.sha256").read_text(), expected)
         self.verify_like_a_user(package)
 
+    def test_test_summaries_accept_both_ctest_formats(self):
+        # v0.15.0's first release run stopped because CTest 4.5 drops ", 0 tests failed".
+        log = self.root / "ctest.log"
+        for step, source in (("Build, test, package and smoke-test the Windows ZIP", "windows-package.log"),
+                             ("Write release notes", "build-reports/ctest.log")):
+            script = step_script(self.text, step)
+            pattern = re.search(r"grep -oE '([^']+)'", script)[1]
+            self.assertIn(source, script[script.index(pattern):][:200])
+            for line, expected in (("100% tests passed out of 5", "100% tests passed out of 5"),
+                                   ("80% tests passed, 1 tests failed out of 5",
+                                    "80% tests passed, 1 tests failed out of 5")):
+                with self.subTest(step=step, line=line):
+                    log.write_text(f"noise\n{line}\nmore noise\n")
+                    result = subprocess.run(["grep", "-oE", pattern, str(log)], capture_output=True,
+                                            text=True, timeout=20)
+                    self.assertEqual(result.stdout.strip().splitlines()[-1], expected)
+
     def test_checksums_are_verified_before_and_after_publishing(self):
         steps = re.findall(r"^      - name: (.+)$", self.text, re.M)
         publish = steps.index("Create GitHub Release")

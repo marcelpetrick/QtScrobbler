@@ -42,14 +42,32 @@ complete `./localPipeline.sh --noRun --noOpen` before committing.
   `~/.cache/qs-gate-0.14.6` (reports/summary.txt; `EXIT=` in log).
 - `0.15.0` feat(release): Windows x86-64 ZIP. Validated on the real runner
   from the temporary branch `ci/windows-validation` (runs 45410753831,
-  45411322912 failed while porting the installer; 45412165069 passed). The
+  45411322912 failed while porting the installer; 45412165069 passed the
+  Windows job but failed Linux Format on the UTC expression; after the
+  formatting fix 45436875712 passed both jobs). The
   gate covers 5 Qt Test suites; 6 suites remain test-side ports, measured in
   `documents/GITHUB_ACTIONS.md`. Release publishes AppImage, tar.gz and ZIP.
   Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
   `~/.cache/qs-gate-0.15.0` (reports/summary.txt; `EXIT=` in log).
 
-Remaining in this session: push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
-tar.gz, Windows ZIP and checksums) and close PR #9 as superseded. Still open
+Pushed 0.14.4–0.15.0; main CI 45460038756 passed both jobs on `63fb7b9`;
+PR #9 closed as superseded; `ci/windows-validation` deleted. Tag `v0.15.0`
+points at `63fb7b9`. Its Release run 45476577898 built, tested and
+smoke-tested the ZIP but failed before publishing anything: the Windows step
+only matched CTest's old "N% tests passed, M tests failed out of K" summary,
+and CTest 4.5 prints "100% tests passed out of 5".
+
+- `0.15.1` ci(release): accept both CTest summary formats in the Windows
+  step, as the Linux notes step already did;
+  `release_workflow_contract` runs both steps' patterns on both formats
+  (fails without the fix). Gate: `--quick` on this exact tree in
+  `~/.cache/qs-gate-0.15.1` (workflow/test-only change on top of the
+  complete-gated 0.15.0 tree).
+
+Remaining in this session: push 0.15.1, then publish the qualified tag with
+the corrected workflow (`gh workflow run release.yml --ref main -f
+tag=v0.15.0`), verify the Release (AppImage, tar.gz, Windows ZIP and three
+checksums) and confirm main CI on 0.15.1. Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.
 

@@ -97,7 +97,9 @@ jobs:
           ZIP=$(.release-workflow/tools/build_windows_package.sh "$RUNNER_TEMP/qtscrobbler-qt/6.12.1/mingw_64" \
             "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin" "$RUNNER_TEMP/qtscrobbler-zlib" \
             "$VERSION" dist 2> >(tee windows-package.log >&2) | tail -n 1)
-          TESTS=$(grep -oE '[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+' windows-package.log | tail -n 1)
+          # CTest 4.5 prints "100% tests passed out of N" when nothing failed.
+          TESTS=$(grep -oE '[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+|100% tests passed out of [0-9]+' \
+            windows-package.log | tail -n 1)
           test -n "$TESTS"
           {
             echo "zip=$ZIP"
