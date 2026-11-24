@@ -25,9 +25,9 @@ import urllib.request
 DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
 
 
-VERSION = "4.5.0"
+VERSION = "4.5.1"
 ARCHIVE_NAME = f"cmake-{VERSION}-linux-x86_64.tar.gz"
-ARCHIVE_SHA256 = "81f0d5b0960fb6adc8197030ffc827fba937640d51e73e39e0e9e40d88c66f6f"
+ARCHIVE_SHA256 = "83b71181fb62b4fe8f26067a9321448572e7a43bd04ff6c7f54a24c33698f16d"
 DOWNLOAD_URL = f"https://github.com/Kitware/CMake/releases/download/v{VERSION}/{ARCHIVE_NAME}"
 STAMP_NAME = ".qtscrobbler-archive.sha256"
 

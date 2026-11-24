@@ -31,9 +31,9 @@ RESOLUTION = {
         "sha256": "d0cd841bc8e55b9da888106c00dc256d05b7d1d8e5a46f4be4eb4c5125bd2dc4",
     },
     "graphviz": {
-        "version": "16.1.1",
-        "url": "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/16.1.1/graphviz-16.1.1.tar.xz",
-        "sha256": "52e7fb9a57b52b5c67f41dba6504ba3231e118258779421cb8f4f99104de71f6",
+        "version": "16.1.2",
+        "url": "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/16.1.2/graphviz-16.1.2.tar.xz",
+        "sha256": "9780938f03659e2effbbfbbaec94940108e794199b73196fa339ca911890e8c9",
     },
 }
 MANIFEST = "aux-tools-manifest.json"
@@ -212,7 +212,7 @@ def install(args: argparse.Namespace) -> Path:
         except BaseException:
             shutil.rmtree(prefix)
             raise
-    print(f"Qualified pkgconf 3.0.11 and Graphviz 16.1.1: {prefix}")
+    print(f"Qualified pkgconf 3.0.11 and Graphviz 16.1.2: {prefix}")
     return prefix
 
 

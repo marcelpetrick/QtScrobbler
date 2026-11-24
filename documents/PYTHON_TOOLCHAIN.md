@@ -86,7 +86,7 @@ to the new interpreter; no system executable or package is overwritten.
 
 [requirements-bootstrap.txt](../requirements-bootstrap.txt) pins the environment
 bootstrap to `pip==26.3`, `setuptools==84.2.1`, `wheel==0.48.0`, and
-`packaging==26.3`, `setuptools-scm==10.3.4`, and `vcs-versioning==2.6.0`.
+`packaging==26.4`, `setuptools-scm==10.3.4`, and `vcs-versioning==2.6.0`.
 All six matched their current stable PyPI `info.version` on
 2026-11-17. Install this file before the separate
 [quality resolution](../requirements-quality.txt). Bootstrap/build tooling is

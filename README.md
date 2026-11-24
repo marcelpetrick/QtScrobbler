@@ -6,8 +6,8 @@ Import your portable player's listening history, review the tracks, and scrobble
 [![Release pipeline](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/release.yml/badge.svg)](https://github.com/marcelpetrick/QtScrobbler/actions/workflows/release.yml)
 [![Latest release](https://img.shields.io/github/v/release/marcelpetrick/QtScrobbler?sort=semver)](https://github.com/marcelpetrick/QtScrobbler/releases)
 [![License: GPL v2](https://img.shields.io/github/license/marcelpetrick/QtScrobbler)](LICENSE)
-[![Qt 6.12.0](https://img.shields.io/badge/Qt-6.12.0-41cd52.svg)](documents/DEPENDENCIES.md)
-[![CMake 4.5.0](https://img.shields.io/badge/CMake-4.5.0-064f8c.svg)](documents/DEPENDENCIES.md)
+[![Qt 6.12.1](https://img.shields.io/badge/Qt-6.12.1-41cd52.svg)](documents/DEPENDENCIES.md)
+[![CMake 4.5.1](https://img.shields.io/badge/CMake-4.5.1-064f8c.svg)](documents/DEPENDENCIES.md)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599c.svg)](CMakeLists.txt)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-fcc624.svg)](documents/QUALITY.md)
 [![Measured 0.14.0 line coverage: 99.02%](https://img.shields.io/badge/lines-99.02%25-brightgreen.svg)](documents/QUALITY.md#measured-results)
@@ -58,7 +58,7 @@ Verify a download with its `.sha256` file: `sha256sum -c <file>.sha256`.
 
 ## Requirements
 
-- Qt >= 6.12 (qualified build: Qt 6.12.0)
+- Qt >= 6.12 (qualified build: Qt 6.12.1)
 - CMake >= 3.28
 - A C++23 compiler (qualified native toolchain: Clang 20.1.8)
 - `cmake`, `pkg-config`, libmtp and exactly zlib 1.4
@@ -81,7 +81,7 @@ python3 tools/install_mull_callfix.py --toolchain-prefix /path/to/native-tools -
 . /path/to/mull-callfix/env.sh
 python3 tools/install_zlib.py --prefix /path/to/zlib
 export ZLIB_ROOT=/path/to/zlib
-export QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64
+export QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.1/gcc_64
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
 ```
 
@@ -108,7 +108,7 @@ A [fictional example log](examples/README.md) is provided for safe imports from 
 
 ```sh
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64 -DZLIB_ROOT=/path/to/zlib
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.1/gcc_64 -DZLIB_ROOT=/path/to/zlib
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure --no-tests=error
 ```

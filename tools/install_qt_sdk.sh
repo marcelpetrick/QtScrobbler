@@ -20,7 +20,7 @@ trap 'rm -rf "$archive_dir"' EXIT
 
 # The locked aqt verifies upstream SHA-256 before extracting each archive.
 python3 -c 'import py7zr'
-python3 -m aqt install-qt linux desktop 6.12.0 linux_gcc_64 \
+python3 -m aqt install-qt linux desktop 6.12.1 linux_gcc_64 \
     --base https://download.qt.io --timeout 30 --outputdir "$install_dir" \
     --keep --archive-dest "$archive_dir" \
     --archives qtbase qtdeclarative qttools qttranslations icu 2>&1 | tee "$report_dir/qt-install.log"
@@ -31,8 +31,8 @@ python3 -m aqt install-qt linux desktop 6.12.0 linux_gcc_64 \
     sha256sum --strict --check "$script_dir/qt-sdk-linux-x86_64.sha256"
 ) | tee "$report_dir/qt-archive-checks.txt"
 
-qt_prefix="$install_dir/6.12.0/gcc_64"
-test "$("$qt_prefix/bin/qmake" -query QT_VERSION)" = "6.12.0"
+qt_prefix="$install_dir/6.12.1/gcc_64"
+test "$("$qt_prefix/bin/qmake" -query QT_VERSION)" = "6.12.1"
 {
     "$qt_prefix/bin/qmake" -query
     "$qt_prefix/bin/lrelease" -version

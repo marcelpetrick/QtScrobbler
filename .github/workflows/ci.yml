@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    name: Local quality pipeline (Ubuntu 24.04 / Qt 6.12.0)
+    name: Local quality pipeline (Ubuntu 24.04 / Qt 6.12.1)
     runs-on: ubuntu-24.04
     timeout-minutes: 360
 
@@ -48,7 +48,7 @@ jobs:
           python3 tools/install_aux_tools.py --prefix "$RUNNER_TEMP/qtscrobbler-aux-tools"
           echo "$RUNNER_TEMP/qtscrobbler-aux-tools/bin" >> "$GITHUB_PATH"
 
-      - name: Install verified CMake and CTest 4.5.0
+      - name: Install verified CMake and CTest 4.5.1
         run: |
           python3 tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
           echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
@@ -67,11 +67,11 @@ jobs:
           "$tools/bin/python" -m pip check
           echo "$tools/bin" >> "$GITHUB_PATH"
 
-      - name: Install checksum-verified Qt 6.12.0
+      - name: Install checksum-verified Qt 6.12.1
         id: qt
         run: |
           tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
-          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.0/gcc_64" >> "$GITHUB_OUTPUT"
+          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.1/gcc_64" >> "$GITHUB_OUTPUT"
 
       - name: Install qualified native LLVM and Mull
         run: |

@@ -3,7 +3,7 @@
 CI uses the same quality entry point as local development:
 
 ```sh
-QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.0/gcc_64 \
+QTSCROBBLER_QT_PREFIX=/path/to/Qt/6.12.1/gcc_64 \
   ./localPipeline.sh --noRun --noOpen --report-dir build-reports
 ```
 
@@ -18,7 +18,7 @@ workflow adds no alternative definition of a passing test suite or coverage scor
 [ci.yml](../.github/workflows/ci.yml) runs on every branch push except version tags,
 on pull requests to `main` (and `master` during migration), and on manual dispatch.
 The Ubuntu 24.04 runner installs the required system libraries, checksum-verified
-CMake/CTest 4.5.0, and the Qt 6.12.0 Linux SDK with qtbase, qtdeclarative, qttools, qttranslations
+CMake/CTest 4.5.1, and the Qt 6.12.1 Linux SDK with qtbase, qtdeclarative, qttools, qttranslations
 and ICU archives. Both workflows install the exact bootstrap and quality locks
 into an isolated Python 3.15.2 virtual environment before invoking its aqt installer.
 The shared Qt installer checks all five SDK archives against committed SHA-256 hashes.
@@ -67,7 +67,7 @@ push protection are enabled in the repository settings.
 ## Pinned CMake installer
 
 [`tools/install_cmake.py`](../tools/install_cmake.py) installs the reviewed Linux x86-64
-CMake 4.5.0 release into a new, explicit directory without changing OS packages:
+CMake 4.5.1 release into a new, explicit directory without changing OS packages:
 
 ```sh
 python3 tools/install_cmake.py --prefix /path/to/isolated/cmake

@@ -60,7 +60,7 @@ Full reports must start fresh; keep previous reports as historical evidence.
 Current direct checks:
 
 ```sh
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.1/gcc_64
 cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure --no-tests=error
 timeout 5 ./build/scrobbler --help
@@ -92,7 +92,7 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   build, report and `TMPDIR` directories on disk (for example
   `~/.cache/qtscrobbler-runs/<version>`); a full run filled `/tmp` and aborted.
   Remove superseded build directories when a newer snapshot replaces them.
-- Put `/path/to/cmake-4.5.0/bin` first on `PATH`; `~/.local/bin/ctest` is a broken
+- Put `/path/to/cmake-4.5.1/bin` first on `PATH`; `~/.local/bin/ctest` is a broken
   wrapper on the development host and fails the CTest stage.
 
 ## Resuming a session or switching agents
@@ -110,33 +110,24 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   with a corrected workflow, cancel that run before it publishes and dispatch
   `gh workflow run release.yml --ref main -f tag=vX.Y.Z`. Never push while a
   qualifying main CI run is active.
-- On the development host, the provisioned tools live in `/tmp` (tmpfs), so they
-  are lost on reboot: Qt `/tmp/qtscrobbler-qt/6.12.0/gcc_64`, CMake
-  `/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin`, zlib
-  `/tmp/qtscrobbler-zlib-1.4-qualified`, LLVM/Mull correction
-  `/tmp/qtscrobbler-mull-callfix-qualified2/env.sh`. If any is missing, provision it
-  again following `documents/DEPENDENCIES.md`.
-- For the 0.14.0 qualification, use the private C++23-capable Clazy 1.17.1 and
-  Cppcheck 2.22.0 prefixes listed in the plan and dependency documentation.
-  For Clazy, set `QTSCROBBLER_CLAZY_EXTRA_ARGS="-resource-dir=$("$CC" --print-resource-dir)"`
-  after sourcing the qualified LLVM environment. Keep its loader paths.
+- On the development host, all provisioned tools live on disk under
+  `~/.cache/qs-tools` (they were lost from `/tmp` on reboot before 2026-11-24):
+  Qt `qt/6.12.1/gcc_64`, CMake 4.5.1 `cmake`, zlib `zlib`, LLVM/Mull `native-tools`,
+  call-removal correction `mull-callfix`, `clazy`, `cppcheck`, `aux-tools`, Python
+  `quality-tools`. `~/.cache/qs-tools/provision.sh`
+  re-creates missing ones following `documents/DEPENDENCIES.md`;
+  `~/.cache/qs-tools/env.sh` exports the complete gate environment, including
+  `QTSCROBBLER_CLAZY_EXTRA_ARGS`.
 - Exact staged or committed snapshot gate. Use a new directory each time and
   keep the source, temporary data, reports, and instrumented builds on disk.
-  On this host the original runner used by 0.13.76 needs a short `TMPDIR`.
-  Remove `--quick` for the complete release qualification.
+  Remove `--quick` for the complete release qualification, and run it detached.
 
   ```sh
   snapshot=$(git write-tree)  # Use a commit SHA to qualify a committed tree.
-  run_dir=$(mktemp -d "$HOME/.cache/qs-gate.XXXXXX")
-  mkdir "$run_dir/source" "$run_dir/tmp"
-  git archive "$snapshot" | tar -x -C "$run_dir/source"
-  . /tmp/qtscrobbler-mull-callfix-qualified2/env.sh
-  export PATH="/tmp/qtscrobbler-cmake/cmake-4.5.0-linux-x86_64/bin:/tmp/qtscrobbler-aux-tools-current/bin:$HOME/.cache/qtscrobbler-python-probe-3152/quality-tools/bin:$PATH"
-  export QTSCROBBLER_QT_PREFIX=/tmp/qtscrobbler-qt/6.12.0/gcc_64
-  export ZLIB_ROOT=/tmp/qtscrobbler-zlib-1.4-qualified QTSCROBBLER_JOBS=4
-  export QTSCROBBLER_BUILD_DIR="$run_dir/build" TMPDIR="$run_dir/tmp"
-  cd "$run_dir/source"
-  ./localPipeline.sh --quick --noRun --noOpen --report-dir "$run_dir/reports" > "$run_dir/log" 2>&1
+  setsid nohup ~/.cache/qs-tools/gate.sh "$HOME/.cache/qs-gate-<name>" "$snapshot" --quick \
+    >/dev/null 2>&1 &
+  # gate.sh extracts the snapshot, sources env.sh, records the environment and
+  # appends EXIT=<status> to <run_dir>/log.
   ```
 
 ## Testing and measurement policy

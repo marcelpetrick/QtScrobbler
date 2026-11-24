@@ -1,20 +1,20 @@
 # Dependency inventory
 
-Reviewed 2026-11-17 using upstream release APIs and registries. `plan.md` tracks the
+Reviewed 2026-11-17 and again 2026-11-24 using upstream release APIs and registries. `plan.md` tracks the
 remaining qualification work. Build compatibility minima and exact tested SDK versions
 serve different purposes: CMake permits compatible consumers; provisioning pins the SDK.
 
 | Component | Previous project selection | Selected or measured | Source / status |
 | --- | --- | --- | --- |
-| Qt Core, Network, Sql, Xml, Widgets, Test and tools | >=6.8, CI 6.8.* | 6.12.0 | [Official downloads](https://download.qt.io/official_releases/qt/6.12/); 6.12.1 not yet in download index at review |
+| Qt Core, Network, Sql, Xml, Widgets, Test and tools | >=6.8, CI 6.8.* | 6.12.1 (`6.12.1-0-202611180427`) | [Official open-source release](https://download.qt.io/official_releases/qt/6.12/6.12.1/); newest stable 2026-11-24, 6.13 is pre-release only |
 | Qt installer | Indirect Action provisioning | aqtinstall 3.3.0 from both Python locks | [PyPI](https://pypi.org/project/aqtinstall/3.3.0/); all five Linux SDK archives are SHA-256 pinned |
-| CMake / CTest | >=3.28; local 4.4.4 | 4.5.0 qualified toolchain; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.0) |
+| CMake / CTest | >=3.28; local 4.4.4 | 4.5.1 qualified; compatibility floor retained | [Upstream release](https://github.com/Kitware/CMake/releases/tag/v4.5.1) |
 | libmtp | Unversioned pkg-config | 1.1.23 locally | [Upstream releases](https://github.com/libmtp/libmtp/releases); current upstream stable; CI distro package resolution still needs a reproducible pin |
 | Compiler | OS-selected | GCC 16.2.1 locally | Exact CI compiler/environment lock pending |
 | pkg-config implementation | Host pkgconf 3.0.7 | Private pkgconf 3.0.11 | Checksum-pinned installer and 429 upstream checks; final project qualification pending |
 | Python | Host 3.14.7; scripts support 3.12+ | Private / Actions 3.15.2 | [Private interpreter qualification](PYTHON_TOOLCHAIN.md); exact bootstrap/source backends in requirements-bootstrap.txt |
 | Coverage frontend | Absent | gcovr 8.8 installed for qualification | [PyPI](https://pypi.org/project/gcovr/8.8/); measurement/gate pending |
-| Mutation engine | Absent | Mull 0.38.0 qualified with LLVM 20.1.8 | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.38.0); published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1; native Qt Test mutation spike qualified; full campaign target remains open |
+| Mutation engine | Absent | Mull 0.38.0 qualified with LLVM 20.1.8; 0.39.1 reviewed 2026-11-24 and deferred | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.38.0); published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1; native Qt Test mutation spike qualified; full campaign target remains open. 0.39.x (2026-11-19) changes which mutants are generated (templates, default member initializers) and the qualified call-removal correction is bound to the 0.38.0 plugin, so the upgrade needs its own correction requalification and ratchet review |
 | Clazy standalone | Ubuntu Clazy 1.11 / LLVM 15 | CI builds 1.17.1 against LLVM 20.1.8 | [Upstream source tag](https://invent.kde.org/sdk/clazy/-/tags/v1.17.1); checksum-pinned source and development archives support C++23 analysis |
 | Cppcheck | Ubuntu Cppcheck 2.13.0 | CI builds 2.22.0 | [Upstream release](https://github.com/cppcheck-opensource/cppcheck/releases/tag/2.22.0); source is SHA-256 pinned |
 | checkout Action | v4 | v7.0.1, immutable SHA | CI/release workflows |
@@ -45,21 +45,20 @@ python3 -m venv /path/to/quality-tools
 export PATH=/path/to/quality-tools/bin:$PATH
 tools/install_qt_sdk.sh /path/to/new/Qt /path/to/dependency-reports
 
-QTSCROBBLER_QT_PREFIX=/path/to/new/Qt/6.12.0/gcc_64 \
+QTSCROBBLER_QT_PREFIX=/path/to/new/Qt/6.12.1/gcc_64 \
 QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /tmp/qtscrobbler-reports
 ```
 
-The installer requires a new directory and verifies the five Qt 6.12.0 Linux
+The installer requires a new directory and verifies the five Qt 6.12.1 Linux
 x86-64 archives against the committed [SHA-256 manifest](../tools/qt-sdk-linux-x86_64.sha256).
 The hashes match the official Qt package repository's
-`6.12.0-0-202609280346` archive sidecars.
-[Qt SDK archive index](https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/)
+`6.12.1-0-202611180427` archive sidecars.
+[Qt SDK archive index](https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6121/qt6_6121/qt.qt6.6121.linux_gcc_64/)
 
-Use CMake and CTest from the same installation. The verified Linux x86-64 upstream
-CMake 4.5.0 tarball is `cmake-4.5.0-linux-x86_64.tar.gz` with SHA-256
-`81f0d5b0960fb6adc8197030ffc827fba937640d51e73e39e0e9e40d88c66f6f`.
-It was checked against upstream's `cmake-4.5.0-SHA-256.txt`; the PyPI CMake wrapper did
-not yet provide 4.5.0, so it must not be presented as an installable PyPI pin.
+Use CMake and CTest from the same installation. The verified Linux x86-64 upstream CMake 4.5.1 tarball is
+`cmake-4.5.1-linux-x86_64.tar.gz` with SHA-256
+`83b71181fb62b4fe8f26067a9321448572e7a43bd04ff6c7f54a24c33698f16d`, checked
+against upstream's `cmake-4.5.1-SHA-256.txt`.
 
 ## Repeatable dependency review
 
@@ -147,7 +146,7 @@ unchanged. See [native mutation details](MUTATION_TESTING.md).
 
 The [fresh all-tools audit](DEPENDENCY_REVIEW_2026-11-17.md) verifies the complete
 Python lock, SDK, native tooling, host/runtime inventory and Action SHAs. Install
-updated pkgconf 3.0.11 and Graphviz 16.1.1 without modifying the host:
+updated pkgconf 3.0.11 and Graphviz 16.1.2 without modifying the host:
 
 ```sh
 python3 tools/install_aux_tools.py --prefix /path/to/aux-tools
@@ -181,6 +180,7 @@ setup-python **v7.1.0** pinned to
 isolation for the quality resolution so CPython3.15 source wheels use the reviewed
 build backends instead of floating build requirements. The private selected Python
 and native tools do not replace the user's host runtime libraries.
+
 
 ## Download client identification
 

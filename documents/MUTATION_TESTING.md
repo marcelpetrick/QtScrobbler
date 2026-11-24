@@ -50,7 +50,7 @@ coverage and mutation output directories separate.
 . /path/to/mull-callfix/env.sh
 MULL_CONFIG="$PWD/mull.yml" cmake -S . -B /tmp/qtscrobbler-mutation-build \
   -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.0/gcc_64 \
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.12.1/gcc_64 \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DQTSCROBBLER_MULL_PLUGIN:FILEPATH="$QTSCROBBLER_MULL_PLUGIN"
 MULL_CONFIG="$PWD/mull.yml" cmake --build /tmp/qtscrobbler-mutation-build --parallel 4

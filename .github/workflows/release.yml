@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   release:
-    name: Linux release (Ubuntu 24.04 / Qt 6.12.0)
+    name: Linux release (Ubuntu 24.04 / Qt 6.12.1)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -105,7 +105,7 @@ jobs:
             libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-shape0 \
             libxcb-render0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcb-util1 libxcb-xkb1 libfuse2t64 file xauth
 
-      - name: Install verified CMake and CTest 4.5.0
+      - name: Install verified CMake and CTest 4.5.1
         run: |
           python3 tools/install_cmake.py --prefix "$RUNNER_TEMP/qtscrobbler-cmake"
           echo "$RUNNER_TEMP/qtscrobbler-cmake/bin" >> "$GITHUB_PATH"
@@ -128,11 +128,11 @@ jobs:
           path: .release-workflow
           persist-credentials: false
 
-      - name: Install checksum-verified Qt 6.12.0
+      - name: Install checksum-verified Qt 6.12.1
         id: qt
         run: |
           .release-workflow/tools/install_qt_sdk.sh "$RUNNER_TEMP/qtscrobbler-qt" "$RUNNER_TEMP/dependency-reports"
-          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.0/gcc_64" >> "$GITHUB_OUTPUT"
+          echo "qt-root-dir=$RUNNER_TEMP/qtscrobbler-qt/6.12.1/gcc_64" >> "$GITHUB_OUTPUT"
 
       - name: Install and test pinned zlib 1.4
         run: |

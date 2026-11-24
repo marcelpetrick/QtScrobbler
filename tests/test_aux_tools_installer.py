@@ -92,7 +92,7 @@ class AuxiliaryToolInstallerTests(unittest.TestCase):
         host = installer.subprocess.CompletedProcess([], 0, "unused SVG",
                    'libdir = "/usr/lib/graphviz"\n/usr/lib/graphviz/config8\nwas successfully loaded.\n')
         with patch.dict(installer.os.environ, GVBINDIR=""), \
-                patch.object(installer.subprocess, "check_output", side_effect=["3.0.11", "graphviz version 16.1.1 "]), \
+                patch.object(installer.subprocess, "check_output", side_effect=["3.0.11", "graphviz version 16.1.2 "]), \
                 patch.object(installer.subprocess, "run", return_value=host):
             with self.assertRaisesRegex(ValueError, "private plugin configuration"):
                 installer.qualify(self.prefix)

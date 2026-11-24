@@ -65,7 +65,7 @@ submission and cancellation workflows remain the responsibility of the real Qt T
 
 Install the exact Python requirements, qualified CMake/CTest and native LLVM/Mull
 prefix, install the reviewed private call-removal correction and source its `env.sh`. Set `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` to the
-qualified Qt 6.12.0 and zlib 1.4 prefixes. Native Clazy, Cppcheck, Doxygen, Xvfb and
+qualified Qt 6.12.1 and zlib 1.4 prefixes. Native Clazy, Cppcheck, Doxygen, Xvfb and
 libX11 must be available. Run:
 
 ```sh

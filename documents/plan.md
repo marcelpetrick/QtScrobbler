@@ -23,8 +23,18 @@ complete `./localPipeline.sh --noRun --noOpen` before committing.
   `mutation_installer_contract` and `zlib_installer_contract`.
   Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
   `~/.cache/qs-gate-0.14.4` (reports/summary.txt; `EXIT=` in log).
+- `0.14.5` build(deps): Qt 6.12.0 → 6.12.1 (official open-source release,
+  build `6.12.1-0-202611180427`; 6.13 is pre-release only), CMake 4.5.0 →
+  4.5.1, Graphviz 16.1.1 → 16.1.2, certifi/charset-normalizer/soupsieve/
+  packaging updated; supersedes Dependabot PR #9. All five Linux SDK hashes
+  equal the upstream sidecars. Reviewed and deferred: Mull 0.39.1 (changes
+  the mutant set; the call-removal correction is bound to 0.38.0). Every other
+  pin (Actions, linuxdeploy, Cppcheck 2.22.0, Clazy 1.17.1, zlib 1.4,
+  pkgconf 3.0.11, libmtp 1.1.23, Python 3.15.2, LLVM 20.1.8) is current.
+  Gate: complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
+  `~/.cache/qs-gate-0.14.5` (reports/summary.txt; `EXIT=` in log).
 
-Remaining in this session: 0.14.5, 0.14.6, 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
+Remaining in this session: 0.14.6, 0.15.0; then push main, tag v0.15.0 on the CI-green commit, verify the Release (AppImage,
 tar.gz, Windows ZIP and checksums) and close PR #9 as superseded. Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.

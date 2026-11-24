@@ -1,3 +1,8 @@
+* version 0.14.5 (2026-11-24)
+- Update Qt to 6.12.1, CMake/CTest to 4.5.1 and Graphviz to 16.1.2.
+- Update the Python pins certifi 2026.11.20 (supersedes Dependabot PR #9),
+  charset-normalizer 3.5.3, soupsieve 4.1.3 and packaging 26.4.
+
 * version 0.14.4 (2026-11-24)
 - Send a neutral User-Agent from every tool installer: archive.ubuntu.com now
   answers Python's default agent with HTTP 403, which stopped provisioning of
