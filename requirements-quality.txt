@@ -2,7 +2,7 @@ aqtinstall==3.3.0
 beautifulsoup4==4.15.0
 brotli==1.2.1
 bs4==0.0.2
-certifi==2026.10.23
+certifi==2026.11.20
 charset-normalizer==3.5.2
 colorlog==6.12.0
 defusedxml==0.7.1
