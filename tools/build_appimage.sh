@@ -61,10 +61,21 @@ WRAPPER
 chmod +x "${work}/qmake"
 export QMAKE="${work}/qmake"
 
+# linuxdeploy-plugin-qt deploys only the xcb platform plugin by default; Qt 6
+# prefers Wayland in a Wayland session and warned that it was missing. Bundle it,
+# and request the module whose deployer copies Qt's Wayland shell, decoration and
+# graphics integrations (despite its name; Qt's compositor library is not bundled).
+export EXTRA_PLATFORM_PLUGINS="libqwayland.so"
+export EXTRA_QT_MODULES="waylandcompositor"
+
 "${LINUXDEPLOY}" --appdir "${appdir}" \
     --executable "${build_dir}/qtscrob" --executable "${build_dir}/scrobbler" \
     --desktop-file "${work}/qtscrob.desktop" --icon-file "${work}/qtscrob.png" \
     --plugin qt --output appimage
 
 [[ -s "${LDAI_OUTPUT}" ]] || { echo "AppImage was not created: ${LDAI_OUTPUT}" >&2; exit 1; }
+# Both desktop platform plugins and Wayland's shell integration must be bundled.
+for plugin in platforms/libqxcb.so platforms/libqwayland.so wayland-shell-integration/libxdg-shell.so; do
+    [[ -f "${appdir}/usr/plugins/${plugin}" ]] || { echo "AppImage lacks Qt plugin ${plugin}" >&2; exit 1; }
+done
 echo "${LDAI_OUTPUT}"

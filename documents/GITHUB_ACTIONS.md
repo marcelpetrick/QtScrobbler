@@ -122,7 +122,9 @@ The workflow is deliberately small (minutes instead of the full gate's hours):
    `LICENSE`/`COPYING`, documents and the fictional example log as a `.tar.gz`.
 5. Build `QtScrobbler-<version>-x86_64.AppImage` with `tools/build_appimage.sh`, using
    the SHA-256-pinned linuxdeploy and linuxdeploy-plugin-qt. It bundles Qt 6.12 and its
-   plugins; the CLI is included as `usr/bin/scrobbler`. Each file gets a `.sha256`
+   plugins, including both desktop platform plugins (xcb and Wayland with its shell,
+   decoration and graphics integrations; `tools/build_appimage.sh` fails if one is
+   missing); the CLI is included as `usr/bin/scrobbler`. Each file gets a `.sha256`
    that names the bare file, so `sha256sum -c` works next to the download.
 6. Verify every `.sha256` with `sha256sum -c` inside `dist/`. Extract the archive and run both `--help` entry points, and start the AppImage under
    Xvfb with its bundled xcb plugin and no Qt on the library path.

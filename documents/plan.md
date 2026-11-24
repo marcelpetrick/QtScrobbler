@@ -81,9 +81,29 @@ Graphviz": the Graphviz download timed out (`The read operation timed out`);
 the same pinned installer passed in 45460038756. The 0.15.2 run is the
 confirmation run.
 
-Remaining in this session: confirm main CI on 0.15.2, publish the qualified tag with the corrected workflow (`gh workflow
-run release.yml --ref main -f tag=v0.15.0`), verify the Release (AppImage, tar.gz, Windows ZIP and three
-checksums) and confirm main CI on 0.15.1. Still open
+Release 45478989009 (workflow `f7ba755`) published v0.15.0:
+https://github.com/marcelpetrick/QtScrobbler/releases/tag/v0.15.0 with the
+AppImage, tar.gz, Windows ZIP and three `.sha256`; downloaded copies verify
+with `sha256sum -c` (`~/.cache/qs-release-0.15.0`) and the AppImage prints
+`QTScrob (v0.15.0)`. It also printed `Could not find the Qt platform plugin
+"wayland"` in a Wayland session and fell back to xcb.
+
+- `0.15.3` fix(release): bundle the Wayland platform plugin. linuxdeploy-plugin-qt
+  deploys only xcb by default; `EXTRA_PLATFORM_PLUGINS=libqwayland.so` adds the
+  plugin and `EXTRA_QT_MODULES=waylandcompositor` selects the deployer that
+  copies `wayland-shell-integration`, `-decoration-client` and
+  `-graphics-integration-client` (no compositor library is bundled). With only
+  the first variable `libxdg-shell.so` was missing, which the new content check
+  in `tools/build_appimage.sh` reported. A local AppImage built with the pinned
+  tools in `~/.cache/qs-appimage-test` loaded the bundled Wayland plugin in a
+  real Wayland session (`qt.qpa.plugin: Successfully loaded Qt platform plugin
+  "wayland"`) and xcb with `QT_QPA_PLATFORM=xcb`; size 33 → 34 MB. Gate:
+  complete `./localPipeline.sh --noRun --noOpen` on this exact tree in
+  `~/.cache/qs-gate-0.15.3`.
+
+Remaining in this session: confirm main CI on 0.15.2 and 0.15.3, then tag
+`v0.15.3` on the CI-green commit and verify that Release (AppImage with both
+platform plugins, tar.gz, Windows ZIP and three checksums). Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.
 
