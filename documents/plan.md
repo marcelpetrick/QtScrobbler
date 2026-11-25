@@ -109,9 +109,17 @@ on 0.15.2.
   cite the complete 0.15.3 gate. Gate: `--quick` on this exact tree in
   `~/.cache/qs-gate-0.15.4` (documentation-only on top of 0.15.3).
 
-Remaining in this session: confirm main CI on 0.15.4, then tag
-`v0.15.4` (0.15.3 plus documentation) on the CI-green commit and verify that Release (AppImage with both
-platform plugins, tar.gz, Windows ZIP and three checksums). Still open
+Main CI 45507621327 passed both jobs on `9204f77` (0.15.4); tag `v0.15.4`
+on it ran Release 45519076056 (success), which published
+https://github.com/marcelpetrick/QtScrobbler/releases/tag/v0.15.4 as the
+latest release: AppImage, tar.gz, Windows ZIP and three `.sha256`. The
+downloaded copies (`~/.cache/qs-release-0.15.4`) verify with `sha256sum -c`;
+the AppImage bundles `libqxcb.so`, `libqwayland.so` and `libxdg-shell.so` and
+in a real Wayland session loads the Wayland plugin and prints
+`QTScrob (v0.15.4)`; the ZIP holds both executables and `qwindows.dll`.
+No open issues or PRs.
+
+Still open
 from before: 95% mutation goal, the owner's live test scrobble (needs the
 owner's credentials), final completion review, Windows test-suite porting.
 
