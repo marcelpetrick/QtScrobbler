@@ -43,7 +43,7 @@ Provision the pinned SDK, Python tools, native LLVM/Mull environment and zlib pr
 `env.sh`, and set
 `QTSCROBBLER_QT_PREFIX` and `ZLIB_ROOT` explicitly. Formatting, static/docs checks,
 ASan/UBSan, separate 99% line and 95% branch coverage, the native mutation ratchet
-(`MUTATION_MINIMUM`, currently 77%, owner floor 65%, goal 95%) and extracted-package qualification are
+(`MUTATION_MINIMUM`, currently 77%, owner floor 65%, goal 80%) and extracted-package qualification are
 mandatory in this command. Raise the ratchet when tests kill more mutants; never lower
 it without the owner's decision. Missing tools/reports and failed stages fail.
 Test, mutation and package processes run through `tools/run_offline.py`; Linux network

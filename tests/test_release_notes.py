@@ -66,7 +66,7 @@ class ReleaseNotesTest(unittest.TestCase):
         self.assertIn("26 CTest suites, 0 failures", notes)
         self.assertIn("lines 2722/2749 (99.01%), branches 1027/1063 (96.61%)", notes)
         self.assertIn("gates 99% lines and 95% branches", notes)
-        self.assertIn("1900/1990 mutants killed (95.47%; gate 67%, goal 95%)", notes)
+        self.assertIn("1900/1990 mutants killed (95.47%; gate 67%, goal 80%)", notes)
         self.assertIn("Release build: 26/26 CTest suites PASS", notes)
         self.assertIn(f"{hashlib.sha256(b'appimage bytes').hexdigest()}  {asset.name}", notes)
         self.assertEqual(notes.count("- ✅"), len(NOTES.REQUIRED_STAGES) + 1)

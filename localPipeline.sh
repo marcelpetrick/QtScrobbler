@@ -30,7 +30,7 @@ BASELINE=false
 FORCE_FULL=false
 # Exact 0.13.85 CI killed 1381/1775 mutants (77.80%). The two complete
 # local gates measured 77.97% and 78.02%. Enforce a 77% ratchet and
-# retain 95% as the goal. Coverage requires 99% lines and 95% branches.
+# retain 80% as the goal (owner decision 2026-11-26, was 95%). Coverage requires 99% lines and 95% branches.
 MUTATION_MINIMUM=77
 
 # Detail strings
@@ -99,7 +99,7 @@ Stages:
   12. Coverage             — isolated LLVM build, separate 99% line and 95% branch gates
   13. Mutation toolchain   — native Qt signal-removal semantic proof (fail-closed)
   14. Mutation             — isolated native Mull campaign, assertion-killed ratchet gate
-                            (MUTATION_MINIMUM; goal 95%)
+                            (MUTATION_MINIMUM; goal 80%)
   15. Package              — extracted CLI and actual GUI startup, dependency checks
   16. Summary              — actual stage results (missing tools or reports fail)
 

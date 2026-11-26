@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Marcel Petrick
 """Score native Mull 0.38 SQLite reports using proven Qt Test assertion failures.
 
-Usage: python3 tools/mutation_score.py REPORT.sqlite [...] --minimum 95 --output summary.json
+Usage: python3 tools/mutation_score.py REPORT.sqlite [...] --minimum 80 --output summary.json
 
 Reports may contain the same source mutant from several executables. It is counted once,
 and is killed if any execution demonstrates a normal nonzero Qt Test assertion failure.
@@ -139,7 +139,7 @@ def passes(summary: dict, minimum: Decimal) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", type=Path, nargs="+")
-    parser.add_argument("--minimum", type=Decimal, default=Decimal("95"))
+    parser.add_argument("--minimum", type=Decimal, default=Decimal("80"))
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
     try:

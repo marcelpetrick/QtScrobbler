@@ -87,7 +87,7 @@ def verification(reports: Path) -> list[str]:
         details["Coverage"] += f"; gates {targets['lines']}% lines and {targets['branches']}% branches"
     mutation = json.loads((reports / "mutation/summary.json").read_text())
     details["Mutation"] = (f"{mutation['assertion_killed']}/{mutation['unique_mutants']} mutants killed "
-                           f"({mutation['score_percent'][:5]}%; gate {mutation['target_minimum']}%, goal 95%)")
+                           f"({mutation['score_percent'][:5]}%; gate {mutation['target_minimum']}%, goal 80%)")
     return [f"- ✅ {LABELS[stage]}" + (f": {details[stage]}" if stage in details else "")
             for stage in REQUIRED_STAGES]
 

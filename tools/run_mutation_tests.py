@@ -7,7 +7,7 @@ Build first with Clang and QTSCROBBLER_MULL_PLUGIN, then run:
   python3 tools/run_mutation_tests.py --build-dir BUILD --report-dir NEW_REPORT_DIRECTORY \
     --toolchain-summary FRESH_SEMANTIC_PREFLIGHT/summary.json
 
-Use --baseline to measure an incomplete suite without claiming the 95% gate passes.
+Use --baseline to measure an incomplete suite without claiming the 80% goal passes.
 Mutation builds retain profiling but omit source coverage mapping, so Mull executes all
 generated mutants rather than applying its unreliable LLVM 20 coverage filter. Separate
 LLVM coverage reports remain required; survivors include unexercised mutations until
@@ -240,7 +240,7 @@ def main() -> int:
     parser.add_argument("--toolchain-summary", type=Path, required=True,
                         help="passing native semantic preflight for this exact compiler/plugin/runner")
     parser.add_argument("--ctest", default="ctest")
-    parser.add_argument("--minimum", type=Decimal, default=Decimal("95"))
+    parser.add_argument("--minimum", type=Decimal, default=Decimal("80"))
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--mutant-timeout-ms", type=int, default=15000,
                         help="minimum mutant timeout; Mull uses max(this, 10 times baseline duration)")

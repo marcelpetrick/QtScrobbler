@@ -1,7 +1,7 @@
 # Qt 6.12 and quality improvement plan
 
 P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
-is green and v0.13.85 and v0.14.0 are published. The 95% mutation goal, the
+is green and v0.13.85 and v0.14.0 are published. The 80% mutation goal, the
 owner's live test scrobble and final completion review remain open.
 Updated 2026-11-24.
 
@@ -133,10 +133,18 @@ No open issues or PRs.
   this exact tree in `~/.cache/qs-gate-0.15.6` (test/CI-only change on top of
   the complete-gated 0.15.3 product tree); main CI runs the complete pipeline.
 
-Still open: 95% mutation goal (77.93%), Mull 0.39.1 (deferred: changes the
+Still open: 80% mutation goal (77.93%, 37 more kills of 1749; owner lowered it from 95% on 2026-11-26), Mull 0.39.1 (deferred: changes the
 mutant set and the call-removal correction is bound to 0.38.0), the owner's
 live test scrobble (needs the owner's credentials), final completion review.
 Windows test-suite porting is done.
+
+- `0.15.7` docs/tools: owner lowered the mutation goal from 95% to 80%
+  (README, AGENTS.md, QUALITY.md, MUTATION_TESTING.md, visions.md,
+  `localPipeline.sh`, default `--minimum` of `tools/mutation_score.py` and
+  `tools/run_mutation_tests.py`, release notes). `MUTATION_MINIMUM` stays 77%
+  because the measured score is 77.93%; raise it to 80% once a complete gate
+  measures at least 1400/1749. Historical entries keep their 95% wording.
+  Gate: `--quick` on this exact tree in `~/.cache/qs-gate-0.15.7`.
 
 ## Session handoff — 2026-11-18T15:30+01:00
 
@@ -905,7 +913,7 @@ Exit: fresh complete report meets both thresholds locally and in CI; no excluded
 - [ ] Add exact contract/boundary/error tests for survivors; prove targeted mutant fails and original passes.
 - [ ] Keep exclusions narrow: true equivalent/unreachable with rationale, no blanket logging-line exclusion
       that could hide state changes or credentials; publish excluded counts and diffs.
-- [ ] Reach proposed 95% killed score; retain full campaign reports and tool/config/source fingerprints.
+- [ ] Reach the 80% killed score (owner lowered the goal from 95% on 2026-11-26); retain full campaign reports and tool/config/source fingerprints.
 - [ ] Add `--mutation` to local pipeline; run full campaign before releases and scheduled/manual CI,
       with targeted changed-code feedback on ordinary work when feasible.
 

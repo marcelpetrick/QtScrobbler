@@ -1,3 +1,8 @@
+* version 0.15.7 (2026-11-26)
+- Mutation testing: the goal is now 80% assertion-killed mutants (owner
+  decision; it was 95%). The enforced ratchet stays at 77% until measured
+  results reach 80% (currently 1363/1749, 77.93%).
+
 * version 0.15.6 (2026-11-26)
 - Windows CI: all eleven Qt Test suites now gate the package. The six suites
   that only ran as measurements isolate settings in the test home (Windows

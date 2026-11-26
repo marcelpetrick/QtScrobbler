@@ -95,7 +95,7 @@ native Mull mutation and extracted-package CLI/GUI checks. Missing tools, failed
 checks and scores below the configured quality thresholds fail the complete gate.
 The qualification requirements are 99% line coverage and 95% branch coverage.
 The native mutation policy sets a 65% floor, with a 77% ratchet enforced
-by `MUTATION_MINIMUM` in `localPipeline.sh`. The mutation goal remains 95%.
+by `MUTATION_MINIMUM` in `localPipeline.sh`. The mutation goal is 80%.
 Retained reports include actual statuses and tool versions.
 
 `--quick` explicitly runs only the build/test diagnostic subset. `--baseline` runs

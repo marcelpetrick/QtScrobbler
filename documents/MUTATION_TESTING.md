@@ -1,6 +1,6 @@
 # Native mutation testing
 
-The goal is **95% assertion-killed mutants**, independently of line and branch
+The goal is **80% assertion-killed mutants** (owner decision 2026-11-26; it was 95%), independently of line and branch
 coverage. Until it is reached, the pipeline gates on a ratchet (`MUTATION_MINIMUM` in
 `localPipeline.sh`, currently 77%, above the 65% absolute floor) so the score cannot
 drop; raise it whenever new tests kill more mutants. Releases do not run mutation
@@ -62,13 +62,13 @@ python3 tools/check_mutation_toolchain.py --report-dir /tmp/qtscrobbler-semantic
   --artifact "$QTSCROBBLER_MULL_CALLFIX_SHIM" \
   --artifact "$QTSCROBBLER_MULL_CALLFIX_SOURCE"
 
-# Initial measurement; a command success here does not mean the 95% target passes.
+# Initial measurement; a command success here does not mean the 80% target passes.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
   --report-dir /tmp/qtscrobbler-mutation-baseline --baseline \
   --coverage-summary /path/to/fresh-coverage/summary.json \
   --toolchain-summary /tmp/qtscrobbler-semantic-proof/summary.json
 
-# Enforced score; this exits nonzero when fewer than 95% are assertion-killed.
+# Enforced score; this exits nonzero when fewer than 80% are assertion-killed.
 python3 tools/run_mutation_tests.py --build-dir /tmp/qtscrobbler-mutation-build \
   --report-dir /tmp/qtscrobbler-mutation-release \
   --coverage-summary /path/to/fresh-coverage/summary.json \
@@ -146,7 +146,7 @@ and a failing test total. Fatal Qt output is not accepted as an assertion kill.
   the score. A dry run, invalid result, unknown schema/version, launch/wait failure,
   or unproven fail-fast result fails the campaign's integrity check.
 - Scores are compared from integer counts and exact decimal thresholds; display
-  rounding cannot promote a score below 95% into a pass.
+  rounding cannot promote a score below the threshold into a pass.
 - `--include-not-covered` includes generated mutants on unexecuted production lines.
   Reports retain each raw status, not only the score.
 - Every report directory must start empty. The manifest fingerprints source files,
@@ -157,7 +157,7 @@ and a failing test total. Fatal Qt output is not accepted as an assertion kill.
 Inspect or re-score saved reports without repeating the mutation campaign:
 
 ```sh
-python3 tools/mutation_score.py /path/to/reports/*.sqlite --minimum 95 \
+python3 tools/mutation_score.py /path/to/reports/*.sqlite --minimum 80 \
   --output /path/to/reports/rescored-summary.json
 python3 tests/test_mutation_score.py
 ```
