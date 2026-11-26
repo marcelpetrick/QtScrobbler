@@ -16,6 +16,7 @@
 #include "console.h"
 #include "progress.h"
 #include "qtscrob.h"
+#include "test_environment.h"
 #include "translation_labels.h"
 
 namespace {
@@ -188,9 +189,7 @@ class TranslationsTest : public QObject {
 int main(int argc, char** argv) {
     QTemporaryDir home;
     if (!home.isValid()) return 1;
-    qputenv("HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
-    qputenv("XDG_CACHE_HOME", home.path().toUtf8());
+    test_environment::isolate(home.path());
     qputenv("XDG_RUNTIME_DIR", home.path().toUtf8());
     QApplication application(argc, argv);
     TranslationsTest tests;

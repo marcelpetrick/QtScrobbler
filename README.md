@@ -26,9 +26,8 @@ Import your portable player's listening history, review the tracks, and scrobble
 - Use the English, German, or Polish interface.
 
 Linux is the fully qualified platform. Each CI run also builds a Windows x86-64 package
-with Qt 6.12.1 (MinGW) and gates it on five portable Qt Test suites and a smoke test of
-the extracted ZIP; the other suites are not yet ported to Windows, and MTP support is
-Linux-only. macOS sources are retained but not built.
+with Qt 6.12.1 (MinGW) and gates it on all eleven Qt Test suites and a smoke test of
+the extracted ZIP; MTP support is Linux-only. macOS sources are retained but not built.
 
 The screenshot comes from the running application after importing the
 [fictional example log](examples/README.md). Recreate it with

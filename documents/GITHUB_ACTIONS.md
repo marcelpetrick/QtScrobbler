@@ -27,24 +27,28 @@ GitHub Actions are referenced by immutable commit SHAs.
 A parallel `windows` job on Windows Server 2025 installs CMake 4.5.1, the
 checksum-pinned Qt 6.12.1 MinGW kit with MinGW 15.1.0
 (`tools/install_qt_sdk_windows.py`) and zlib 1.4, then runs
-`tools/build_windows_package.sh`. It gates on building both programs, the Windows-
-qualified Qt Test suites (`common`, `parse_log`, `parse_ipod`, `gettrackinfo`,
-`submit`), `windeployqt` packaging and a smoke test of the extracted ZIP with no Qt or
-MinGW on `PATH`. The remaining Qt Test suites still assume Linux behavior; a non-gating
-step runs each one and uploads its Qt Test report in `windows-unported-suites/` with the
-package artifact. Measured on Windows Server 2025 (run 45412165069, 2026-11-24):
+`tools/build_windows_package.sh`. It gates on building both programs, all eleven
+Qt Test suites, `windeployqt` packaging and a smoke test of the extracted ZIP with no Qt or
+MinGW on `PATH`. The Python contracts check the Linux pipeline tooling and run in the Linux job.
 
-| Suite | Passed / failed | Observed cause |
-| --- | --- | --- |
-| `conf` | 15 / 6 | Settings without a custom path live in the registry on Windows; tests read INI files |
-| `dbcache` | 23 / 1 | Child-process output ends in `\r\n` (text-mode stdout) |
-| `scrobble` | 48 / 17 | Linux paths, permissions and process expectations |
-| `gui` | 30 / 16 | Child-process output line endings and Linux paths |
-| `cli` | 9 / 52 | Expected output compared byte-for-byte with `\n` line endings |
-| `translations` | 5 / 1 | The offscreen platform warns that Qt ships no font directory |
+Six suites were first measured without gating (run 45412165069, 2026-11-24) and
+then ported. Their failures were test-side assumptions, not product defects:
 
-These are test-side assumptions, not observed product defects; porting them is open work. The Linux job remains the complete
-quality gate (coverage, sanitizers, mutation).
+| Suite | Before porting (passed / failed) | Cause | Port |
+| --- | --- | --- | --- |
+| `conf` | 15 / 6 | Settings fixtures used the native format; Windows Conf uses INI, legacy settings use the registry | Fixtures use Conf's format; the legacy registry keys are cleared per test |
+| `dbcache` | 23 / 1 | Child-process output ends in `\r\n` (text-mode stdout) | Normalize line endings |
+| `scrobble` | 48 / 17 | Settings and cache written to `%APPDATA%` leaked between tests | INI locations redirected into the test home |
+| `gui` | 30 / 16 | `\r\n` output and the offscreen font warning | Normalize; `QT_QPA_FONTDIR` set to the system fonts |
+| `cli` | 9 / 52 | Expected output compared byte-for-byte with `\n` line endings | Normalize line endings |
+| `translations` | 5 / 1 | The offscreen platform warns that Qt ships no font directory | `QT_QPA_FONTDIR` set to the system fonts |
+
+`tests/test_environment.h` holds these isolations. Windows does not redirect the
+registry, so the `conf` suite skips itself unless `QTSCROBBLER_TEST_WINDOWS_REGISTRY=1`
+allows it to clear the legacy `qtscrob` keys; the disposable CI runner sets it. After
+porting, validation run 45835640630 passed all six (conf 21, dbcache 24, scrobble 65,
+cli 61, gui 46, translations 6). The Linux job remains the complete quality gate
+(coverage, sanitizers, mutation).
 
 The installer step's explicit `qt-root-dir` output selects the SDK for the local
 pipeline. This prevents a system `qmake6` from selecting an older Qt installation.

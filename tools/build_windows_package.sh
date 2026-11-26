@@ -18,10 +18,9 @@ qt=$(cygpath -m "$1") mingw=$(cygpath -m "$2") zlib=$(cygpath -m "$3") version=$
 build=${QTSCROBBLER_WINDOWS_BUILD_DIR:-build-windows}
 jobs=${QTSCROBBLER_JOBS:-4}
 name="qtscrobbler-${version}-windows-x86_64"
-# Suites qualified on Windows gate the package. The others assume Linux behavior
-# (INI-file settings instead of the registry, POSIX permissions, process output) and are measured
-# separately by the workflow until they are ported; see documents/GITHUB_ACTIONS.md.
-gated='^(common|parse_log|parse_ipod|gettrackinfo|submit)$'
+# Every Qt Test suite gates the package (MTP is Linux-only). The Python contracts check
+# Linux pipeline tooling and stay in the Linux job; see documents/GITHUB_ACTIONS.md.
+gated='^(common|parse_log|parse_ipod|gettrackinfo|submit|conf|dbcache|scrobble|cli|gui|translations)$'
 
 mingw_path=$(cygpath -u "$mingw")
 qt_path=$(cygpath -u "$qt")
@@ -31,7 +30,8 @@ cmake -S . -B "$build" -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_PREFIX_PATH="$qt" \
     -DQTSCROBBLER_MTP=OFF -DZLIB_ROOT="$zlib" -DZLIB_LIBRARY="$zlib/lib/libzs.a" >&2
 cmake --build "$build" --parallel "$jobs" >&2
-QT_QPA_PLATFORM=offscreen ctest --test-dir "$build" --output-on-failure --no-tests=error \
+# The runner is disposable, so the conf suite may clear the legacy registry settings.
+QTSCROBBLER_TEST_WINDOWS_REGISTRY=1 QT_QPA_PLATFORM=offscreen ctest --test-dir "$build" --output-on-failure --no-tests=error \
     --timeout 120 -R "$gated" >&2
 
 package="$out/$name"

@@ -11,6 +11,7 @@
 #include <QtTest>
 
 #include "common.h"
+#include "test_environment.h"
 
 struct HttpRequest {
     QByteArray method;
@@ -113,8 +114,8 @@ class CliTest : public QObject {
         }
         result.exitStatus = process.exitStatus();
         result.exitCode = process.exitCode();
-        result.output = process.readAllStandardOutput();
-        result.error = process.readAllStandardError();
+        result.output = test_environment::lines(process.readAllStandardOutput());
+        result.error = test_environment::lines(process.readAllStandardError());
         return result;
     }
 

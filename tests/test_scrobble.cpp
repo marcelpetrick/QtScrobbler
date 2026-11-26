@@ -14,6 +14,7 @@
 #include <memory>
 
 #include "libscrobble.h"
+#include "test_environment.h"
 
 namespace {
 QStringList warnings;
@@ -1270,9 +1271,7 @@ class ScrobbleTest : public QObject {
 int main(int argc, char** argv) {
     QTemporaryDir home;
     if (!home.isValid()) return 1;
-    qputenv("HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
-    qputenv("XDG_CACHE_HOME", home.path().toUtf8());
+    test_environment::isolate(home.path());
     const QByteArray zone = qgetenv("QTSCROBBLER_TEST_TIMEZONE");
     qputenv("TZ", zone.isEmpty() ? QByteArray("UTC") : zone);
     QCoreApplication application(argc, argv);

@@ -1,3 +1,10 @@
+* version 0.15.6 (2026-11-26)
+- Windows CI: all eleven Qt Test suites now gate the package. The six suites
+  that only ran as measurements isolate settings in the test home (Windows
+  keeps Conf and the cache as INI files under %APPDATA%), clear the legacy
+  registry keys, accept \r\n child-process output and point the offscreen
+  platform at the system fonts.
+
 * version 0.15.5 (2026-11-25)
 - Plan: record the published and verified v0.15.4 release.
 

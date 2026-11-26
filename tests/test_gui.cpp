@@ -33,6 +33,7 @@
 #include "progress.h"
 #include "qtscrob.h"
 #include "settings.h"
+#include "test_environment.h"
 
 namespace {
 QStringList guiWarnings;
@@ -148,8 +149,8 @@ class GuiTest : public QObject {
         }
         QCOMPARE(child.exitStatus(), QProcess::NormalExit);
         QCOMPARE(child.exitCode(), expectedExit);
-        QCOMPARE(child.readAllStandardError(), expectedError);
-        const auto output = child.readAllStandardOutput();
+        QCOMPARE(test_environment::lines(child.readAllStandardError()), expectedError);
+        const auto output = test_environment::lines(child.readAllStandardOutput());
         if (expectedExit == 0) {
             QVERIFY(output.startsWith(QByteArray("QTScrob (v") + CLIENT_VERSION + ")\n"));
             QVERIFY(output.contains("--config=PATH"));
@@ -1187,9 +1188,7 @@ class GuiTest : public QObject {
 int main(int argc, char** argv) {
     QTemporaryDir home;
     if (!home.isValid()) return 1;
-    qputenv("HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
-    qputenv("XDG_CACHE_HOME", home.path().toUtf8());
+    test_environment::isolate(home.path());
     qputenv("XDG_RUNTIME_DIR", home.path().toUtf8());
     QApplication application(argc, argv);
     if (argc == 2 && QByteArray(argv[1]) == "--settings-timezone-probe") {

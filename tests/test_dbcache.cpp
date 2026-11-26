@@ -9,6 +9,7 @@
 #include <QtTest>
 
 #include "dbcache.h"
+#include "test_environment.h"
 
 class DBCacheTest : public QObject {
     Q_OBJECT
@@ -165,7 +166,7 @@ class DBCacheTest : public QObject {
         QVERIFY(finished);
         QCOMPARE(process.exitStatus(), QProcess::NormalExit);
         QCOMPARE(process.exitCode(), 0);
-        QCOMPARE(process.readAllStandardOutput(), QByteArray("DB: driver not available\n"));
+        QCOMPARE(test_environment::lines(process.readAllStandardOutput()), QByteArray("DB: driver not available\n"));
         QVERIFY2(process.readAllStandardError().isEmpty(), qPrintable(process.errorString()));
     }
 
@@ -291,8 +292,7 @@ class DBCacheTest : public QObject {
 int main(int argc, char** argv) {
     QTemporaryDir home;
     if (!home.isValid()) return 1;
-    qputenv("HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
+    test_environment::isolate(home.path());
     QCoreApplication application(argc, argv);
     qRegisterMetaType<LOG_LEVEL>();
     if (application.arguments().contains("--without-sqlite")) {

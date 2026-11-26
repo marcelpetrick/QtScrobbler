@@ -226,31 +226,6 @@ jobs:
             "$VERSION" dist | tail -n 1)
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
 
-      # Measurement only: these suites still assume Linux settings storage, file
-      # permissions and process output. Their real Windows results are recorded, not gated.
-      - name: Measure the suites not yet ported to Windows
-        if: success()
-        continue-on-error: true
-        env:
-          QT_QPA_PLATFORM: offscreen
-        run: |
-          MINGW_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/Tools/mingw1510_64/bin")
-          QT_BIN=$(cygpath -u "$RUNNER_TEMP/qtscrobbler-qt/6.12.1/mingw_64/bin")
-          export PATH="$MINGW_BIN:$QT_BIN:$PATH"
-          mkdir -p windows-unported-suites
-          status=0
-          for suite in conf dbcache scrobble cli gui translations; do
-            # Qt Test writes its report to a file, so an abnormal exit still leaves evidence.
-            if (cd build-windows && timeout 120 "./test_$suite.exe" -o "../windows-unported-suites/$suite.txt,txt"); then
-              echo "$suite: PASS"
-            else
-              echo "$suite: FAIL (exit $?)"
-              status=1
-            fi
-          done > windows-unported-suites/summary.txt 2>&1
-          cat windows-unported-suites/summary.txt
-          exit "$status"
-
       - name: Upload the Windows package
         if: success()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -259,6 +234,5 @@ jobs:
           path: |
             ${{ steps.package.outputs.zip }}
             ${{ steps.package.outputs.zip }}.sha256
-            windows-unported-suites/
           retention-days: 7
           if-no-files-found: error

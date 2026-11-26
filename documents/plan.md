@@ -119,9 +119,24 @@ in a real Wayland session loads the Wayland plugin and prints
 `QTScrob (v0.15.4)`; the ZIP holds both executables and `qwindows.dll`.
 No open issues or PRs.
 
-Still open
-from before: 95% mutation goal, the owner's live test scrobble (needs the
-owner's credentials), final completion review, Windows test-suite porting.
+## Session handoff — 2026-11-26
+
+- `0.15.6` test(windows): port the six unported Qt Test suites and gate the
+  Windows package on all eleven. Causes and ports per suite are in
+  `documents/GITHUB_ACTIONS.md`; the shared isolation is
+  `tests/test_environment.h` (INI settings paths into the test home, legacy
+  registry cleanup opt-in via `QTSCROBBLER_TEST_WINDOWS_REGISTRY=1`, `\r\n`
+  normalization, `QT_QPA_FONTDIR`). Validation branch run 45835640630 on
+  Windows Server 2025: conf 21/21, dbcache 24/24, scrobble 65/65, cli 61/61,
+  gui 46/46, translations 6/6 (before: 15/6, 23/1, 48/17, 9/52, 30/16, 5/1
+  passed/failed). Linux: the six suites pass unchanged. Gate: `--quick` on
+  this exact tree in `~/.cache/qs-gate-0.15.6` (test/CI-only change on top of
+  the complete-gated 0.15.3 product tree); main CI runs the complete pipeline.
+
+Still open: 95% mutation goal (77.93%), Mull 0.39.1 (deferred: changes the
+mutant set and the call-removal correction is bound to 0.38.0), the owner's
+live test scrobble (needs the owner's credentials), final completion review.
+Windows test-suite porting is done.
 
 ## Session handoff — 2026-11-18T15:30+01:00
 

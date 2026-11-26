@@ -196,7 +196,7 @@ before extracting it with 7-Zip. The hashes equal the official `.sha256` sidecar
 were re-measured locally on 2026-11-24. `tools/install_zlib.py` builds the same pinned
 zlib 1.4 with that compiler (`CMAKE_GENERATOR="MinGW Makefiles"`); MinGW names the
 static archive `libzs.a`. `tools/build_windows_package.sh` builds with MTP disabled,
-runs the Windows-qualified suites, deploys with `windeployqt` and smoke-tests the
+runs all eleven Qt Test suites, deploys with `windeployqt` and smoke-tests the
 extracted ZIP without Qt or MinGW on `PATH`.
 
 The host MinGW cross compiler on the development machine targets UCRT while Qt's kit

@@ -7,6 +7,7 @@
 #include <new>
 
 #include "conf.h"
+#include "test_environment.h"
 
 namespace {
 // A normal allocator can return storage that held arbitrary prior data. Use a
@@ -28,8 +29,18 @@ class ConfTest : public QObject {
     Q_OBJECT
 
    private slots:
+    void initTestCase() {
+        if (!test_environment::legacyRegistryWritable())
+            QSKIP(
+                "Legacy settings are in the Windows registry; set QTSCROBBLER_TEST_WINDOWS_REGISTRY=1 to allow "
+                "clearing them");
+    }
+
+    void cleanupTestCase() { test_environment::clearLegacyRegistry(); }
+
     void init() {
         QTest::failOnWarning(QRegularExpression(".*"));
+        test_environment::clearLegacyRegistry();
         const QString config = qEnvironmentVariable("XDG_CONFIG_HOME");
         QVERIFY(!config.isEmpty());
         QVERIFY(QDir(config).removeRecursively());
@@ -82,7 +93,7 @@ class ConfTest : public QObject {
 
     void systemFallbacksCannotEnableAccountsOrTriggerLegacyMigration() {
         {
-            QSettings current(QSettings::NativeFormat, QSettings::SystemScope, "qtscrob", "qtscrob");
+            QSettings current(test_environment::currentFormat, QSettings::SystemScope, "qtscrob", "qtscrob");
             current.setValue("application/utc_offset", 7200);
             current.setValue("Last.fm/enabled", true);
             current.setValue("Last.fm/username", "system-account");
@@ -97,7 +108,7 @@ class ConfTest : public QObject {
             QCOMPARE(legacy.status(), QSettings::NoError);
         }
         // Show the isolated system fixtures really are visible through ordinary fallbacks.
-        QSettings ordinary(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        QSettings ordinary(test_environment::currentFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         QCOMPARE(ordinary.value("Last.fm/username").toString(), "system-account");
         Conf conf;
         QSignalSpy logs(&conf, &Conf::add_log);
@@ -109,7 +120,7 @@ class ConfTest : public QObject {
         QVERIFY(conf.sites[CONFIG_LASTFM].password_hash.isEmpty());
         for (const auto& log : logs) QVERIFY(!log[1].toString().contains("Moving config"));
         QVERIFY(conf.save_config());
-        QSettings written(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        QSettings written(test_environment::currentFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         written.setFallbacksEnabled(false);
         QCOMPARE(written.value("application/utc_offset").toInt(), 0);
         QVERIFY(!written.value("Last.fm/enabled").toBool());
@@ -239,7 +250,7 @@ class ConfTest : public QObject {
     }
 
     void customSection() {
-        const QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        const QSettings destination(test_environment::currentFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         QFile persisted(destination.fileName());
         Conf conf;
         const QHash<QString, QVariant> values{{"size", QSize(600, 450)}, {"maximized", true}, {"nested/key", "value"}};
@@ -361,7 +372,7 @@ class ConfTest : public QObject {
         source.setValue("Last.fm/password_hash", "old-hash");
         source.sync();
         QCOMPARE(source.status(), QSettings::NoError);
-        const QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        const QSettings destination(test_environment::currentFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         Conf conf;
         QSignalSpy logs(&conf, &Conf::add_log);
         QVERIFY(conf.load_config());
@@ -483,7 +494,7 @@ class ConfTest : public QObject {
         QCOMPARE(conf.proxy_pass, "old-password");
         QSettings old("qtscrob");
         QVERIFY(old.allKeys().isEmpty());
-        QSettings destination(QSettings::NativeFormat, QSettings::UserScope, "qtscrob", "qtscrob");
+        QSettings destination(test_environment::currentFormat, QSettings::UserScope, "qtscrob", "qtscrob");
         destination.setFallbacksEnabled(false);
         QCOMPARE(destination.value("application/version").toString(), CLIENT_VERSION);
         QCOMPARE(destination.value("application/mru").toStringList(), QStringList{"/example/player"});
@@ -507,9 +518,7 @@ class ConfTest : public QObject {
 int main(int argc, char** argv) {
     QTemporaryDir home;
     if (!home.isValid()) return 1;
-    qputenv("HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_HOME", home.path().toUtf8());
-    qputenv("XDG_CONFIG_DIRS", (home.path() + "/system").toUtf8());
+    test_environment::isolate(home.path());
     QCoreApplication application(argc, argv);
     qRegisterMetaType<LOG_LEVEL>();
     ConfTest tests;
