@@ -119,7 +119,58 @@ in a real Wayland session loads the Wayland plugin and prints
 `QTScrob (v0.15.4)`; the ZIP holds both executables and `qwindows.dll`.
 No open issues or PRs.
 
-## Session handoff — 2026-11-26
+## Session handoff — 2026-11-26 (resume here after the restart)
+
+State at handoff: `main` pushed through `975174f` (0.15.7, goal 80%). Main CI
+45837085475 (0.15.6) passed both jobs; CI 45857049890 (0.15.7) was still
+running at handoff, so check it first with
+`gh run list --workflow CI --branch main --limit 3`. 0.15.8 (this plan) is a
+local commit; push it only when no main CI run is active. Latest release
+remains v0.15.4 (no product change since). No open issues or PRs.
+
+### Plan: mutation score to the 80% goal
+
+Baseline (complete 0.15.3 gate, `~/.cache/qs-gate-0.15.3/reports/mutation/summary.json`):
+1363/1749 assertion-killed (77.93%), 386 unresolved (381 covered, 5 uncovered;
+249 survived only, 91 failed+survived, 32 with timeouts). 80% needs 1400,
+i.e. **37 more proven kills** (or reviewed equivalent exclusions with reasons,
+which also shrink the denominator).
+
+Unresolved by file: `qtscrob.cpp` 96, `libscrobble.cpp` 74, `parse-ipod.cpp` 49,
+`submit.cpp` 33, `parse-mtp-libmtp.cpp` 21, `cli/app.cpp` 18,
+`gettrackinfo.cpp` 13, `conf.cpp` 13, `console.cpp` 12, `qt/main.cpp` 12,
+`parse-log.cpp` 12, `settings.cpp` 10, `dbcache.cpp` 6, others 17. By operator:
+`remove_void_call` 133, `replace_scalar_call_nz/zr` 97, `init_const` 34,
+`assign_const` 33, comparison/increment operators about 90.
+
+Order, cheapest proven kills first (library code with deterministic Qt Tests):
+1. `parse-ipod.cpp` (49; 21 `init_const`): assert exact parsed fields and
+   offsets of the iTunesDB fixtures, including the initial values the
+   mutants change.
+2. `libscrobble.cpp` (74): exact track-list state after remove/update,
+   index arithmetic (`pre_inc_to_pre_dec`) and the assigned constants.
+3. `submit.cpp` (33), `conf.cpp` (13), `gettrackinfo.cpp` (13),
+   `parse-log.cpp` (12), `dbcache.cpp` (6): request bodies, persisted
+   values and boundary comparisons.
+4. Only then `cli/app.cpp` and the GUI files (mostly void-call removals of
+   widget updates; review each for equivalence rather than forcing tests).
+
+Per batch: list the targeted mutant ids, add exact tests, prove each mutant
+fails and the original passes (AGENTS.md), run a complete detached gate
+(`~/.cache/qs-tools/gate.sh <new dir> <tree>`, about 1.5 h) and record the
+new count. Raise `MUTATION_MINIMUM` to the new measured integer floor in the
+same commit; set it to 80 once a complete gate measures at least 1400/1749.
+Expected effort: two or three batches, about one working day.
+
+### Other open items
+
+- Mull 0.39.1: deferred; it changes the mutant set and the call-removal
+  correction is bound to 0.38.0. Needs the owner's decision.
+- Owner's live Last.fm test scrobble: needs the owner and real credentials.
+- Final completion review (`reviewBranch`, `githubAbout`; applying the About
+  text needs the owner's approval).
+
+### Completed this session
 
 - `0.15.6` test(windows): port the six unported Qt Test suites and gate the
   Windows package on all eleven. Causes and ports per suite are in
@@ -913,7 +964,7 @@ Exit: fresh complete report meets both thresholds locally and in CI; no excluded
 - [ ] Add exact contract/boundary/error tests for survivors; prove targeted mutant fails and original passes.
 - [ ] Keep exclusions narrow: true equivalent/unreachable with rationale, no blanket logging-line exclusion
       that could hide state changes or credentials; publish excluded counts and diffs.
-- [ ] Reach the 80% killed score (owner lowered the goal from 95% on 2026-11-26); retain full campaign reports and tool/config/source fingerprints.
+- [ ] Reach the 80% killed score (owner lowered the goal from 95% on 2026-11-26; plan in the 2026-11-26 handoff); retain full campaign reports and tool/config/source fingerprints.
 - [ ] Add `--mutation` to local pipeline; run full campaign before releases and scheduled/manual CI,
       with targeted changed-code feedback on ordinary work when feasible.
 

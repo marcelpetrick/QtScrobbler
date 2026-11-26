@@ -1,3 +1,6 @@
+* version 0.15.8 (2026-11-26)
+- Plan: record the handoff and the step-by-step plan to the 80% mutation goal.
+
 * version 0.15.7 (2026-11-26)
 - Mutation testing: the goal is now 80% assertion-killed mutants (owner
   decision; it was 95%). The enforced ratchet stays at 77% until measured
