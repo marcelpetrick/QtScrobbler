@@ -274,6 +274,17 @@ the suite with `-v2` to name the hanging function).
 - `0.15.12` docs: README badges and text, QUALITY.md and MUTATION_TESTING.md
   cite the 0.15.9–0.15.11 complete gates. Gate: `--quick` on this exact tree
   in `~/.cache/qs-gate-0.15.12` (documentation-only on top of 0.15.11).
+  Main CI 46041425045 passed on 0.15.11 (Mull 0.39.1).
+
+Completion review (`reviewBranch`, 06ef181..d08dfde): one LOW finding, no
+blockers. The removed `scrobble_method`/`have_mb` fields had no readers;
+MusicBrainz ids are still sent per entry (`submit.cpp:116`).
+`cancel_metadata()` repeats the former three steps, and `--no-cache` sits in
+the shared runner prefix (discovery and execution). Finding: the time-zone
+guard restored an unset TZ as `TZ=""` (UTC) for later tests outside CTest.
+- `0.15.13` test(gui): restore an unset TZ with `qunsetenv`; the test still
+  kills `qtscrob.cpp:517` (re-proven). Gate: `--quick` on this exact tree in
+  `~/.cache/qs-gate-0.15.13`.
 
 ### Completed this session
 

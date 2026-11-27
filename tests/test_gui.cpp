@@ -730,9 +730,13 @@ class GuiTest : public QObject {
 
     void timestampEditsIgnoreTheProcessTimeZone() {
         // The edited text is UTC (or UTC plus the configured offset), never the host's local time.
+        const bool wasSet = qEnvironmentVariableIsSet("TZ");
         const QByteArray previous = qgetenv("TZ");
-        const auto restore = qScopeGuard([previous] {
-            qputenv("TZ", previous);
+        const auto restore = qScopeGuard([wasSet, previous] {
+            if (wasSet)
+                qputenv("TZ", previous);
+            else
+                qunsetenv("TZ");
             tzset();
         });
         qputenv("TZ", "Asia/Kolkata");
