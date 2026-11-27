@@ -1,9 +1,9 @@
 # Qt 6.12 and quality improvement plan
 
 P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
-is green and v0.13.85 and v0.14.0 are published. The 80% mutation goal, the
-owner's live test scrobble and final completion review remain open.
-Updated 2026-11-24.
+is green and v0.15.10 is the latest release. The 80% mutation goal is met
+(1390/1734, 80.16%, Mull 0.39.1) and enforced. The owner's live test scrobble
+and the final completion review remain open. Updated 2026-11-27.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
@@ -251,6 +251,29 @@ templates and default member initializers change the denominator.
 Local prefixes `~/.cache/qs-tools/native-tools-0.39.1` and
 `mull-callfix-0.39.1`, environment `~/.cache/qs-tools/env-0.39.1.sh`;
 complete gate in `~/.cache/qs-gate-0.15.11`.
+Result: EXIT=0, every mandatory stage PASS (including the Qt semantic
+preflight of the correction with the 0.39.1 plugin); lines 2725/2752,
+branches 1037/1073, assertion-killed 1390/1734 (80.16%). 0.39.1 generated
+the same 1,734 mutants as 0.38.0 for this code. `~/.cache/qs-tools/env.sh`
+now selects 0.39.1; the 0.38.0 environment is `env-0.38.0.sh`.
+
+Release v0.15.10 (tag on `28f687a`, main CI 46000830248 green): the first
+attempt of Release run 46041421879 failed before publishing, because the
+Windows `gui` suite exceeded its 20 s CTest timeout without output. The same
+commit passed it in 6.35 s on CI, and the failed job's rerun passed. The
+release https://github.com/marcelpetrick/QtScrobbler/releases/tag/v0.15.10
+is the latest, with the AppImage, tar.gz, Windows ZIP and three `.sha256`.
+The downloaded copies (`~/.cache/qs-release-0.15.10`) pass `sha256sum -c`,
+the AppImage prints `QTScrob (v0.15.10)` in the Wayland session and the ZIP
+holds both executables and `qwindows.dll`. Under `QT_QPA_PLATFORM=offscreen`
+the AppImage dumps core, and so does v0.15.4, because the AppImage does not
+bundle the offscreen plugin.
+Open: find the cause of the single Windows `gui` timeout if it recurs (run
+the suite with `-v2` to name the hanging function).
+
+- `0.15.12` docs: README badges and text, QUALITY.md and MUTATION_TESTING.md
+  cite the 0.15.9–0.15.11 complete gates. Gate: `--quick` on this exact tree
+  in `~/.cache/qs-gate-0.15.12` (documentation-only on top of 0.15.11).
 
 ### Completed this session
 

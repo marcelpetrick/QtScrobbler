@@ -92,13 +92,18 @@ display, settings, credentials or devices.
 
 | Snapshot | Lines | Branches | Assertion-killed mutants | Complete gate |
 | --- | ---: | ---: | ---: | --- |
+| 0.15.11 (Mull 0.39.1), exact local | 2725/2752 (99.019%) | 1037/1073 (96.645%) | 1390/1734 (80.161%) | PASS |
+| 0.15.10, exact local | 2725/2752 (99.019%) | 1037/1073 (96.645%) | 1388/1734 (80.046%) | PASS |
+| 0.15.9, exact local | 2725/2752 (99.019%) | 1037/1073 (96.645%) | 1382/1734 (79.700%) | PASS |
 | 0.15.3, exact local | 2738/2765 (99.023%) | 1037/1073 (96.645%) | 1363/1749 (77.930%) | PASS |
 | 0.15.0, exact local | 2738/2765 (99.023%) | 1037/1073 (96.645%) | 1364/1749 (77.987%) | PASS |
 | 0.14.0 C++23, exact local | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1385/1775 (78.028%) | PASS |
 | 0.13.85, exact local | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1384/1775 (77.971%) | PASS |
 | 0.13.85, [main CI](https://github.com/marcelpetrick/QtScrobbler/actions/runs/44278965577) | 2748/2775 (99.027%) | 1037/1073 (96.645%) | 1381/1775 (77.802%) | PASS |
 
-The 0.15.x gates ran 29 CTests. Their denominators are 10 lines and 26 mutants
+0.15.9 removed write-only state, which shrank the denominators by 13 lines
+and 15 mutants. Mull 0.39.1 generated the same 1,734 mutants as 0.38.0 for
+this code. The 0.15.x gates ran 29 CTests. Their denominators are 10 lines and 26 mutants
 smaller than 0.14.0's, mainly because 0.14.6 replaced the hand-written
 `tm`/`timegm()` conversion with Qt's UTC conversion. The 0.14.0 and 0.13.85 local gates ran 27
 normal and sanitizer CTests and qualified the extracted
