@@ -27,7 +27,7 @@ class SemanticReportTest(unittest.TestCase):
                     "   Actual   (emitted.count()): 0\n   Expected (1): 1\n"
                     "Totals: 2 passed, 1 failed, 0 skipped\n", "", ""]
 
-    def write_report(self, rows, version="0.38.0"):
+    def write_report(self, rows, version="0.39.1"):
         with closing(sqlite3.connect(self.report)) as database:
             database.execute("CREATE TABLE information (key TEXT, value TEXT)")
             database.execute("INSERT INTO information VALUES ('Mull Version', ?)", (version,))

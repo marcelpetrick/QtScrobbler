@@ -45,7 +45,7 @@ class MutationScoreTest(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
-    def report(self, name, rows, version="0.38.0"):
+    def report(self, name, rows, version="0.39.1"):
         path = self.root / name
         with closing(sqlite3.connect(path)) as database, database:
             database.execute("CREATE TABLE information (key TEXT, value TEXT)")

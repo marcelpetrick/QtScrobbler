@@ -9,7 +9,7 @@ it is not a project-wide score. `plan.md` tracks the remaining test and gate wor
 
 ## Toolchain
 
-Mull 0.38.0 is the selected stable engine. Its published Linux compiler plugin is
+Mull 0.39.1 is the selected stable engine (0.38.0 until 0.15.11). Its published Linux compiler plugin is
 built against LLVM 20.1.2. The pinned LLVM 20.1.8 compiler was qualified against this
 plugin using actual Qt Test assertions. The host's Clang 23 cannot load that plugin.
 The installer includes matching LLVM coverage tools so coverage builds use the same
@@ -37,8 +37,13 @@ It includes Clang, the LLVM shared library, Clang common/runtime packages, linke
 and ICU 74 `74.2-1ubuntu3.1` come from
 [Ubuntu noble's official archive](https://archive.ubuntu.com/ubuntu/).
 The Mull engine and LLVM 20 plugin come from the
-[Mull 0.38.0 release](https://github.com/mull-project/mull/releases/tag/0.38.0).
+[Mull 0.39.1 release](https://github.com/mull-project/mull/releases/tag/0.39.1).
 Checksums are literal reviewed inputs in `tools/install_mutation_toolchain.py`.
+Mull 0.39 records and reuses mutant results by default, and a cached kill stays
+killed after the code changes. Every runner command passes `--no-cache`, so each
+report is measured from scratch. 0.39 also mutates template instantiations and
+default member initializers that 0.38.0 skipped, so its scores are not comparable
+one-to-one with earlier 0.38.0 results.
 
 ## Build and campaign
 
@@ -135,7 +140,7 @@ with the documented floor before using that campaign for final qualification.
 
 Mull's generic `Failed` status can include process launch failures and signal deaths.
 The default Mull score also treats timeouts differently from this project's policy.
-`tools/mutation_score.py` reads the actual Mull 0.38 SQLite schema and counts a kill
+`tools/mutation_score.py` reads the actual Mull 0.39 SQLite schema (0.38's plus a `run_identity` column) and counts a kill
 only when a normal nonzero process exit is accompanied by captured Qt Test `FAIL!`
 and a failing test total. Fatal Qt output is not accepted as an assertion kill.
 
@@ -219,7 +224,7 @@ Primary tool references:
 [installation](https://mull-project.com/getting-started/installation/),
 [compiler/plugin setup](https://mull-project.com/getting-started/setup/),
 [reporters](https://mull-project.com/reference/reporters/), and the
-[0.38.0 SQLite reporter implementation](https://github.com/mull-project/mull/blob/0.38.0/rust/mull-reporters/src/sqlite_reporter.rs).
+[0.39.1 SQLite writer](https://github.com/mull-project/mull/blob/0.39.1/rust/mull-state/src/sqlite.rs).
 
 ## Historical native call-replacement defect
 

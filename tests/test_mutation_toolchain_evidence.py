@@ -47,7 +47,7 @@ class ToolchainEvidenceTest(unittest.TestCase):
         report = self.reports / "signal-removal.sqlite"
         with closing(sqlite3.connect(report)) as database, database:
             database.execute("CREATE TABLE information (key TEXT, value TEXT)")
-            database.execute("INSERT INTO information VALUES ('Mull Version', '0.38.0')")
+            database.execute("INSERT INTO information VALUES ('Mull Version', '0.39.1')")
             database.execute("CREATE TABLE mutant (mutant_id TEXT, mutator TEXT, filename TEXT, "
                              "line_number INTEGER, column_number INTEGER, execution_status INTEGER, "
                              "exit_status INTEGER, stdout TEXT, stderr TEXT, mutation_replacement TEXT)")

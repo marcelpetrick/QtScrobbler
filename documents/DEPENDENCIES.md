@@ -15,7 +15,7 @@ serve different purposes: CMake permits compatible consumers; provisioning pins 
 | pkg-config implementation | Host pkgconf 3.0.7 | Private pkgconf 3.0.11 | Checksum-pinned installer and 429 upstream checks; final project qualification pending |
 | Python | Host 3.14.7; scripts support 3.12+ | Private / Actions 3.15.2 | [Private interpreter qualification](PYTHON_TOOLCHAIN.md); exact bootstrap/source backends in requirements-bootstrap.txt |
 | Coverage frontend | Absent | gcovr 8.8 installed for qualification | [PyPI](https://pypi.org/project/gcovr/8.8/); measurement/gate pending |
-| Mutation engine | Absent | Mull 0.38.0 qualified with LLVM 20.1.8; 0.39.1 reviewed 2026-11-24 and deferred | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.38.0); published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1; native Qt Test mutation spike qualified; full campaign target remains open. 0.39.x (2026-11-19) changes which mutants are generated (templates, default member initializers) and the qualified call-removal correction is bound to the 0.38.0 plugin, so the upgrade needs its own correction requalification and ratchet review |
+| Mutation engine | Absent | Mull 0.39.1 qualified with LLVM 20.1.8 (upgraded from 0.38.0 on 2026-11-27, owner-approved) | [Upstream release](https://github.com/mull-project/mull/releases/tag/0.39.1); latest stable; published selected release provides the LLVM 20 ABI, while the local system Clang is 23.1.1. 0.39 pins the same libirm commit `dfaf966` as 0.38.0, so the call-removal correction builds unchanged and is requalified by the Qt semantic preflight against the 0.39.1 plugin. 0.39 also mutates templates and default member initializers; result caching is disabled with `--no-cache` |
 | Clazy standalone | Ubuntu Clazy 1.11 / LLVM 15 | CI builds 1.17.1 against LLVM 20.1.8 | [Upstream source tag](https://invent.kde.org/sdk/clazy/-/tags/v1.17.1); checksum-pinned source and development archives support C++23 analysis |
 | Cppcheck | Ubuntu Cppcheck 2.13.0 | CI builds 2.22.0 | [Upstream release](https://github.com/cppcheck-opensource/cppcheck/releases/tag/2.22.0); source is SHA-256 pinned |
 | checkout Action | v4 | v7.0.1, immutable SHA | CI/release workflows |
@@ -89,7 +89,7 @@ see the native resolution below for the artifact hash.
   Formatting and analyzer versions are independent of the ABI-matched LLVM 20
   compiler used for coverage/Mull.
 - `tools/install_mutation_toolchain.py` checks fixed official package SHA-256 hashes
-  and qualifies Clang/LLVM 20.1.8 with Mull 0.38.0. The LLVM 20 ABI is required by
+  and qualifies Clang/LLVM 20.1.8 with Mull 0.39.1. The LLVM 20 ABI is required by
   the selected Mull plugin; the system Clang 23 cannot substitute for it.
 - `tools/install_zlib.py` pins zlib 1.4 from the official release tarball,
   SHA-256 `02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584`.
@@ -117,8 +117,8 @@ coverage/mutation and cannot qualify a release. See [quality commands](QUALITY.m
 
 ## Qualified native call-removal correction
 
-The official Mull 0.38.0 plugin mislabels compiler-generated cleanup as source
-void-call removal and misses exception-capable source calls. Use the separate,
+The official Mull 0.38.0 and 0.39.1 plugins (same libirm) mislabel compiler-generated cleanup as source
+void-call removal and miss exception-capable source calls. Use the separate,
 reviewed correction when qualifying mutation; the original toolchain is retained.
 
 ```sh

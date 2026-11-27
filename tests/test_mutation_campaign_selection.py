@@ -27,7 +27,7 @@ class CampaignSelectionTest(unittest.TestCase):
     def signature(self, line=10, column=2, replacement="<="):
         return ("cxx_lt_to_le", "/source/src/lib/common.cpp", line, column, replacement)
 
-    def report(self, name, rows, version="0.38.0"):
+    def report(self, name, rows, version="0.39.1"):
         path = self.root / name
         with closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE information (key TEXT, value TEXT)")

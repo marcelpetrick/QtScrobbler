@@ -164,8 +164,7 @@ Expected effort: two or three batches, about one working day.
 
 ### Other open items
 
-- Mull 0.39.1: deferred; it changes the mutant set and the call-removal
-  correction is bound to 0.38.0. Needs the owner's decision.
+- Mull 0.39.1: approved by the owner on 2026-11-27, see 0.15.11.
 - Owner's live Last.fm test scrobble: needs the owner and real credentials.
 - Final completion review (`reviewBranch`, `githubAbout`; applying the About
   text needs the owner's approval).
@@ -224,6 +223,34 @@ the destructors repeat, and the `cli/app.cpp` option resets
 (`parse_cmd()` runs once per process).
 Expected 1390/1734 (80.16%), so `MUTATION_MINIMUM` is raised to 80 in this
 commit; the complete gate in `~/.cache/qs-gate-0.15.10` enforces it.
+Result: EXIT=0, every mandatory stage PASS, assertion-killed 1388/1734
+(80.05%, ratchet 80% PASS). The 80% goal is reached with Mull 0.38.0.
+Main CI 45977856780 passed on 0.15.9.
+
+GitHub About (owner-approved 2026-11-27, applied with `gh repo edit`):
+"Qt 6.12 desktop app and CLI that imports listening histories from iPods,
+MTP players and Audioscrobbler logs, lets you review and edit the tracks,
+and scrobbles them to Last.fm or Libre.fm. Linux AppImage and Windows ZIP;
+99% line coverage and mutation-tested. Fork of the original SourceForge
+QTScrobbler." Topics: lastfm, librefm, scrobbler, audioscrobbler, ipod,
+mtp, qt6, cplusplus, linux, mutation-testing.
+
+### Dependency review and Mull 0.39.1 (0.15.11)
+
+Owner approved the Mull upgrade on 2026-11-27. All 37 Python pins equal
+PyPI's latest; Qt 6.12.1, CMake 4.5.1, the six Actions SHAs (latest
+releases), linuxdeploy, Cppcheck 2.22.0, Clazy 1.17.1, zlib 1.4, pkgconf
+3.0.11, libmtp 1.1.23, Graphviz 16.1.2, Python 3.15.2 and LLVM 20.1.8 are
+current. Only Mull changes: 0.38.0 -> 0.39.1 (latest stable, 2026-11-19;
+release asset digests pinned). 0.39 keeps libirm `dfaf966`, so the
+call-removal correction builds unchanged; the gate's Qt semantic preflight
+requalifies it against the 0.39.1 plugin. The SQLite schema only adds
+`run_identity`. 0.39 caches results by default and keeps cached kills after
+code changes, so both runner commands pass `--no-cache`. New mutants in
+templates and default member initializers change the denominator.
+Local prefixes `~/.cache/qs-tools/native-tools-0.39.1` and
+`mull-callfix-0.39.1`, environment `~/.cache/qs-tools/env-0.39.1.sh`;
+complete gate in `~/.cache/qs-gate-0.15.11`.
 
 ### Completed this session
 

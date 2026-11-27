@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2026 Marcel Petrick
-"""Score native Mull 0.38 SQLite reports using proven Qt Test assertion failures.
+"""Score native Mull 0.39 SQLite reports using proven Qt Test assertion failures.
 
 Usage: python3 tools/mutation_score.py REPORT.sqlite [...] --minimum 80 --output summary.json
 
@@ -68,7 +68,7 @@ def summarize(reports: list[Path]) -> dict:
                     "SELECT value FROM information WHERE key = 'Mull Version'"
                 )
             }
-            if versions != {"0.38.0"}:
+            if versions != {"0.39.1"}:
                 raise ValueError(f"unsupported or missing Mull version in {report}: {versions}")
             rows = database.execute("SELECT * FROM mutant").fetchall()
             if not rows:
@@ -112,7 +112,7 @@ def summarize(reports: list[Path]) -> dict:
     )
     return {
         "schema_version": 1,
-        "mull_version": "0.38.0",
+        "mull_version": "0.39.1",
         "reports": [str(report.resolve()) for report in reports],
         "unique_mutants": len(mutants),
         "assertion_killed": killed,

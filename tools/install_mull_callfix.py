@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""Build the reviewed Mull 0.38.0/libirm call-removal correction in a new prefix.
+"""Build the reviewed Mull 0.39.1/libirm call-removal correction in a new prefix.
 
 Uses checksum-pinned LLVM 20.1.8 headers and libirm dfaf966 headers. The official
 compiler/plugin/runtime stay unchanged. A compiler wrapper preloads the correction
@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tools/native/void_call_fix.cpp"
 CFG_TEST = ROOT / "tools/native/callfix_cfg_test.cpp"
 MANIFEST = "mull-callfix-manifest.json"
-PATCH_ID = "mull-0.38.0-libirm-dfaf966-void-invoke-v1"
+PATCH_ID = "mull-0.39.1-libirm-dfaf966-void-invoke-v1"
 LLVM_VERSION = "20.1.8~++20250804090239+87f0227cb601-1~exp1~20250804210352.139"
 LLVM_URL = ("https://apt.llvm.org/noble/pool/main/l/llvm-toolchain-20/"
             f"llvm-20-dev_{LLVM_VERSION}_amd64.deb")

@@ -1,3 +1,8 @@
+* version 0.15.11 (2026-11-27)
+- Mutation testing: Mull 0.38.0 -> 0.39.1. Results are no longer reused
+  between runs (--no-cache), and template instantiations and default
+  member initializers are now mutated.
+
 * version 0.15.10 (2026-11-27)
 - Tests: Help and About dialog geometry, the centered button row of the
   main window, time edits independent of the process time zone and INFO

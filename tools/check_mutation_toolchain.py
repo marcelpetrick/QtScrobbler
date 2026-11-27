@@ -239,8 +239,8 @@ def main() -> int:
                            XDG_RUNTIME_DIR=str(home))
         commands.run("compiler-version", [str(selected["compiler"]), "--version"])
         runner_version = commands.run("runner-version", [str(selected["runner"]), "--version"])
-        if not runner_version.startswith("mull-runner 0.38.0\n"):
-            raise ValueError("sentinel score accounting requires Mull 0.38.0")
+        if not runner_version.startswith("mull-runner 0.39.1\n"):
+            raise ValueError("sentinel score accounting requires Mull 0.39.1")
         commands.run("cmake-version", [str(selected["cmake"]), "--version"])
         commands.run("configure", [str(selected["cmake"]), "-S", str(source), "-B", str(build),
                                    "-DCMAKE_BUILD_TYPE=Debug", f"-DCMAKE_CXX_COMPILER={selected['compiler']}",
@@ -255,7 +255,7 @@ def main() -> int:
         output = commands.run("original", [str(binary)])
         if "PASS   : ProbeTest::signalPayload()" not in output or "0 failed" not in output:
             raise ValueError("original QSignalSpy count/payload contract did not pass")
-        commands.run("mutation", [str(selected["runner"]), "--include-not-covered", "--allow-surviving",
+        commands.run("mutation", [str(selected["runner"]), "--no-cache", "--include-not-covered", "--allow-surviving",
                                   "--workers", "1", "--timeout", "3000", "--minimum-timeout", "3000",
                                   "--reporters", "SQLite", "--reporters", "IDE", "--report-dir", str(reports),
                                   "--report-name", "signal-removal", str(binary)])

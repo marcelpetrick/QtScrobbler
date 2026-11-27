@@ -112,8 +112,8 @@ Replace these instructions with the qualified preset/pipeline commands as they a
   qualifying main CI run is active.
 - On the development host, all provisioned tools live on disk under
   `~/.cache/qs-tools` (they were lost from `/tmp` on reboot before 2026-11-24):
-  Qt `qt/6.12.1/gcc_64`, CMake 4.5.1 `cmake`, zlib `zlib`, LLVM/Mull `native-tools`,
-  call-removal correction `mull-callfix`, `clazy`, `cppcheck`, `aux-tools`, Python
+  Qt `qt/6.12.1/gcc_64`, CMake 4.5.1 `cmake`, zlib `zlib`, LLVM/Mull `native-tools-0.39.1`,
+  call-removal correction `mull-callfix-0.39.1` (0.38.0: `native-tools`, `mull-callfix`), `clazy`, `cppcheck`, `aux-tools`, Python
   `quality-tools`, and the Windows kit `qt-win`. `~/.cache/qs-tools/provision.sh`
   re-creates missing ones following `documents/DEPENDENCIES.md`;
   `~/.cache/qs-tools/env.sh` exports the complete gate environment, including

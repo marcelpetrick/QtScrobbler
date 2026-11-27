@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2026 Marcel Petrick
-"""Install checksum-pinned LLVM 20.1.8/Mull 0.38.0 in an isolated Linux x86-64 prefix.
+"""Install checksum-pinned LLVM 20.1.8/Mull 0.39.1 in an isolated Linux x86-64 prefix.
 
 Usage: python3 tools/install_mutation_toolchain.py --prefix /path/to/native-tools
 Then source /path/to/native-tools/env.sh before a Clang coverage or mutation build.
@@ -35,7 +35,7 @@ DOWNLOAD_HEADERS = {"User-Agent": "qtscrobbler-tool-installer"}
 
 LLVM_VERSION = "20.1.8~++20250804090239+87f0227cb601-1~exp1~20250804210352.139"
 LLVM_BASE = "https://apt.llvm.org/noble/pool/main/l/llvm-toolchain-20/"
-MULL_BASE = "https://github.com/mull-project/mull/releases/download/0.38.0/"
+MULL_BASE = "https://github.com/mull-project/mull/releases/download/0.39.1/"
 LLVM_PACKAGES = {
     "clang-20": "b3478e87705e68850d5cceeeb85ad64fff78ed0cb05a9fe7f0648ccf88c5b1f3",
     "libclang-common-20-dev": "7a945a2c284f50328fcacb34b3f507264d7bbba9fda22354cb1de61959f5265b",
@@ -58,10 +58,10 @@ ARTIFACTS = [
      "c5a065f85c1e6f605741e365e40cad71c3ceb0e85e2791400bd35b8896e12ad1"),
     ("https://archive.ubuntu.com/ubuntu/pool/main/i/icu/libicu74_74.2-1ubuntu3.1_amd64.deb",
      "c9a70989678660eed9a1e904c74fa043da8bec8e2036856fc16e31ced79b04f8"),
-    (MULL_BASE + "Mull-0.38.0-ubuntu-amd64-24.04.deb",
-     "83ebc3c49f173b83dc0d991fff4b3ac8d6a2a7ecf51244d598507f85b04d5a29"),
-    (MULL_BASE + "Mull-20-0.38.0-LLVM-20.1.2-ubuntu-amd64-24.04.deb",
-     "73360881642837c553e2e28a66de792a6189d3609dd7e39b9e6216e6048997d5"),
+    (MULL_BASE + "Mull-0.39.1-ubuntu-amd64-24.04.deb",
+     "5a39de65f8e78b93cc9f15fce7b24583af1dd14d84f5b41baf742cc556149617"),
+    (MULL_BASE + "Mull-20-0.39.1-LLVM-20.1.2-ubuntu-amd64-24.04.deb",
+     "3c581fe5b7beeec89ff42cc97ff1c50d8257edfd43a424cb03750b48b2a7e848"),
 ]
 
 
@@ -168,7 +168,7 @@ def populate(prefix: Path, final_prefix: Path) -> dict:
     environment["LD_LIBRARY_PATH"] = libpath + ":" + environment.get("LD_LIBRARY_PATH", "")
     checks = {}
     for executable, required in [
-        ("usr/bin/clang-20", "20.1.8"), ("usr/bin/mull-runner", "0.38.0"),
+        ("usr/bin/clang-20", "20.1.8"), ("usr/bin/mull-runner", "0.39.1"),
         ("usr/bin/llvm-cov-20", "20.1.8"), ("usr/bin/llvm-profdata-20", "20.1.8"),
     ]:
         output = subprocess.check_output([str(prefix / executable), "--version"],

@@ -158,7 +158,7 @@ def read_candidates(report: Path, *, discovery: bool) -> tuple[dict[str, tuple],
             raise ValueError(f"unsupported inventory schema: {report}")
         versions = {row[0] for row in database.execute(
             "SELECT value FROM information WHERE key = 'Mull Version'")}
-        if versions != {"0.38.0"}:
+        if versions != {"0.39.1"}:
             raise ValueError(f"unsupported inventory Mull version: {report}")
         candidates, killed = {}, set()
         for row in database.execute("SELECT * FROM mutant"):
@@ -293,8 +293,8 @@ def main() -> int:
             raise ValueError("source/test files changed during mutation rebuild")
         version = run([runner, "--version"], environment=environment, timeout=30,
                       log=reports / "mull-version.log")
-        if not version.startswith("mull-runner 0.38.0\n"):
-            raise ValueError("this score reader is qualified for Mull 0.38.0 only")
+        if not version.startswith("mull-runner 0.39.1\n"):
+            raise ValueError("this score reader is qualified for Mull 0.39.1 only")
         tests, non_native = native_tests(ctest, build, environment)
         groups = [
             {"name": test["name"], "executable": test["command"][0],
@@ -329,7 +329,7 @@ def main() -> int:
             "coverage_filter": {
                 "enabled": False,
                 "policy": "every generated candidate retained; no coverage-based skipping; proven assertion kills reused",
-                "reason": "Mull 0.38.0 misclassifies covered LLVM 20 source regions as uncovered",
+                "reason": "Mull 0.38.0 misclassified covered LLVM 20 source regions as uncovered; kept disabled for 0.39.1",
                 "survivor_classification": "survivors include unexercised mutations; separate LLVM evidence required",
             },
             "timeout_policy": {"minimum_mutant_ms": arguments.mutant_timeout_ms,
@@ -354,7 +354,8 @@ def main() -> int:
                 group["binary_sha256"] = sha256(Path(group["executable"]))
                 if group["test_program"]:
                     group["test_program_sha256"] = sha256(Path(group["test_program"]))
-                command = [runner, "--include-not-covered", "--allow-surviving", "--strict",
+                # --no-cache: Mull 0.39 otherwise reuses earlier kills, so every report starts fresh.
+                command = [runner, "--no-cache", "--include-not-covered", "--allow-surviving", "--strict",
                            "--workers", str(arguments.workers),
                            "--timeout", str(arguments.mutant_timeout_ms),
                            "--minimum-timeout", str(arguments.mutant_timeout_ms),

@@ -18,7 +18,7 @@ SPEC.loader.exec_module(installer)
 
 
 class MutationInstallerTest(unittest.TestCase):
-    def native_package(self, root, *, version="20.1.8 0.38.0"):
+    def native_package(self, root, *, version="20.1.8 0.39.1"):
         self.assertIsNotNone(shutil.which("bsdtar"), "native installer contracts require bsdtar")
         self.assertIsNotNone(shutil.which("ar"), "native installer contracts require ar")
         data = root / "data.tar.gz"
@@ -37,7 +37,7 @@ class MutationInstallerTest(unittest.TestCase):
         subprocess.run(["ar", "rc", str(package), str(data)], check=True, capture_output=True)
         return package.read_bytes()
 
-    def install_fixture(self, root, *, version="20.1.8 0.38.0", digest=None):
+    def install_fixture(self, root, *, version="20.1.8 0.39.1", digest=None):
         package = self.native_package(root, version=version)
         artifacts = [("https://fixture.invalid/fixture.deb", digest or hashlib.sha256(package).hexdigest())]
         with mock.patch.object(installer, "ARTIFACTS", artifacts), \
