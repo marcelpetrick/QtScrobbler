@@ -13,7 +13,7 @@ The owner's requested initiative is to:
 - Demonstrate at least 99% line coverage and 95% raw branch coverage separately over
   maintained first-party Linux production code, including CLI, GUI and MTP.
 - Qualify native mutation testing, retain all outcomes and maintain at least 65%
-  assertion kills with the current 77% ratchet and pursue the 80% goal (lowered from 95% by the owner on 2026-11-26); unexplained crashes and timeouts do not count as kills.
+  assertion kills with the 80% ratchet, which enforces the 80% goal (lowered from 95% by the owner on 2026-11-26); unexplained crashes and timeouts do not count as kills.
 - Run the same complete native quality pipeline locally and in GitHub Actions, with
   release packaging and extracted-artifact qualification. Missing checks must fail.
 - Keep setup, usage, architecture, API, dependency and quality documentation current,

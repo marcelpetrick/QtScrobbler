@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <time.h>
+
 #include <QAction>
 #include <QApplication>
 #include <QCheckBox>
@@ -8,6 +10,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHeaderView>
 #include <QIcon>
@@ -318,6 +321,30 @@ class GuiTest : public QObject {
         QCOMPARE(dialog.windowTitle(), "Please wait");
         QCOMPARE(dialog.minimumSize(), dialog.sizeHint());
         QCOMPARE(dialog.maximumSize(), dialog.sizeHint());
+    }
+
+    void helpAndAboutDialogGeometry() {
+        QTScrob window;
+        Help help(&window);
+        QCOMPARE(help.size(), QSize(800, 600));
+        QVERIFY(help.layout());
+        QCOMPARE(help.layout()->contentsMargins(), QMargins());
+
+        About about(&window);
+        QCOMPARE(about.minimumSize(), about.sizeHint());
+        QCOMPARE(about.maximumSize(), about.sizeHint());
+    }
+
+    void mainLayoutCentersTheButtonRow() {
+        QTScrob window;
+        window.setupWindow();
+        auto* layout = qobject_cast<QGridLayout*>(window.QMainWindow::centralWidget()->layout());
+        QVERIFY(layout);
+        QCOMPARE(layout->contentsMargins(), QMargins());
+        QCOMPARE(layout->columnCount(), 7);
+        // Only the outer columns stretch, so the buttons stay together in the middle.
+        for (int column = 0; column < layout->columnCount(); ++column)
+            QCOMPARE(layout->columnStretch(column), (column == 0 || column == 6) ? 1 : 0);
     }
 
     void editingIdentityClearsMusicBrainzId_data() {
@@ -699,6 +726,27 @@ class GuiTest : public QObject {
         QCOMPARE(after.title, before.title);
         QCOMPARE(after.length, before.length);
         QCOMPARE(after.mb_track_id, before.mb_track_id);
+    }
+
+    void timestampEditsIgnoreTheProcessTimeZone() {
+        // The edited text is UTC (or UTC plus the configured offset), never the host's local time.
+        const QByteArray previous = qgetenv("TZ");
+        const auto restore = qScopeGuard([previous] {
+            qputenv("TZ", previous);
+            tzset();
+        });
+        qputenv("TZ", "Asia/Kolkata");
+        tzset();
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        QTScrob window;
+        window.scrob->conf->display_utc = true;
+        window.setupWindow();
+        window.parse(SCROBBLE_LOG, directory.path());
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table);
+        table->item(0, 6)->setText("2026-01-01 00:00:00");
+        QCOMPARE(window.scrob->get_track(0).when, 1767225600);
     }
 
     void rejectedSubmissionLeavesSourceAvailable() {

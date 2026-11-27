@@ -1,3 +1,9 @@
+* version 0.15.10 (2026-11-27)
+- Tests: Help and About dialog geometry, the centered button row of the
+  main window, time edits independent of the process time zone and INFO
+  logs on stdout by default.
+- Mutation testing: the ratchet is raised from 77% to the 80% goal.
+
 * version 0.15.9 (2026-11-27)
 - Tests: exact assertions for the Play Counts size bound, compressed
   databases larger than one inflate buffer, the 30-day age limit, earlier

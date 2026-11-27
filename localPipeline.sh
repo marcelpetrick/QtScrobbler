@@ -28,10 +28,10 @@ RUN_APP=true
 QUICK=false
 BASELINE=false
 FORCE_FULL=false
-# Exact 0.13.85 CI killed 1381/1775 mutants (77.80%). The two complete
-# local gates measured 77.97% and 78.02%. Enforce a 77% ratchet and
-# retain 80% as the goal (owner decision 2026-11-26, was 95%). Coverage requires 99% lines and 95% branches.
-MUTATION_MINIMUM=77
+# The 80% goal (owner decision 2026-11-26, was 95%) is reached: tests proven
+# against their mutants raised the score from 77.93% (0.15.3) past 80%, so
+# the ratchet now enforces the goal. Coverage requires 99% lines and 95% branches.
+MUTATION_MINIMUM=80
 
 # Detail strings
 QT6_DETAILS=""

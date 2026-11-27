@@ -198,6 +198,7 @@ class ScrobbleTest : public QObject {
         QCOMPARE(child.readAllStandardError(), QByteArray());
         // The default print level is INFO, so the constructor's DEBUG logs stay off stdout.
         QVERIFY2(!output.contains("DEBUG:"), output.constData());
+        QVERIFY2(output.contains("\nINFO : Opening log file: "), output.constData());
     }
 
     void emptySubmission() {
@@ -1346,6 +1347,12 @@ int main(int argc, char** argv) {
         if (gmtLog.level != LOG_DEBUG || !gmtMatch.hasMatch()) return 1;
         const auto gmt = gmtMatch.captured(1).toLongLong();
         if (gmt < before || gmt > now.toSecsSinceEpoch()) return 1;
+        // An INFO log reaches stdout at the default print level.
+        QTemporaryDir logDirectory;
+        QFile emptyLog(logDirectory.filePath(".scrobbler.log"));
+        if (!logDirectory.isValid() || !emptyLog.open(QIODevice::WriteOnly)) return 1;
+        emptyLog.close();
+        scrobble.parse(SCROBBLE_LOG, logDirectory.path());
         return correct ? 0 : 1;
     }
     ScrobbleTest tests;

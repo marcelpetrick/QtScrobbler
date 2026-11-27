@@ -1,7 +1,7 @@
 # Native quality checks
 
 Coverage gates are 99% source line and 95% source branch coverage. Mutation testing
-gates on a ratchet (`MUTATION_MINIMUM` in `localPipeline.sh`, currently 77%) above the owner’s 65% absolute floor. The mutation goal is 80% (owner decision 2026-11-26; it was 95%), and measured improvements raise the ratchet. Historical measurements are recorded in [the execution
+gates on a ratchet (`MUTATION_MINIMUM` in `localPipeline.sh`, currently 80%) above the owner’s 65% absolute floor. The mutation goal is 80% (owner decision 2026-11-26; it was 95%), and measured improvements raise the ratchet. Historical measurements are recorded in [the execution
 plan](plan.md); mutation accounting is described in [Mutation testing](MUTATION_TESTING.md).
 
 The local pipeline orchestrates native builds, CTest, coverage, sanitizers and mutation
@@ -73,7 +73,7 @@ QTSCROBBLER_JOBS=4 ./localPipeline.sh --noRun --noOpen --report-dir /path/to/new
 ```
 
 The default gate requires separate 99% raw line and 95% raw branch thresholds and the current
-77% native mutation ratchet, alongside every other mandatory stage. The mutation
+80% native mutation ratchet, alongside every other mandatory stage. The mutation
 goal is 80% proven assertion kills. `--quick` runs the explicit
 build/test subset while implementation proceeds. `--baseline` runs all stages but
 records subthreshold scores as measurements. Neither diagnostic mode establishes

@@ -196,6 +196,34 @@ state); six copies of the lookup-cancellation sequence became
 `Scrobble::cancel_metadata()`. Both change the denominator; the complete
 gate in `~/.cache/qs-gate-0.15.9b` measures the new score (the first run in
 `~/.cache/qs-gate-0.15.9` was stopped to include the GUI tests).
+Result: EXIT=0, every mandatory stage PASS, assertion-killed 1382/1734
+(79.70%); 80% needs 1388.
+
+### Mutation batch 2 (0.15.10)
+
+Proven the same way (each mutant fails its test, the original passes):
+- `help.cpp:26` `resize(800, 600)` and `:35` zero margins, `about.cpp:27`
+  `setFixedSize(sizeHint())` (`helpAndAboutDialogGeometry`).
+- `qtscrob.cpp:133` zero margins, `:134` and `:142` stretch of the outer
+  columns only (`mainLayoutCentersTheButtonRow`).
+- `qtscrob.cpp:517` `dt.setTimeZone(QTimeZone::utc())`: an edited time is
+  UTC even when the process zone is Asia/Kolkata
+  (`timestampEditsIgnoreTheProcessTimeZone`).
+- `libscrobble.cpp:60` `log_print_level = LOG_INFO` to `LOG_ERROR`: the
+  timezone probe child now opens an empty log and its stdout must contain
+  the INFO line (`activeTimezone`).
+Reviewed as equivalent (no test can observe them): `console.cpp:71`
+`read_all_logs()` (the constructor's `setCurrentIndex` already reloads),
+`:44` `setEditable(false)` (the default), `:81` `>` to `>=` (reading an empty
+range), `settings.cpp:62` (an empty hash stays empty, a set hash is
+overwritten with the mask), `:99` (the form already selects tab 0),
+`progress.cpp:57` and `missingtimeprogress.cpp:38` (the layout already has the
+dialog as parent), `parse-log.cpp:54`, `:112` and `:114` (overwritten flag,
+comment header line, empty lines fail the field count), the `close()` calls
+the destructors repeat, and the `cli/app.cpp` option resets
+(`parse_cmd()` runs once per process).
+Expected 1390/1734 (80.16%), so `MUTATION_MINIMUM` is raised to 80 in this
+commit; the complete gate in `~/.cache/qs-gate-0.15.10` enforces it.
 
 ### Completed this session
 

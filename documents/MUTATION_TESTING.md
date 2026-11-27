@@ -1,8 +1,8 @@
 # Native mutation testing
 
 The goal is **80% assertion-killed mutants** (owner decision 2026-11-26; it was 95%), independently of line and branch
-coverage. Until it is reached, the pipeline gates on a ratchet (`MUTATION_MINIMUM` in
-`localPipeline.sh`, currently 77%, above the 65% absolute floor) so the score cannot
+coverage. The pipeline gates on a ratchet (`MUTATION_MINIMUM` in
+`localPipeline.sh`, currently 80%, the goal, above the 65% absolute floor) so the score cannot
 drop; raise it whenever new tests kill more mutants. Releases do not run mutation
 testing; they require a green CI run, which includes it. A small successful compatibility spike is evidence that the tools work;
 it is not a project-wide score. `plan.md` tracks the remaining test and gate work.

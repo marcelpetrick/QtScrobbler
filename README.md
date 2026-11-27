@@ -94,8 +94,8 @@ static analysis, fatal Doxygen/docs checks, isolated ASan/UBSan, LLVM coverage,
 native Mull mutation and extracted-package CLI/GUI checks. Missing tools, failed
 checks and scores below the configured quality thresholds fail the complete gate.
 The qualification requirements are 99% line coverage and 95% branch coverage.
-The native mutation policy sets a 65% floor, with a 77% ratchet enforced
-by `MUTATION_MINIMUM` in `localPipeline.sh`. The mutation goal is 80%.
+The native mutation policy sets a 65% floor; `MUTATION_MINIMUM` in
+`localPipeline.sh` enforces the 80% mutation goal as its ratchet.
 Retained reports include actual statuses and tool versions.
 
 `--quick` explicitly runs only the build/test diagnostic subset. `--baseline` runs
