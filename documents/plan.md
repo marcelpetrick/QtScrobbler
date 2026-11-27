@@ -170,6 +170,33 @@ Expected effort: two or three batches, about one working day.
 - Final completion review (`reviewBranch`, `githubAbout`; applying the About
   text needs the owner's approval).
 
+### Mutation batch 1 (0.15.9)
+
+Each targeted mutant was applied by hand to the source, rebuilt and run
+against its suite (`~/.cache/qs-mut/prove.sh`); the original passes.
+Killed by the new assertions:
+- `parse-ipod.cpp:329` `mul_to_div` and `sub_to_add` (Play Counts header
+  claiming more songs than the file holds).
+- `libscrobble.cpp:302` `init_const` (30-day limit), `:393` and `:394` (earlier
+  errors logged by `submit()`), `:59` `assign_const` (default stdout level).
+- `submit.cpp:134` and `:145` (remove, nz, zr each), `:217`, `:262`
+  (exact submission, time and handshake-error logs).
+- `qtscrob.cpp:358` and the seven `setItem` calls of `loadtable()` (each
+  cell is asserted to exist before its text is compared, so a missing cell
+  fails an assertion instead of crashing), `:485` and `:490` `assign_const`
+  (edits drop the MusicBrainz id).
+- `missingtimeprogress.cpp:26`, `:27`, `:43` (fixed widths and size);
+  `:42 setWindowFlags(Qt::Dialog)` is equivalent (QDialog's default).
+Not killable by assertions: `parse-ipod.cpp:108` `eq_to_ne` makes the
+inflate loop spin (timeout only); `--metadata_generation` in the new
+`cancel_metadata()` is equivalent (any change invalidates the generation).
+Refactors: removed the write-only `Scrobble::scrobble_method`, `have_mb` and
+`Submit::submit_context::have_mb` (6 survivors were mutations of dead
+state); six copies of the lookup-cancellation sequence became
+`Scrobble::cancel_metadata()`. Both change the denominator; the complete
+gate in `~/.cache/qs-gate-0.15.9b` measures the new score (the first run in
+`~/.cache/qs-gate-0.15.9` was stopped to include the GUI tests).
+
 ### Completed this session
 
 - `0.15.6` test(windows): port the six unported Qt Test suites and gate the

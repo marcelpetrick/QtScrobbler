@@ -45,8 +45,6 @@ class Scrobble : public QObject {
     QMutex* mutex;
 
     QString error_str;
-    bool have_mb;
-    SCROBBLE_METHOD scrobble_method;
 
     QList<scrob_entry> entries;
     QList<log_entry> log_messages;
@@ -60,6 +58,8 @@ class Scrobble : public QObject {
     GetTrackInfo* api_info;
     QList<int> zero_length_tracks;
     quint64 metadata_generation = 0;
+    // Invalidate pending and queued track-length lookups.
+    void cancel_metadata();
     void remove_sent();
     void clear_submission_state(bool);
 

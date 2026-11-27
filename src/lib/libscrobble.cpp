@@ -34,16 +34,19 @@
 #pragma warning(disable : 4996)
 #endif
 
+void Scrobble::cancel_metadata() {
+    ++metadata_generation;
+    api_info->cancel_pending();
+    zero_length_tracks.clear();
+}
+
 void Scrobble::clear_method() {
-    scrobble_method = SCROBBLE_NONE;
     if (entries.isEmpty()) {
         delete retry_parser;
         retry_parser = nullptr;
     }
     if (entries.isEmpty() && parser != nullptr) {
-        ++metadata_generation;
-        api_info->cancel_pending();
-        zero_length_tracks.clear();
+        cancel_metadata();
         delete parser;
         parser = nullptr;
     }
@@ -54,8 +57,6 @@ uint Scrobble::get_gmt() { return QDateTime::currentDateTime().toSecsSinceEpoch(
 Scrobble::Scrobble() {
     parser = nullptr;
     num_submissions = 0;
-    have_mb = false;
-    scrobble_method = SCROBBLE_NONE;
     log_print_level = LOG_INFO;
     proxy_set = false;
     mutex = new QMutex();
@@ -195,9 +196,7 @@ void Scrobble::check_timestamps() {
 
 void Scrobble::check_track_lengths() {
     const bool was_pending = !zero_length_tracks.isEmpty();
-    ++metadata_generation;
-    api_info->cancel_pending();
-    zero_length_tracks.clear();
+    cancel_metadata();
     for (int i = 0; i < entries.length(); i++) {
         const int len = entries.at(i).length;
         if (0 == len) {
@@ -335,7 +334,6 @@ bool Scrobble::submit() {
     Submit::submit_context conn;
 
     conn.entries = &entries;
-    conn.have_mb = have_mb;
 
     submissions.clear();
     num_submissions = 0;
@@ -432,10 +430,7 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path) {
 
     delete retry_parser;
     retry_parser = nullptr;
-    scrobble_method = SCROBBLE_NONE;
-    ++metadata_generation;
-    api_info->cancel_pending();
-    zero_length_tracks.clear();
+    cancel_metadata();
     entries.clear();
     switch (method) {
         case SCROBBLE_LOG:
@@ -455,7 +450,6 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path) {
             return false;
             break;
     }
-    scrobble_method = method;
 
     connect(parser, &Parse::add_log, this, &Scrobble::add_log);
     connect(parser, &Parse::entry, this, &Scrobble::add_entry);
@@ -469,9 +463,7 @@ bool Scrobble::parse(SCROBBLE_METHOD method, QString path) {
 
 void Scrobble::parse_open(QString path, int offset) {
     if (parser != nullptr) {
-        ++metadata_generation;
-        api_info->cancel_pending();
-        zero_length_tracks.clear();
+        cancel_metadata();
         entries.clear();
         parser->open(path, offset);
     }
@@ -500,9 +492,7 @@ void Scrobble::parser_open_finished(bool success, QString msg) {
 }
 
 void Scrobble::parser_clear() {
-    ++metadata_generation;
-    api_info->cancel_pending();
-    zero_length_tracks.clear();
+    cancel_metadata();
     if (parser != NULL)
         parser->clear();
     else
@@ -542,9 +532,7 @@ void Scrobble::set_proxy() {
 }
 
 void Scrobble::cancel_submission() {
-    ++metadata_generation;
-    api_info->cancel_pending();
-    zero_length_tracks.clear();
+    cancel_metadata();
     QHashIterator<int, Submit*> i(submissions);
     while (i.hasNext()) {
         i.next();

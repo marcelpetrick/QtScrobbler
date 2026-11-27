@@ -193,8 +193,11 @@ class ScrobbleTest : public QObject {
         QVERIFY(child.waitForStarted(1000));
         QVERIFY(child.waitForFinished(3000));
         QCOMPARE(child.exitStatus(), QProcess::NormalExit);
-        QVERIFY2(child.exitCode() == 0, child.readAllStandardOutput().constData());
+        const QByteArray output = child.readAllStandardOutput();
+        QVERIFY2(child.exitCode() == 0, output.constData());
         QCOMPARE(child.readAllStandardError(), QByteArray());
+        // The default print level is INFO, so the constructor's DEBUG logs stay off stdout.
+        QVERIFY2(!output.contains("DEBUG:"), output.constData());
     }
 
     void emptySubmission() {
@@ -736,6 +739,45 @@ class ScrobbleTest : public QObject {
         scrobble.cancel_submission();  // Repeated cancellation is harmless.
         QCOMPARE(finished.count(), 2);
         QCOMPARE(scrobble.get_num_tracks(), 1);
+    }
+
+    void ageLimitIsThirtyDays() {
+        Scrobble scrobble;
+        QTemporaryDir directory;
+        const int now = static_cast<int>(scrobble.get_gmt());
+        const int day = 24 * 60 * 60;
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Recent", 180, now - 29 * day}}));
+        scrobble.clear_log();
+        QVERIFY(!scrobble.check_age());
+        QCOMPARE(scrobble.get_num_logs(), 0);
+        Scrobble older;
+        QTemporaryDir olderDirectory;
+        QVERIFY(loadTracks(older, olderDirectory.path(), {{"Artist", "Older", 180, now - 31 * day}}));
+        older.clear_log();
+        QVERIFY(older.check_age());
+        QCOMPARE(older.get_num_logs(), 1);
+        QCOMPARE(older.get_log(0).msg, "Track too old: Artist Older");
+    }
+
+    void submissionReportsEarlierErrors() {
+        LocalService service;
+        QVERIFY(service.listen());
+        Scrobble scrobble;
+        service.configure(scrobble);
+        scrobble.parser_clear();  // Records an error before the import.
+        QCOMPARE(scrobble.get_error_str(), "Parser: asked to clear without a live object");
+        QTemporaryDir directory;
+        const int recent = static_cast<int>(scrobble.get_gmt()) - 60;
+        QVERIFY(loadTracks(scrobble, directory.path(), {{"Artist", "Sent", 180, recent}}));
+        scrobble.clear_log();
+        QSignalSpy finished(&scrobble, &Scrobble::submission_finished);
+        QVERIFY(scrobble.submit());
+        QStringList messages;
+        for (int i = 0; i < scrobble.get_num_logs(); ++i) messages.append(scrobble.get_log(i).msg);
+        QVERIFY2(messages.contains("Scrobble::submit() but with the following errors:"
+                                   "Parser: asked to clear without a live object"),
+                 qPrintable(messages.join('\n')));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2000);
     }
 
     void thirtySecondTracksSubmitWhileShortAndSkippedTracksAreFiltered() {

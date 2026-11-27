@@ -42,7 +42,6 @@ class Submit : public QObject {
         QString password_hash;
         QString host;
         QList<scrob_entry>* entries;
-        bool have_mb;
         int site_index;
         QMutex* mutex;  // lock used for the entries list
     };

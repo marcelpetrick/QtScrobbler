@@ -30,7 +30,7 @@ class SubmitTest : public QObject {
     }
 
     static Submit::submit_context context(HttpFixture& server, QList<scrob_entry>& entries, QMutex& mutex) {
-        return {"Test", "user & name +/é", "fictional-hash", server.host(), &entries, true, 0, &mutex};
+        return {"Test", "user & name +/é", "fictional-hash", server.host(), &entries, 0, &mutex};
     }
 
    private slots:
@@ -56,6 +56,9 @@ class SubmitTest : public QObject {
         QVERIFY(submit.init(context(server, entries, mutex)));
         QSignalSpy finished(&submit, &Submit::finished);
         QSignalSpy progress(&submit, &Submit::progress);
+        QList<QPair<LOG_LEVEL, QString>> logs;
+        connect(&submit, &Submit::add_log, this,
+                [&](LOG_LEVEL level, const QString& message) { logs.append({level, message}); });
         submit.do_submit();
         QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 3000);
         QCOMPARE(finished.first().at(0).toBool(), true);
@@ -83,6 +86,15 @@ class SubmitTest : public QObject {
                 QCOMPARE(form.queryItemValue("i" + key), QString::number(entry.when));
             }
             QVERIFY(!form.hasQueryItem(QString("t[%1]").arg(inBatch)));
+        }
+        QCOMPARE(logs.size(), 1 + 2 * progress.size());
+        QCOMPARE(logs[0].first, LOG_DEBUG);
+        QVERIFY2(QRegularExpression(R"(^Last\.fm: Time: \d+$)").match(logs[0].second).hasMatch(),
+                 qPrintable(logs[0].second));
+        for (int batch = 0; batch < progress.size(); ++batch) {
+            const QString inBatch = QString::number(qMin(50, count - batch * 50));
+            QCOMPARE(logs[1 + 2 * batch], qMakePair(LOG_INFO, "entry_index: " + inBatch));
+            QCOMPARE(logs[2 + 2 * batch], qMakePair(LOG_INFO, "Last.fm: Submitting " + inBatch + " entries"));
         }
         for (const auto& entry : entries) {
             QCOMPARE(entry.sent[0], SENT_SUCCESS);
@@ -155,8 +167,12 @@ class SubmitTest : public QObject {
         Submit submit(0);
         QVERIFY(submit.init(context(server, entries, mutex)));
         QSignalSpy failure(&submit, &Submit::signalHandshakeFailure);
+        QList<QPair<LOG_LEVEL, QString>> logs;
+        connect(&submit, &Submit::add_log, this,
+                [&](LOG_LEVEL level, const QString& message) { logs.append({level, message}); });
         submit.do_submit();
         QTRY_COMPARE_WITH_TIMEOUT(failure.count(), 1, 1000);
+        QCOMPARE(logs.last(), qMakePair(LOG_ERROR, failure.first().at(0).toString()));
         QVERIFY2(failure.first().at(0).toString().contains(message), qPrintable(failure.first().at(0).toString()));
         QCOMPARE(server.requests.size(), 1);
         QCOMPARE(entries[0].sent[0], SENT_UNSENT);

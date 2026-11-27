@@ -201,6 +201,31 @@ class ParseIpodTest : public QObject {
         QCOMPARE(replacement.readAll(), replacementCounts);
     }
 
+    void compressedDatabaseLargerThanOneInflateBuffer() {
+        // The decoder works in 64 KiB chunks; this body needs several of them.
+        QList<QByteArray> tracks;
+        QList<quint32> counts;
+        for (int index = 0; index < 800; ++index) {
+            tracks.append(track("Artist " + QString::number(index), "Title " + QString::number(index)));
+            counts.append(1);
+        }
+        const QByteArray body = payload(tracks);
+        QVERIFY(body.size() > 2 * 64 * 1024);
+        QTemporaryDir directory;
+        QVERIFY(writeFixture(directory.path(), database(body, true, 0), playCounts(counts), true));
+        Parse_Ipod parser;
+        QList<scrob_entry> entries;
+        connect(&parser, &Parse::entry, this, [&](scrob_entry item) { entries.append(item); });
+        QSignalSpy completed(&parser, &Parse::open_finished);
+        parser.open(directory.path(), 0);
+        QCOMPARE(completed.size(), 1);
+        QCOMPARE(completed.first().at(1).toString(), "Successfully parsed iTunesDB");
+        QCOMPARE(entries.size(), 800);
+        QCOMPARE(entries.first().artist, "Artist 0");
+        QCOMPARE(entries.last().artist, "Artist 799");
+        QCOMPARE(entries.last().title, "Title 799");
+    }
+
     void skipUnplayedOrIncompleteTracks() {
         QTemporaryDir directory;
         const auto body = payload({track(), track("", "No Artist"), track("Artist", ""), track()});
@@ -445,6 +470,11 @@ class ParseIpodTest : public QObject {
         QByteArray counts = goodCounts;
         set32(counts, 12, 0xffffffff);
         addCounts("negative-song-count", counts);
+        // The header claims two records but the file holds one: the size bound rejects it
+        // before the song count is compared with the database.
+        counts = goodCounts;
+        set32(counts, 12, 2);
+        addCounts("song-count-exceeds-file", counts);
         QTest::newRow("excessive-play-count")
             << goodDb << playCounts({1000001}) << false << QString("excessive iPod play count");
         QTest::newRow("excessive-total-play-count")

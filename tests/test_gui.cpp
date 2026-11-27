@@ -30,6 +30,7 @@
 #include "console.h"
 #include "help.h"
 #include "http_fixture.h"
+#include "missingtimeprogress.h"
 #include "progress.h"
 #include "qtscrob.h"
 #include "settings.h"
@@ -305,6 +306,77 @@ class GuiTest : public QObject {
         QCOMPARE(reopened.size(), size);
         QCOMPARE(reopened.pos(), position);
         QVERIFY(!reopened.scrob->conf->auto_open);
+    }
+
+    void missingTimeProgressHasFixedGeometry() {
+        MissingTimeProgress dialog(4);
+        auto* bar = dialog.findChild<QProgressBar*>();
+        QVERIFY(bar);
+        QCOMPARE(bar->maximum(), 4);
+        QCOMPARE(bar->minimumWidth(), 200);
+        QCOMPARE(bar->maximumWidth(), 200);
+        QCOMPARE(dialog.windowTitle(), "Please wait");
+        QCOMPARE(dialog.minimumSize(), dialog.sizeHint());
+        QCOMPARE(dialog.maximumSize(), dialog.sizeHint());
+    }
+
+    void editingIdentityClearsMusicBrainzId_data() {
+        QTest::addColumn<int>("column");
+        QTest::addColumn<QString>("text");
+        QTest::addColumn<bool>("clears");
+        QTest::newRow("artist") << 0 << "Edited artist" << true;
+        QTest::newRow("album") << 1 << "Edited album" << true;
+        QTest::newRow("title") << 2 << "Edited title" << true;
+        QTest::newRow("track-number") << 3 << "9" << false;
+    }
+
+    void editingIdentityClearsMusicBrainzId() {
+        QFETCH(int, column);
+        QFETCH(QString, text);
+        QFETCH(bool, clears);
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        QTScrob window;
+        window.setupWindow();
+        window.parse(SCROBBLE_LOG, directory.path());
+        auto track = window.scrob->get_track(0);
+        track.mb_track_id = "00000000-0000-0000-0000-000000000001";
+        window.scrob->update_track(track, 0);
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table && table->item(0, column));
+        table->item(0, column)->setText(text);
+        QCOMPARE(window.scrob->get_track(0).mb_track_id,
+                 clears ? QString() : QString("00000000-0000-0000-0000-000000000001"));
+    }
+
+    void loadedTableShowsEveryTrackField() {
+        QTemporaryDir directory;
+        QVERIFY(fixture(directory));
+        QTScrob window;
+        window.scrob->conf->display_utc = true;
+        window.setupWindow();
+        window.parse(SCROBBLE_LOG, directory.path());
+        auto* table = window.findChild<QTableWidget*>();
+        QVERIFY(table);
+        QCOMPARE(window.scrob->get_num_tracks(), 3);
+        QCOMPARE(table->rowCount(), 3);
+        QCOMPARE(table->columnCount(), 7);
+        for (int row = 0; row < table->rowCount(); ++row) {
+            const auto track = window.scrob->get_track(row);
+            const QStringList expected{
+                track.artist,
+                track.album,
+                track.title,
+                QString::number(track.tracknum),
+                QString::number(track.length),
+                QString(track.played),
+                QDateTime::fromSecsSinceEpoch(track.when, QTimeZone::utc()).toString("yyyy-MM-dd hh:mm:ss")};
+            for (int column = 0; column < expected.size(); ++column) {
+                const auto* item = table->item(row, column);
+                QVERIFY2(item, qPrintable(QString("missing cell %1,%2").arg(row).arg(column)));
+                QCOMPARE(item->text(), expected[column]);
+            }
+        }
     }
 
     void settingsPositiveTimezoneAndRecalculation() {

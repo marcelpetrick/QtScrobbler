@@ -1,3 +1,13 @@
+* version 0.15.9 (2026-11-27)
+- Tests: exact assertions for the Play Counts size bound, compressed
+  databases larger than one inflate buffer, the 30-day age limit, earlier
+  errors reported by a submission, the default stdout log level and the
+  submission/handshake log messages; the GUI table shows every field of
+  every imported track, editing artist, album or title drops the
+  MusicBrainz id, and the track-length progress dialog has a fixed size.
+- Library: remove the never-read scrobble method and MusicBrainz flags and
+  share one helper for cancelling pending track-length lookups.
+
 * version 0.15.8 (2026-11-26)
 - Plan: record the handoff and the step-by-step plan to the 80% mutation goal.
 
