@@ -3,11 +3,55 @@
 P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
 is green and v0.15.13 is the latest release. The 80% mutation goal is met
 (1390/1734, 80.16%, Mull 0.39.1) and enforced. The owner's live test scrobble
-and the final completion review remain open. Updated 2026-11-27.
+and the final completion review remain open. Updated 2026-11-28; see "Remaining work" below.
 
 This is the living execution record. Every implementation commit must update this file with
 what changed, evidence, remaining work, and blockers. Use small atomic commits. The first
 commit contained only this plan and `AGENTS.md`; implementation has started.
+
+## Remaining work — 2026-11-28 (resume here)
+
+State: `main` at 0.15.15 equals `origin/main`; CI is green through 0.15.14
+(46089541735). v0.15.13 is the latest release, verified. No open issues or
+PRs. Complete gate: 99.02% lines, 96.64% branches, 1390/1734 (80.16%)
+assertion-killed with Mull 0.39.1, ratchet 80%. Every dependency is at its
+latest stable release (2026-11-27 review).
+
+Needs the owner:
+1. Live Last.fm test scrobble (vision acceptance): with real credentials in
+   the GUI settings, open a small log with a few recent plays, submit, and
+   confirm the tracks on the Last.fm profile. Record the date, client
+   version and outcome here. Never automate it or store the credentials.
+
+Recommended next work (no owner input needed):
+2. Windows `gui` timeout: Release run 46041421879 hit the 20 s CTest limit
+   once without output (CI and the rerun passed). If it recurs, run
+   `test_gui -v2` on the runner to name the hanging function, then fix
+   or bound the wait in that test.
+3. Mutation above 80%: 344 unresolved mutants in
+   `~/.cache/qs-gate-0.15.11/reports/mutation/summary.json` (qtscrob.cpp
+   91, libscrobble.cpp 54, parse-ipod.cpp 47, submit.cpp 24,
+   parse-mtp-libmtp.cpp 21, cli/app.cpp 18, gettrackinfo.cpp 13, conf.cpp
+   13, console.cpp 12, qt/main.cpp 12). The cheap kills in small files are
+   used up; most of what is left is equivalent `close()`/`sync()` and
+   initial-value mutants. Use the batch method from 0.15.9/0.15.10 (prove
+   each kill, list equivalents with reasons). Raise `MUTATION_MINIMUM` only
+   to a measured integer floor.
+4. AppImage: it dumps core under `QT_QPA_PLATFORM=offscreen` (v0.15.4 too)
+   because only xcb/wayland are bundled. Bundle `libqoffscreen.so` with
+   `EXTRA_PLATFORM_PLUGINS` if headless smoke tests of the AppImage are
+   wanted; normal desktop sessions are unaffected.
+5. Recurring: review Dependabot PRs and upstream releases (Qt 6.12.x/6.13,
+   Mull, LLVM 20 line, Actions SHAs) with `updateDependencies`; run the
+   complete gate before each release, and release only CI-green commits.
+
+Local host housekeeping (not repository work):
+- `~/.cache/qs-gate-*` holds 23 gate directories (35 GB). Keep the newest
+  complete gate (`qs-gate-0.15.11`) as evidence; the rest can go.
+- `~/.cache/qs-tools/native-tools` and `mull-callfix` are the Mull 0.38.0
+  prefixes (`env-0.38.0.sh`, 675 MB); `env.sh` selects 0.39.1.
+- `/tmp` is a 16 GB tmpfs that other projects keep nearly full; gates must
+  keep using on-disk run directories.
 
 ## Session handoff — 2026-11-24
 
@@ -164,10 +208,10 @@ Expected effort: two or three batches, about one working day.
 
 ### Other open items
 
-- Mull 0.39.1: approved by the owner on 2026-11-27, see 0.15.11.
-- Owner's live Last.fm test scrobble: needs the owner and real credentials.
-- Final completion review (`reviewBranch`, `githubAbout`; applying the About
-  text needs the owner's approval).
+- Mull 0.39.1: approved by the owner on 2026-11-27, done in 0.15.11.
+- Owner's live Last.fm test scrobble: still open, see "Remaining work".
+- Final completion review: `reviewBranch` done (0.15.13), `githubAbout`
+  applied with the owner's approval (2026-11-27).
 
 ### Mutation batch 1 (0.15.9)
 
