@@ -1,3 +1,6 @@
+* version 0.15.14 (2026-11-28)
+- Plan: record the published v0.15.13 release.
+
 * version 0.15.13 (2026-11-27)
 - Tests: the time-zone test restores an unset TZ as unset instead of as an
   empty value (which means UTC).

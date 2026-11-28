@@ -1,7 +1,7 @@
 # Qt 6.12 and quality improvement plan
 
 P0 and the broad behavior suites are implemented. C++23 is qualified, main CI
-is green and v0.15.10 is the latest release. The 80% mutation goal is met
+is green and v0.15.13 is the latest release. The 80% mutation goal is met
 (1390/1734, 80.16%, Mull 0.39.1) and enforced. The owner's live test scrobble
 and the final completion review remain open. Updated 2026-11-27.
 
@@ -285,6 +285,17 @@ guard restored an unset TZ as `TZ=""` (UTC) for later tests outside CTest.
 - `0.15.13` test(gui): restore an unset TZ with `qunsetenv`; the test still
   kills `qtscrob.cpp:517` (re-proven). Gate: `--quick` on this exact tree in
   `~/.cache/qs-gate-0.15.13`.
+
+Main CI 46070938586 (0.15.12) and 46079592027 (0.15.13) passed. Tag
+`v0.15.13` on `51836fc` ran Release 46088538330 (success, first attempt),
+which published https://github.com/marcelpetrick/QtScrobbler/releases/tag/v0.15.13
+as the latest release: AppImage, tar.gz, Windows ZIP and three `.sha256`.
+The downloaded copies (`~/.cache/qs-release-0.15.13`) pass `sha256sum -c`;
+the AppImage prints `QTScrob (v0.15.13)` in the Wayland session, the tarball
+holds `qtscrob` and `scrobbler`, the ZIP both executables and `qwindows.dll`.
+Remaining: only the owner's live Last.fm test scrobble (real credentials).
+- `0.15.14` docs: record this release. Gate: `--quick` on this exact tree in
+  `~/.cache/qs-gate-0.15.14`.
 
 ### Completed this session
 
